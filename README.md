@@ -6,28 +6,47 @@ ggemm computes, for a group of G independent problems with different shapes,
 
 in FP64 (column-major, no transpose in v1). The emulation path uses INT8 Tensor
 Cores with the Ozaki scheme II (CRT) and fuses the whole group into a fixed number
-of kernel launches. Target GPU: RTX 5090 (sm_120, weak FP64); development GPU:
-H100/H200 (sm_90). Implementation is original code; GEMMul8 and the papers were
-only read for the algorithm (see docs/report.md, AI / external code section).
+of kernel launches. Every output entry is certified against a componentwise FP64 error
+bound; entries that fail the certificate (or touch NaN/Inf) are recomputed in FP64
+inside the reconstruct kernel. Implementation is original code; GEMMul8 and the papers
+were only read for the algorithm (see docs/report.md, AI / external code section).
+
+Platform: development and all measurements run on nano4 (Taiwan National Center for
+High-performance Computing, NCHC), whose GPUs are **H200 (sm_90)**. This is not an RTX 5090
+machine. The build still compiles for sm_90 and sm_120 so the same code can target
+consumer Blackwell (weak FP64), but sm_120 is not what the SLURM jobs run on.
 
 ## Setup
 
-Requirements: CUDA 13.0 toolkit, CMake, a C++17 compiler, cuBLAS.
+Requirements: CUDA 13.0 toolkit, CMake >= 3.24, a C++17 compiler, cuBLAS / cuBLASLt.
 
 ```bash
-export CUDA_HOME=/usr/local/cuda-13.0
-cmake -S . -B build \
-  -DCMAKE_CUDA_COMPILER=$CUDA_HOME/bin/nvcc \
-  -DCMAKE_CUDA_ARCHITECTURES="90;120"
-cmake --build build -j
+# login node: compile only, never run GPU programs
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release     # defaults: CUDA 13.0 nvcc, archs 90;120
+cmake --build build -j 12
+# or without CMake (nvcc directly, what the SLURM scripts use):
+scripts/build.sh                                   # ARCHS="90 120" BUILD_DIR=build TARGETS="..."
 ```
 
-Equivalent nvcc flags: `-gencode arch=compute_90,code=sm_90 -gencode arch=compute_120,code=sm_120`.
-Note: the build system lives in CMakeLists.txt (maintained by agent-P); flag names above
-follow standard CMake and may be adjusted there (TODO: confirm once CMakeLists.txt lands).
+CMake builds the static library `ggemm` and one executable per `tests/test_*.cu` and
+`bench/bench_*.cu`. Compile-time option: `-DGGEMM_NVTX=0` removes the NVTX ranges
+(default 1, header-only nvtx3, used by nsys attribution; see Profiling).
 
-Do not run GPU programs on login nodes. Use the SLURM scripts in `scripts/`
-(account GOV114009, partition dev, `--gpus-per-node=1`).
+## Platform notes (nano4)
+
+- SLURM: account GOV114009, partition dev, `--gpus-per-node=1`, at most 12 CPUs per GPU.
+- Do not run any GPU program on a login node; use the `.slurm` scripts.
+- Known-bad nodes are excluded in every script with
+  `#SBATCH --exclude=25a-hgpn001,25a-hgpn003,25a-hgpn085` (GPU passes NVML but CUDA
+  init fails). Keep this list when writing new job scripts.
+- `scripts/env.sh` provides `cuda_preflight` (compiles and runs `scripts/cuda_preflight.cu`:
+  device count, context, trivial kernel). On failure it prints host and `nvidia-smi` and exits
+  75, so a bad node shows up as FAILED instead of an empty COMPLETED job. Every job script
+  calls it right after sourcing env.sh. If a new bad node appears, add it to the exclude list.
+- `scripts/env.sh` also sets `CUDA_MODULE_LOADING=EAGER`, writes provenance (git hash, host,
+  GPU) next to results, and `select_calib` picks the cost-model calibration (below).
+- `scripts/run_nano4.sh` is an older RTX 5090 template with TODO placeholders; it is stale.
+  Use the `.slurm` scripts.
 
 ## API
 
@@ -51,8 +70,7 @@ ggemm_config_t cfg = { /*num_moduli*/ 0,          // 0 = adaptive per problem
                        /*allow_fallback*/ 1 };
 ggemm_stats_t st;
 int rc = ggemm_grouped_dgemm(h, GGEMM_PATH_AUTO, &cfg, probs, G, &st);
-if (rc != 0) { /* workspace too small or invalid args; no hidden allocation */ }
-// st.num_fallback, st.kernel_launches, st.moduli_min/max
+if (rc != 0) { /* GGEMM_ERR_* code, see below; no hidden allocation */ }
 ggemm_destroy(h);
 ```
 
@@ -61,50 +79,143 @@ Config: `num_moduli` = 0 for adaptive N per problem, otherwise fixed N in
 (default 1e-15). `allow_fallback = 1` routes unsafe or unprofitable problems to native FP64
 and reports the count in `stats.num_fallback`.
 
-## The five paths (`ggemm_path_t`)
+Stats (`ggemm_stats_t`): `num_problems`, `num_fallback`, `kernel_launches`,
+`moduli_min/max`, and the operand-reuse fields `reuse_enabled`, `num_unique_A`,
+`num_unique_B`, `num_promoted`, plus `num_repaired` (see Repair mode).
 
-| Path | What it does | Role |
-|---|---|---|
-| `GGEMM_PATH_NATIVE_LOOP` | `cublasDgemm` once per problem | native FP64 baseline |
-| `GGEMM_PATH_NATIVE_GROUPED` | `cublasDgemmGroupedBatched` | native FP64 grouped baseline |
-| `GGEMM_PATH_EMU_LOOP` | single-GEMM INT8 Ozaki-II emulation called per problem (O(G*N) launches) | starter-like baseline, isolates the launch-merging gain |
-| `GGEMM_PATH_EMU_GROUPED` | fused pipeline: prep -> persistent grouped INT8 GEMM -> reconstruct (fixed 3 kernels, one descriptor H2D) | ours |
-| `GGEMM_PATH_AUTO` | EMU_GROUPED plus planner: per-problem moduli count N, per-problem tile config (128x128 / 64x64 / 32x32), LPT tile scheduling, fallback to native FP64 | ours (default) |
+Error codes (internal, `GGEMM_ERR_*`, returned as nonzero ints): INVALID (bad args, null handle,
+`num_problems > max_problems`), WORKSPACE (call exceeds what `ggemm_create` sized), UNSAFE
+(K too large for emulation and `allow_fallback == 0`), CUDA, CUBLAS, NUMERICS (oz2_*
+failed), I8GEMM (INT8 grouped GEMM failed), ALLOC (only from create).
+
+### Plan / execute (CUDA Graph)
+
+Header: `src/ggemm_graph.h` (needs `-I src`, not part of the public `include/` yet).
+For repeated calls with identical shapes, planning, the descriptor H2D and launch overhead
+are paid once:
+
+```c
+ggemm_plan_t plan = ggemm_make_plan(h, GGEMM_PATH_AUTO, &cfg, probs, G);  // or _ex(..., &err)
+ggemm_execute_plan(plan, stream);                  // cudaGraphLaunch only
+ggemm_plan_update_pointers(plan, A_ptrs, B_ptrs, C_ptrs);  // same shapes, new device pointers
+ggemm_plan_get_stats(plan, &st);
+ggemm_destroy_plan(plan);                          // BEFORE ggemm_destroy(h)
+```
+
+- `ggemm_make_plan` allocates plan-owned memory and synchronizes: call it outside timed regions.
+  It captures the launch sequence into an instantiated graph.
+- Only `GGEMM_PATH_EMU_GROUPED` and `GGEMM_PATH_AUTO` can be planned (other paths return NULL).
+- A graph does **not** do operand reuse: prep runs once per problem even if A or B is shared.
+- Shapes, leading dimensions, alpha and beta are frozen in the plan; only the A/B/C pointers
+  can change (`ggemm_plan_update_pointers`, any of the three arrays may be NULL = keep).
+- A plan must be destroyed before its handle. Plans and handles are not thread-safe.
+- All users of one handle (plain calls, any plan, any stream) are ordered into one total
+  order on the handle's stream, because residue/INT32 scratch is shared.
+
+## The seven paths (`ggemm_path_t`, values 0 to 6)
+
+| # | Path | What it does | Role in the ablation |
+|---|---|---|---|
+| 0 | `GGEMM_PATH_NATIVE_LOOP` | `cublasDgemm` once per problem | native FP64 baseline |
+| 1 | `GGEMM_PATH_NATIVE_GROUPED` | `cublasDgemmGroupedBatched` | native FP64 grouped baseline |
+| 2 | `GGEMM_PATH_EMU_LOOP` | single-GEMM INT8 Ozaki-II emulation called per problem; the INT8 GEMM is issued once per modulus plane (O(G*N) launches) | naive lower bound of emulation (no batching of any kind) |
+| 3 | `GGEMM_PATH_EMU_GROUPED` | fused pipeline: prep -> persistent grouped INT8 GEMM -> reconstruct (fixed 3 kernels, one descriptor H2D) | ours: isolates the launch-merging / grouping gain |
+| 4 | `GGEMM_PATH_AUTO` | EMU_GROUPED plus planner: per-problem moduli count N, per-problem tile config (128x128 / 64x64 / 32x32), LPT tile scheduling, fallback to native FP64 for unsafe or unprofitable problems. **Operand reuse is off.** | ours (default); isolates the planner gain |
+| 5 | `GGEMM_PATH_EMU_GROUPED_REUSE` | EMU_GROUPED plus operand reuse: prep runs once per unique A and once per unique B in the group | ours: isolates the operand-reuse gain |
+| 6 | `GGEMM_PATH_EMU_LOOP_BATCHED` | GEMMul8-style strided-batched emulation: per problem 3 launches (prep, ONE INT8 GEMM over all its planes, reconstruct) | main starter-like baseline (what a per-problem GEMMul8 call loop does) |
+
+Reading the ablation: 2 -> 6 shows what batching planes inside one problem buys; 6 -> 3 shows
+what merging across problems buys; 3 -> 4 adds the planner; 3 -> 5 adds operand reuse.
+Paths 2 and 6 use the same planner decisions as the per-problem loop (they plan like EMU_LOOP).
+
+## Environment variables
+
+Read at `ggemm_create` (planner / handle) unless noted.
+
+| Variable | Meaning |
+|---|---|
+| `GGEMM_CALIB_JSON` | path to a calibration JSON (`f64_peak_flops`, `i8_peak_ops`, `mem_bw_*` scalars, written by `bench/calib/fit.py`). If unset, the planner loads `bench/calib/params_<gpu_slug>.json` (slug = non-alphanumeric runs to `_`, lower-case, e.g. `nvidia_h200`); if that is missing, nominal built-in defaults. `scripts/env.sh: select_calib` logs the choice into `<out>/calib.txt`. |
+| `GGEMM_FP64_FLOPS`, `GGEMM_INT8_OPS`, `GGEMM_MEM_BW` | override the cost-model peaks (FP64 flop/s, INT8 op/s, memory bytes/s) for the planner; take precedence over the JSON. Positive numbers only. |
+| `GGEMM_TINY_MNK` | m*n*k threshold under which a problem is treated as tiny by the planner (default 32^3). |
+| `GGEMM_REUSE_PROMOTE` | `1` = path 5 shares operands regardless of N and promotes every problem to the max N of its connected component (more sharing, more moduli for some problems; counted in `stats.num_promoted`). Default `0` = share only between problems with equal N. |
+| `GGEMM_STATS_REPAIR` | `1` = fill `stats.num_repaired` (reads a device counter, **synchronizes the stream**; keep off in timed regions). Otherwise `num_repaired = -1`. |
+| `GGEMM_NVTX` | **compile-time macro**, not an env var: `-DGGEMM_NVTX=0` compiles NVTX ranges out. Default on. |
+
+Job-script knobs (not library variables): `SKIP_BUILD`, `TEST_SET`, `BENCH_SET`, `PATHS`, `PHIS`,
+`REPS`, `WARMUP`, `ONLY`, `ACC`, `SANITIZE`, `ARCHS`, `BUILD_DIR`; see the header of each script.
+
+## Repair mode (in progress)
+
+The reconstruct kernel always certifies entries and recomputes uncertified ones in FP64
+(this is what makes the emulated result safe for wide dynamic range). Today
+`ggemm_stats_t.num_repaired` reports how many entries were repaired, only when
+`GGEMM_STATS_REPAIR=1`.
+
+A selectable repair mode **OFF / COUNT / ON** is being implemented (agent-N); it is not in
+`include/ggemm.h` yet. Intended meaning: OFF = skip the repair pass, COUNT = only count entries
+that would need repair, ON = repair (current behavior). Fields, names and defaults will follow the
+header once it lands; until then rely on the header, not on this paragraph.
 
 ## Known limitations (v1)
 
 - No transpose: column-major, A is m x k, B is k x n, op = N only.
-- K <= 131072 per problem (INT32 accumulation limit of the INT8 GEMM); larger K must
-  fall back to native FP64 or be rejected.
+- Emulation needs kp = round_up(k, 32) <= 131040 (INT32 accumulation limit of the INT8 GEMM,
+  `OZ2_MAX_K`); larger K falls back to native FP64 (`allow_fallback = 1`) or returns an error.
+- `oz2_prep_grouped` handles at most 65535 emulated problems per call (`num <= 65535`); the
+  graph path rejects more with `GGEMM_ERR_INVALID`.
+- Plan/execute (CUDA Graph) does not do operand reuse; plan only for paths 3 and 4; destroy
+  plans before the handle.
+- Multi-GPU: the CRT constant tables are uploaded (`oz2_init_constants`) only to the device that
+  is current when the handle is created; a handle must be created and used on that one device.
 - Workspace is fixed at `ggemm_create`: calls exceeding `max_problems` or the total
   A/B/C element bounds return a nonzero error code; there is no allocation fallback.
 - Descriptor array must be on the host; data pointers must be device pointers.
 - Accuracy is controlled by N (moduli count, at most 20) and the input dynamic range;
-  very wide dynamic range may force fallback or lower accuracy (TODO: quantify in report).
+  uncertified entries are repaired in FP64, so very wide dynamic range costs speed, not
+  correctness (quantification: see docs/report.md, TODO).
 - Small or unprofitable problems may be routed to native FP64 by the planner.
-- Single stream per handle; a handle is not thread-safe (TODO: confirm against implementation).
-- Only the paths above are supported; no FP32/complex types.
+- Single stream per handle; handles and plans are not thread-safe.
+- Only FP64 real GEMM; no FP32 / complex types.
 
-## Tests and benchmarks
+## Tests, benchmarks, profiling
 
-Scripts are written by agent-B under `scripts/`. File names below are placeholders
-(TODO: update to the real names). Each is a SLURM script; submit with sbatch, never run on login nodes.
+All are SLURM scripts (submit with sbatch from the repo root, never run on login nodes);
+outputs land in `results/<kind>_<jobid>/` with provenance and calibration logs.
 
 ```bash
-sbatch scripts/run_tests.sbatch     # correctness: all paths vs high-precision reference, edge cases
-sbatch scripts/run_bench.sbatch     # timing of 5 paths on the test families
-sbatch scripts/run_profile.sbatch   # nsys / ncu profiling
-sbatch scripts/run_sanitizer.sbatch # compute-sanitizer memcheck
+sbatch scripts/run_tests.slurm      # correctness vs high-precision reference, edge cases, compute-sanitizer
+sbatch scripts/run_bench.slurm      # timing of all paths on the workload families + accuracy sweep + plots
+sbatch scripts/profile.slurm        # nsys / ncu profiling
+sbatch scripts/i8_ablation.slurm    # INT8 grouped GEMM kernel ablation (also i8_cfg2.slurm, run_i8_unit.slurm)
+sbatch bench/app/run_app.slurm      # application benchmarks: MoE FFN, block-sparse (FP64)
 ```
 
-Test families: uniform small, MoE (shared n,k; varying m), random hetero, LoRA (low rank).
+Binaries: `test_grouped`, `bench_grouped` (and `test_graph`, `test_i8_grouped`,
+`test_operand_reuse`, `test_reuse_e2e`, `test_numerics_standalone`).
+Workload families: uniform small, MoE (shared n,k; varying m), random hetero, LoRA (low rank).
+
+Post-processing (CPU only, `scripts/analysis/`, run inside a job like everything else):
+`nsys_report.py` (launch / busy / gap breakdown per path, uses the NVTX ranges
+`ggemm:<path>`, stage ranges prep / i8_gemm / reconstruct), `ncu_report.py`,
+`roofline.py` (roofline from bench CSV + calibration JSON), `selftest.py` (runs them on
+`scripts/analysis/testdata`). `scripts/plot.py` plots bench CSVs.
+
+Measured results are in `results/` (one directory per job) and the write-up with numbers
+and discussion is `docs/report.md` (TODO, not written yet). This README intentionally
+quotes no measured numbers.
 
 ## Layout
 
 ```
-include/ggemm.h          public API
-src/                     numerics (agent-N), INT8 grouped GEMM (agent-K), pipeline/planner (agent-P)
-tests/ bench/ scripts/   agent-B
-docs/                    related_work.md, discussion_1007.md, report.md
+include/ggemm.h          public API (paths, config, stats, handle)
+src/ggemm.cu             handle, dispatch of the 7 paths
+src/ggemm_graph.{h,cu}   plan / execute (CUDA Graph)
+src/planner.{h,cpp}      cost model, per-problem N / tile config / fallback
+src/operand_reuse.{h,cpp} shared-operand detection (path 5)
+src/ozaki2_numerics.*    scaling, residues, CRT reconstruct, certificate (agent-N)
+src/int8_grouped_gemm.*  persistent grouped INT8 GEMM (agent-K)
+src/internal.h           error codes, NVTX macros
+tests/ bench/ scripts/   tests, benchmarks (bench/app = application benchmarks), job scripts, analysis
+docs/                    related_work.md, discussion_1007.md, report.md (TODO)
 DESIGN.md                internal design and contracts
 ```

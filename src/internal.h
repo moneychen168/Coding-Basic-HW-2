@@ -10,6 +10,42 @@
 #include "int8_grouped_gemm.h"   // agent-K (falls back to src/stubs/ when absent)
 #include "planner.h"
 
+// ---- NVTX ranges (header-only nvtx3). -DGGEMM_NVTX=0 compiles them out (empty macros).
+//   GGEMM_NVTX_RANGE(var, "name")  opens a range closed at scope exit (RAII) or by
+//   GGEMM_NVTX_END(var) (idempotent), whichever comes first.
+#ifndef GGEMM_NVTX
+#define GGEMM_NVTX 1
+#endif
+#if GGEMM_NVTX
+#include <nvtx3/nvToolsExt.h>
+struct ggemm_nvtx_range {
+  bool on;
+  explicit ggemm_nvtx_range(const char* s) : on(true) { nvtxRangePushA(s); }
+  void end() { if (on) { nvtxRangePop(); on = false; } }
+  ~ggemm_nvtx_range() { end(); }
+  ggemm_nvtx_range(const ggemm_nvtx_range&) = delete;
+  ggemm_nvtx_range& operator=(const ggemm_nvtx_range&) = delete;
+};
+#define GGEMM_NVTX_RANGE(var, name) ggemm_nvtx_range var(name)
+#define GGEMM_NVTX_END(var) (var).end()
+#else
+#define GGEMM_NVTX_RANGE(var, name)
+#define GGEMM_NVTX_END(var)
+#endif
+
+struct reuse_arena;   // src/operand_reuse.h (agent-O): host pass, shared A/B operand detection
+
+// Per-call descriptor blob layout (identical in the pinned slot and in the device blob):
+//   [oz2 recon x num_emu] [oz2 prep x num_prep] [i8_problem x num_i8] [LPT schedule image(s)]
+//   [A ptrs | B ptrs | C ptrs  x num_nat]
+// num_prep == 0 (no operand reuse): prep uses the recon descriptors (off_prep == off_oz).
+// num_prep  > 0 (operand reuse): UA A-only (n = 0) then UB B-only (m = 0) descriptors.
+struct ggemm_blob_layout { size_t off_oz, off_prep, off_i8, off_sched, off_ptr, total; };
+ggemm_blob_layout ggemm_layout_for(size_t num_emu, size_t num_prep, size_t num_i8,
+                                   size_t sched_bytes, size_t num_nat);
+// Argument / element-budget check shared by ggemm_grouped_dgemm and the graph module.
+int ggemm_validate(ggemm_handle_t h, const ggemm_problem_t* p, int num);
+
 // ---- return codes of ggemm_* (public header only says "nonzero = error") ----
 enum {
   GGEMM_OK = 0,
@@ -61,6 +97,7 @@ struct ggemm_handle_s {
   // agent-K LPT schedule images live inside the descriptor blob (built on host by
   // i8_grouped_gemm_build_schedule into the pinned slot, uploaded by the same single H2D).
   size_t sched_img_bytes_1;   // align(i8_grouped_gemm_sched_ws_bytes(1, 0)) for EMU_LOOP images
+  size_t sched_img_bytes_P;   // align(sched_ws_bytes(max planes, 0)): one EMU_LOOP_BATCHED image
 
   // host scratch (allocated once; sized by max_problems)
   ggemm_plan_entry_t* plan;
@@ -71,4 +108,13 @@ struct ggemm_handle_s {
   double *nat_alpha, *nat_beta;
 
   ggemm_device_model_t dm;
+
+  // operand reuse (GGEMM_PATH_EMU_GROUPED_REUSE only; AUTO never reuses).
+  // Arena reserved at create (max_problems) -> build_operand_reuse never allocates.
+  reuse_arena* reuse;
+  int reuse_promote;          // env GGEMM_REUSE_PROMOTE=1 -> REUSE_PROMOTE, else REUSE_EXACT_N
+  int* reuse_nmod;            // [max_problems] N_g input of build_operand_reuse (0 = not emulated)
+  size_t *ua_off8, *ua_offs;  // [max_problems] unique A: A8 offset (bytes), row_shift offset (int32)
+  size_t *ub_off8, *ub_offs;  // [max_problems] unique B: B8 offset (bytes), col_shift offset (int32)
+  int stats_repair;           // env GGEMM_STATS_REPAIR=1: fill stats.num_repaired (synchronizes)
 };

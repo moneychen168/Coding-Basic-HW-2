@@ -127,9 +127,11 @@ static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_m
   // emulation = three dependent stages; byte terms match bench/calib/fit.py (incl. the
   // INT32 C32 write of the GEMM). Launch latency is omitted: in a grouped call the 3
   // emulation launches / 1 native launch are shared by the whole group, not per problem.
-  double prep  = ((m * k + k * n) * 8 + nm * (m + n) * kp) / dm->mem_bw;
-  double gemm  = nm * 2.0 * rup(m, t) * rup(n, t) * kp / dm->int8_ops + nm * m * n * 4 / dm->mem_bw;
-  double recon = (nm * m * n * 4 + c_rw * m * n * 8) / dm->mem_bw;
+  // INT8 work / residue + C32 traffic scale with the plane count N + OZ2_EXTRA_PLANES (abs plane).
+  const double np = oz2_num_planes(nm);
+  double prep  = ((m * k + k * n) * 8 + np * (m + n) * kp) / dm->mem_bw;
+  double gemm  = np * 2.0 * rup(m, t) * rup(n, t) * kp / dm->int8_ops + np * m * n * 4 / dm->mem_bw;
+  double recon = (np * m * n * 4 + c_rw * m * n * 8) / dm->mem_bw;
   *t_emu = prep + gemm + recon;
   double nat_c = 2.0 * m * n * k / dm->fp64_flops;
   double nat_m = (m * k + k * n + c_rw * m * n) * 8 / dm->mem_bw;
@@ -148,7 +150,7 @@ static void tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device
     for (int g = 0; g < num; ++g) {
       if (out[g].route != GGEMM_ROUTE_EMU) continue;
       double t = ggemm_tile_dim(out[g].tile_cfg);
-      W += out[g].num_moduli * tiles_of(probs[g].m, probs[g].n, out[g].tile_cfg) * t * t * kp_of(probs[g].k);
+      W += oz2_num_planes(out[g].num_moduli) * tiles_of(probs[g].m, probs[g].n, out[g].tile_cfg) * t * t * kp_of(probs[g].k);
     }
     if (W <= 0) return;
     const double per_slot = W / slots;
@@ -166,6 +168,7 @@ int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
                ggemm_path_t path, const ggemm_device_model_t* dm, ggemm_plan_entry_t* out) {
   const int allow_fb = cfg ? cfg->allow_fallback : 0;
   const bool autop = (path == GGEMM_PATH_AUTO);
+  static const double rho_budget = env_or("GGEMM_RHO_BUDGET", GGEMM_RHO_BUDGET_DEFAULT);
   for (int g = 0; g < num; ++g) {
     const ggemm_problem_t& p = probs[g];
     ggemm_plan_entry_t& e = out[g];
@@ -176,7 +179,15 @@ int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
       if (!allow_fb) return GGEMM_ERR_UNSAFE;
       e.route = GGEMM_ROUTE_K_TOO_LARGE; continue;
     }
-    e.num_moduli = ggemm_plan_num_moduli(cfg, p.k);
+    if (autop && allow_fb && p.k <= GGEMM_AUTO_NATIVE_MAX_K) { e.route = GGEMM_ROUTE_SMALL_K; continue; }
+    if (autop && !(cfg && cfg->num_moduli > 0)) {
+      // AUTO adaptive: componentwise planning (uncertified entries are repaired in FP64, so N
+      // only moves the repair rate). -1 only for k > OZ2_MAX_K (already rerouted above).
+      e.num_moduli = oz2_choose_num_moduli_cw(p.k, rho_budget);
+      if (e.num_moduli >= 0) e.num_moduli = std::min(std::max(e.num_moduli, 2), GGEMM_MAX_MODULI);
+    } else {
+      e.num_moduli = ggemm_plan_num_moduli(cfg, p.k);
+    }
     if (e.num_moduli < 0) {
       if (!allow_fb) return GGEMM_ERR_UNSAFE;
       e.route = GGEMM_ROUTE_PRECISION; e.num_moduli = 0; continue;

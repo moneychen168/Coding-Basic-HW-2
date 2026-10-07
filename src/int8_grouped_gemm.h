@@ -6,7 +6,7 @@
 //   B : int8, n x kp, row-major (= col-major kp x n, K contiguous, ldb = kp)
 //   C : int32, m x n, col-major (ldc = m)
 //   C = A * B^T  (i.e. C[i + j*m] = sum_k A[i*kp + k] * B[j*kp + k])
-// Constraints: m, n >= 1 arbitrary; kp % 32 == 0; A/B base 16-byte aligned; C 4-byte aligned.
+// Constraints: m, n >= 0 arbitrary; kp % 32 == 0 (m, n or kp == 0: problem skipped, C untouched); A/B base 16-byte aligned; C 4-byte aligned.
 // Exactness: |C| <= 128*128*kp must fit int32, i.e. kp < 131072 (enforced: kp <= 131040).
 #pragma once
 #include <cstddef>

@@ -1,0 +1,23 @@
+Start (ns),Duration (ns),CorrId,GrdX,GrdY,GrdZ,BlkX,BlkY,BlkZ,Reg/Trd,StcSMem (MB),DymSMem (MB),Bytes (MB),Throughput (MBps),SrcMemKd,DstMemKd,Device,Ctx,GreenCtx,Strm,Name
+1054700,3000,2,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"k_fill_ozaki(double *, unsigned long, double, unsigned long)"
+1155500,10000,8,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1165500,10000,9,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1175500,10000,10,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1194600,10000,13,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1204600,10000,14,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1214600,10000,15,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1232700,10000,19,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1242700,10000,20,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1252700,10000,21,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_cublas
+1425300,2000,32,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,[CUDA memcpy Host-to-Device]
+1427300,5000,33,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"oz2_prep_kernel(const oz2_problem *, int)"
+1439200,20000,34,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"void i8_grouped_persistent_kernel<128, 128>(const i8_problem *, const sched_item *, int)"
+1459200,8000,35,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,oz2_reconstruct_kernel(const oz2_problem *)
+1478300,2000,40,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,[CUDA memcpy Host-to-Device]
+1480300,5000,41,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"oz2_prep_kernel(const oz2_problem *, int)"
+1492200,20000,42,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"void i8_grouped_persistent_kernel<128, 128>(const i8_problem *, const sched_item *, int)"
+1512200,8000,43,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,oz2_reconstruct_kernel(const oz2_problem *)
+1530300,2000,49,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,[CUDA memcpy Host-to-Device]
+1532300,5000,50,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"oz2_prep_kernel(const oz2_problem *, int)"
+1544200,20000,51,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,"void i8_grouped_persistent_kernel<128, 128>(const i8_problem *, const sched_item *, int)"
+1564200,8000,52,132,1,1,256,1,1,64,0,0,,,,,NVIDIA H200 (0),1,,13,oz2_reconstruct_kernel(const oz2_problem *)

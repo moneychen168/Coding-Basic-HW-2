@@ -22,7 +22,10 @@ typedef enum {
   GGEMM_PATH_NATIVE_GROUPED = 1, // baseline: cublasDgemmGroupedBatched (native FP64)
   GGEMM_PATH_EMU_LOOP = 2,       // starter-like: single-GEMM INT8 emulation called per problem
   GGEMM_PATH_EMU_GROUPED = 3,    // ours: fused grouped pipeline (O(1) launches)
-  GGEMM_PATH_AUTO = 4            // ours + planner (per-problem moduli count, tile config, fallback)
+  GGEMM_PATH_AUTO = 4,           // ours + planner (per-problem moduli count, tile config, fallback)
+  GGEMM_PATH_EMU_GROUPED_REUSE = 5, // EMU_GROUPED + operand reuse (prep once per unique A / B)
+  GGEMM_PATH_EMU_LOOP_BATCHED = 6 // GEMMul8-like baseline: per problem 3 launches (prep, ONE
+                                  // INT8 GEMM over all its planes, reconstruct)
 } ggemm_path_t;
 
 typedef struct {
@@ -38,6 +41,13 @@ typedef struct {
   int num_fallback;       // problems routed to native FP64
   int kernel_launches;    // launches issued by the last call
   int moduli_min, moduli_max;
+  // ---- appended (operand reuse); keep new fields at the end for ABI ----
+  int reuse_enabled;      // 1 if the call ran the operand-reuse prep
+  int num_unique_A;       // A operands prepped (== emulated problems when reuse is off)
+  int num_unique_B;       // B operands prepped (== emulated problems when reuse is off)
+  int num_promoted;       // problems run with more moduli than planned (REUSE_PROMOTE only)
+  long long num_repaired; // C entries recomputed in FP64 by the certificate (emulation paths);
+                          // -1 = not measured (needs env GGEMM_STATS_REPAIR=1: syncs the stream)
 } ggemm_stats_t;
 
 typedef struct ggemm_handle_s* ggemm_handle_t;

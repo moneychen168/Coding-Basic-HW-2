@@ -10,6 +10,8 @@
 // target 1e-15) and to AUTO. Fixed-N emulation sweeps are accuracy measurements, not
 // contract claims, so they are reported by the bench, not gated here.
 //
+// Paths ("all"): native_loop, native_grouped, emu_loop, emu_grouped, auto, emu_grouped_reuse,
+//   emu_loop_batched.
 // Usage: test_grouped [--set test|quick] [--paths all|a,b] [--phis 0,0.5,1,2] [--csv out.csv]
 #include <cstdio>
 #include <cstdlib>
@@ -35,7 +37,21 @@ static ggemm_config_t cfg_for(ggemm_path_t p) {
   return c;
 }
 static bool is_emu(ggemm_path_t p) {
-  return p == GGEMM_PATH_EMU_LOOP || p == GGEMM_PATH_EMU_GROUPED || p == GGEMM_PATH_AUTO;
+  return ggemm_path_is_emu(p);   // incl. emu_grouped_reuse, emu_loop_batched
+}
+
+// Gate per repair mode (see ggemm_expected_repair_mode):
+//   strict (native, REPAIR_ON, or certificate count unavailable): every entry err_ij <= gamma_n den_ij
+//   REPAIR_COUNT: #entries with err_ij > gamma_n den_ij (non-finite included) <= stats.num_uncertified,
+//                 i.e. the certificate may over-report but must never miss a violating entry.
+static bool gate_ok(ggemm_path_t path, const ErrStats& e, const ggemm_stats_t& st, const char** kind) {
+  long long unc = stats_num_uncertified(st);
+  if (ggemm_expected_repair_mode(path) == REPAIR_COUNT && unc >= 0) {
+    *kind = "cert";
+    return e.n_over_gamma <= (unsigned long long)unc;
+  }
+  *kind = "strict";
+  return e.nonfinite == 0 && e.ratio_gamma <= 1.0;
 }
 
 // Runs one path on b (C reset to C0 first), compares to reference, applies the gate.
@@ -56,12 +72,16 @@ static void run_and_check(const char* tag, ggemm_path_t path, const ggemm_config
   if (rc == 0 && ce == cudaSuccess) {
     ErrStats e; ref_compare(b, &ref, &e);
     double vs_native = native_cw > 0 ? e.err_cw / native_cw : (e.err_cw == 0 ? 1.0 : INFINITY);
-    bool ok = e.nonfinite == 0 && e.ratio_gamma <= 1.0;
-    printf("  %-5s %-15s %-14s err_cw=%.3e  err/gamma=%.3e  vs_native=%8.3g  rel_max=%.3e  "
-           "fallback=%d launches=%d moduli=[%d,%d]\n",
+    const char* kind = "";
+    bool ok = gate_ok(path, e, st, &kind);
+    long long unc = stats_num_uncertified(st), rep = stats_num_repaired(st);
+    printf("  %-5s %-17s %-14s err_cw=%.3e  err/gamma=%.3e  over_gamma=%llu uncert=%lld repaired=%lld "
+           "gate=%s  vs_native=%8.3g  rel_max=%.3e  fallback=%d launches=%d moduli=[%d,%d]\n",
            ok ? "ok" : (gate ? "FAIL" : "info"), ggemm_path_name(path), tag, e.err_cw, e.ratio_gamma,
-           vs_native, e.rel_max, st.num_fallback, st.kernel_launches, st.moduli_min, st.moduli_max);
-    if (gate) CHECK(ok, "%s %s: worst problem %d (m=%d n=%d k=%d), nonfinite=%llu", tag,
+           e.n_over_gamma, unc, rep, kind, vs_native, e.rel_max, st.num_fallback, st.kernel_launches,
+           st.moduli_min, st.moduli_max);
+    if (gate) CHECK(ok, "%s %s [%s]: over_gamma=%llu uncertified=%lld; worst problem %d (m=%d n=%d k=%d), "
+                    "nonfinite=%llu", tag, ggemm_path_name(path), kind, e.n_over_gamma, unc,
                     ggemm_path_name(path), e.worst_problem,
                     e.worst_problem >= 0 ? b.probs[e.worst_problem].m : -1,
                     e.worst_problem >= 0 ? b.probs[e.worst_problem].n : -1,
@@ -79,9 +99,10 @@ static void run_and_check(const char* tag, ggemm_path_t path, const ggemm_config
       CHECK(st.moduli_min >= 2 && st.moduli_max <= GGEMM_MAX_MODULI && st.moduli_min <= st.moduli_max,
             "%s %s: moduli range [%d,%d]", tag, ggemm_path_name(path), st.moduli_min, st.moduli_max);
     if (g_csv)
-      fprintf(g_csv, "%s,%s,%d,%.6e,%.6e,%.6e,%.6e,%llu,%d,%d,%d,%d,%s\n", tag, ggemm_path_name(path), G,
-              e.err_cw, e.ratio_gamma, vs_native, e.rel_max, e.nonfinite, st.num_fallback,
-              st.kernel_launches, st.moduli_min, st.moduli_max, (!gate || ok) ? "ok" : "FAIL");
+      fprintf(g_csv, "%s,%s,%d,%.6e,%.6e,%.6e,%.6e,%llu,%d,%d,%d,%d,%s,%llu,%lld,%lld,%s\n", tag,
+              ggemm_path_name(path), G, e.err_cw, e.ratio_gamma, vs_native, e.rel_max, e.nonfinite,
+              st.num_fallback, st.kernel_launches, st.moduli_min, st.moduli_max, (!gate || ok) ? "ok" : "FAIL",
+              e.n_over_gamma, unc, rep, kind);
   }
   ggemm_destroy(h);
 }
@@ -177,7 +198,8 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
         CHECK(rc == 0, "AUTO bigk rc=%d", rc);
         CHECK(st.num_fallback >= 1, "AUTO k=140000 must fall back, num_fallback=%d", st.num_fallback);
         ErrStats e; ref_compare(b, &ref, &e);
-        CHECK(rc != 0 || e.ratio_gamma <= 1.0, "AUTO bigk err/gamma=%.3e", e.ratio_gamma);
+        const char* kind;
+        CHECK(rc != 0 || gate_ok(GGEMM_PATH_AUTO, e, st, &kind), "AUTO bigk err/gamma=%.3e", e.ratio_gamma);
         printf("  bigk AUTO fallback=%d err/gamma=%.3e\n", st.num_fallback, e.ratio_gamma);
         ggemm_destroy(h);
       }
@@ -191,8 +213,10 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
         cudaDeviceSynchronize();
         if (rc == 0) {
           ErrStats e; ref_compare(b, &ref, &e);
-          CHECK(st.num_fallback == 0 && e.ratio_gamma <= 1.0, "%s bigk no-fallback: fb=%d err/gamma=%.3e",
-                ggemm_path_name(p), st.num_fallback, e.ratio_gamma);
+          const char* kind;
+          CHECK(st.num_fallback == 0 && gate_ok(p, e, st, &kind), "%s bigk no-fallback [%s]: fb=%d err/gamma=%.3e "
+                "over_gamma=%llu uncert=%lld", ggemm_path_name(p), kind, st.num_fallback, e.ratio_gamma,
+                e.n_over_gamma, stats_num_uncertified(st));
         } else {
           ++g_pass;
           printf("  bigk %s allow_fallback=0 -> refused (rc=%d), accepted\n", ggemm_path_name(p), rc);
@@ -281,12 +305,16 @@ int main(int argc, char** argv) {
     else if (a == "--no-edges") edges = false;
     else { fprintf(stderr, "unknown arg %s\n", a.c_str()); return 2; }
   }
-  cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0);
+  // num_repaired is only measured when GGEMM_STATS_REPAIR=1 (syncs the stream; fine outside timing)
+  setenv("GGEMM_STATS_REPAIR", "1", 0);
+  cudaDeviceProp prop;
+  if (cudaGetDeviceProperties(&prop, 0) != cudaSuccess) { fprintf(stderr, "no usable CUDA device\n"); return 1; }
   printf("device: %s (sm_%d%d)\n", prop.name, prop.major, prop.minor);
   if (!csv.empty()) {
     g_csv = fopen(csv.c_str(), "w");
     if (g_csv) fprintf(g_csv, "case,path,G,err_cw,err_over_gamma,err_vs_native,rel_max,nonfinite,"
-                              "num_fallback,launches,moduli_min,moduli_max,status\n");
+                              "num_fallback,launches,moduli_min,moduli_max,status,n_over_gamma,num_uncertified,"
+                              "num_repaired,gate\n");
   }
   cublasHandle_t cub; cublasCreate(&cub);
   auto paths = parse_paths(paths_s);

@@ -4,7 +4,7 @@
 //   /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -gencode arch=compute_90,code=sm_90 \
 //     -gencode arch=compute_120,code=sm_120 -Isrc tests/test_i8_grouped.cu src/int8_grouped_gemm.cu \
 //     -lcublasLt -o build/test_i8_grouped
-// Run (compute node only): ./build/test_i8_grouped [--quick]
+// Run (compute node only): ./build/test_i8_grouped [--quick | --perf] [--iters N]
 #include <cublasLt.h>
 #include <cuda_runtime.h>
 
@@ -93,6 +93,7 @@ static long long check_cpu(const Group& g, bool full, int samples, const char* t
   std::mt19937 rng(7);
   for (size_t p = 0; p < g.shapes.size(); ++p) {
     const Shape& s = g.shapes[p];
+    if (s.kp == 0 || s.m == 0 || s.n == 0) continue;   // skipped by design (C untouched)
     const int32_t* c = hC.data() + g.offC[p];
     auto chk = [&](int i, int j) {
       int64_t r = ref_elem(g, p, i, j);
@@ -121,6 +122,7 @@ static int run_lt(cublasLtHandle_t lt, Group& g, void* ws, size_t wsb, cudaStrea
   if (ok) ok->assign(g.shapes.size(), 0);
   for (size_t p = 0; p < g.shapes.size(); ++p) {
     auto& s = g.shapes[p];
+    if (s.kp == 0 || s.m == 0 || s.n == 0) continue;   // not a GEMM; ours skips it
     int rc = i8_gemm_cublaslt_single(lt, s.m, s.n, s.kp, g.hp[p].A, g.hp[p].B, g.dRef + g.offC[p],
                                      ws, wsb, st);
     if (rc) ++refused;
@@ -149,7 +151,14 @@ static void report(const char* what, long long bad) {
 }
 
 int main(int argc, char** argv) {
-  bool quick = argc > 1 && !std::strcmp(argv[1], "--quick");
+  // --quick: correctness only; --perf: performance only; --iters N: timed iterations (default 20)
+  bool quick = false, perf_only = false;
+  int iters = 20;
+  for (int a = 1; a < argc; ++a) {
+    if (!std::strcmp(argv[a], "--quick")) quick = true;
+    else if (!std::strcmp(argv[a], "--perf")) perf_only = true;
+    else if (!std::strcmp(argv[a], "--iters") && a + 1 < argc) iters = std::atoi(argv[++a]);
+  }
   cudaDeviceProp prop;
   CK(cudaGetDeviceProperties(&prop, 0));
   std::printf("device: %s  sm_%d%d  SMs=%d\n", prop.name, prop.major, prop.minor,
@@ -170,12 +179,12 @@ int main(int argc, char** argv) {
   CK(cudaMallocHost(&h_sched, sched_b));
 
   // ---------------- 1. heterogeneous correctness, full CPU check, every tile config ----------
-  {
+  if (!perf_only) {
     std::vector<Shape> shapes = {
         {1, 1, 32},      {1, 257, 4096},  {257, 1, 96},    {33, 17, 64},    {129, 131, 1024},
         {127, 255, 32},  {64, 64, 65536}, {3, 5, 131040},  {500, 300, 2048}, {1000, 1, 512},
         {1, 1000, 512},  {77, 1000, 320}, {1024, 768, 1024}, {31, 33, 160},  {0, 7, 64},
-        {65, 63, 8192},  {129, 1, 131040}, {2, 2, 224}};
+        {65, 63, 8192},  {129, 1, 131040}, {2, 2, 224},   {9, 7, 0}};
     Group g;
     build_group(g, shapes, 1234u, 0);
     const char* names[4] = {"cfg0 128x128", "cfg1 64x64", "cfg2 32x32", "auto"};
@@ -187,7 +196,7 @@ int main(int argc, char** argv) {
       CK(cudaStreamSynchronize(st));
       CK(cudaGetLastError());
       if (rc) { std::printf("i8_grouped_gemm rc=%d\n", rc); g_fail = 1; }
-      std::string t = std::string("hetero 18 probs, full CPU bit-exact, ") + names[c];
+      std::string t = std::string("hetero 19 probs, full CPU bit-exact, ") + names[c];
       report(t.c_str(), check_cpu(g, true, 0, names[c]));
     }
     // Relaunch via split path twice (tests counter self-reset), auto cfg.
@@ -217,7 +226,7 @@ int main(int argc, char** argv) {
     std::vector<char> ok;
     int refused = run_lt(lt, g, lt_ws, lt_wsb, st, &ok);
     CK(cudaStreamSynchronize(st));
-    std::printf("cuBLASLt refused %d / %zu hetero problems\n", refused, g.shapes.size());
+    std::printf("cuBLASLt refused %d / %zu hetero problems (empty ones not submitted)\n", refused, g.shapes.size());
     report("cuBLASLt vs ours (auto), supported problems", check_vs_lt(g, ok));
     free_group(g);
   }
@@ -225,7 +234,7 @@ int main(int argc, char** argv) {
 
   cudaEvent_t e0, e1;
   CK(cudaEventCreate(&e0)); CK(cudaEventCreate(&e1));
-  const int warm = 3, iters = 20;
+  const int warm = 3;
   auto time_ms = [&](auto&& fn) {
     for (int i = 0; i < warm; ++i) fn();
     CK(cudaStreamSynchronize(st));

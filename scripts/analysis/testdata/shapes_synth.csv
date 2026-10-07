@@ -1,0 +1,4 @@
+workload,m,n,k,count
+moe_E3_synth,100,2048,1024,1
+moe_E3_synth,300,2048,1024,1
+moe_E3_synth,50,2048,1024,1

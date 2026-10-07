@@ -1,0 +1,11 @@
+Start (ns),End (ns),Duration (ns),DurChild (ns),DurNonChild (ns),Name,PID,TID,Lvl,NumChild,RangeId,ParentId,RangeStack,NameTree
+1151000,1156100,5100,0,5100,ggemm:native_loop,77,4242,0,0,1,,,ggemm:native_loop
+1190100,1195200,5100,0,5100,ggemm:native_loop,77,4242,1,0,2,,,ggemm:native_loop
+1189200,1227300,38100,0,38100,bench:timed,77,4242,0,0,3,,,bench:timed
+1228200,1233300,5100,0,5100,ggemm:native_loop,77,4242,1,0,4,,,ggemm:native_loop
+1227300,1265400,38100,0,38100,bench:timed,77,4242,0,0,5,,,bench:timed
+1418800,1438900,20100,0,20100,ggemm:emu_grouped,77,4242,0,0,6,,,ggemm:emu_grouped
+1471800,1491900,20100,0,20100,ggemm:emu_grouped,77,4242,1,0,7,,,ggemm:emu_grouped
+1470900,1522900,52000,0,52000,bench:timed,77,4242,0,0,8,,,bench:timed
+1523800,1543900,20100,0,20100,ggemm:emu_grouped,77,4242,1,0,9,,,ggemm:emu_grouped
+1522900,1574900,52000,0,52000,bench:timed,77,4242,0,0,10,,,bench:timed

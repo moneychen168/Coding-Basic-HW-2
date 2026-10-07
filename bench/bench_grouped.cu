@@ -20,7 +20,8 @@
 //
 // Usage: bench_grouped [--set bench|quick|test] [--paths all|a,b] [--phis 0.5]
 //                      [--moduli 0] [--reps 20] [--warmup 5] [--csv out.csv] [--no-check]
-//                      [--only substr] [--moe-counts file:n:k]
+//                      [--only substr] [--moe-counts file:n:k] [--dump-shapes f.csv [--dump-only]]
+//   paths "all" = native_loop,native_grouped,emu_loop,emu_grouped,auto,emu_grouped_reuse,emu_loop_batched
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -30,11 +31,23 @@
 #include <vector>
 #include <cublas_v2.h>
 #include "ggemm.h"
+// NVTX range "bench:timed" around each timed call (e0..e1). -DGGEMM_NVTX=0 compiles it out.
+#ifndef GGEMM_NVTX
+#define GGEMM_NVTX 1
+#endif
+#if GGEMM_NVTX
+#include <nvtx3/nvToolsExt.h>
+#define BENCH_NVTX_PUSH(name) nvtxRangePushA(name)
+#define BENCH_NVTX_POP() nvtxRangePop()
+#else
+#define BENCH_NVTX_PUSH(name) do {} while (0)
+#define BENCH_NVTX_POP() do {} while (0)
+#endif
 #include "workloads.h"
 #include "../tests/reference.h"
 
 static bool is_emu(ggemm_path_t p) {
-  return p == GGEMM_PATH_EMU_LOOP || p == GGEMM_PATH_EMU_GROUPED || p == GGEMM_PATH_AUTO;
+  return ggemm_path_is_emu(p);   // incl. emu_grouped_reuse, emu_loop_batched
 }
 static double median(std::vector<double> v) {
   std::sort(v.begin(), v.end());
@@ -45,7 +58,8 @@ static double median(std::vector<double> v) {
 int main(int argc, char** argv) {
   std::string set = "bench", paths_s = "all", phis_s = "0.5", moduli_s = "0", csv = "bench.csv", only, moe_counts;
   int reps = 20, warmup = 5;
-  bool check = true;
+  bool check = true, dump_only = false;
+  std::string dump_shapes;
   for (int i = 1; i < argc; ++i) {
     std::string a = argv[i];
     auto nxt = [&]() { return i + 1 < argc ? std::string(argv[++i]) : std::string(); };
@@ -59,9 +73,12 @@ int main(int argc, char** argv) {
     else if (a == "--only") only = nxt();
     else if (a == "--moe-counts") moe_counts = nxt();
     else if (a == "--no-check") check = false;
+    else if (a == "--dump-shapes") dump_shapes = nxt();
+    else if (a == "--dump-only") dump_only = true;
     else { fprintf(stderr, "unknown arg %s\n", a.c_str()); return 2; }
   }
-  cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0);
+  cudaDeviceProp prop;
+  if (cudaGetDeviceProperties(&prop, 0) != cudaSuccess) { fprintf(stderr, "no usable CUDA device\n"); return 1; }
   std::string gpu = prop.name;
   for (auto& c : gpu) if (c == ',') c = ' ';
   fprintf(stderr, "device: %s (sm_%d%d), reps=%d warmup=%d\n", prop.name, prop.major, prop.minor, reps, warmup);
@@ -75,6 +92,19 @@ int main(int argc, char** argv) {
       if (!w.shapes.empty()) wls.push_back(w);
     }
   }
+  // --dump-shapes FILE: workload,m,n,k (one row per problem) for scripts/analysis/roofline.py --shapes
+  if (!dump_shapes.empty()) {
+    FILE* fs = fopen(dump_shapes.c_str(), "w");
+    if (!fs) { perror(dump_shapes.c_str()); return 1; }
+    fprintf(fs, "workload,m,n,k\n");
+    for (auto& w : wls) {
+      if (!only.empty() && w.name.find(only) == std::string::npos) continue;
+      for (auto& sh : w.shapes) fprintf(fs, "%s,%d,%d,%d\n", w.name.c_str(), sh.m, sh.n, sh.k);
+    }
+    fclose(fs);
+    fprintf(stderr, "shapes -> %s\n", dump_shapes.c_str());
+    if (dump_only) return 0;
+  }
   auto paths = parse_paths(paths_s);
   auto phis = parse_doubles(phis_s);
   auto moduli = parse_ints(moduli_s);
@@ -83,7 +113,7 @@ int main(int argc, char** argv) {
   if (!f) { perror(csv.c_str()); return 1; }
   fprintf(f, "workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,"
              "family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,"
-             "moduli_min,moduli_max,reps,gpu,status\n");
+             "moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma\n");
 
   cudaStream_t s; cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
   cudaEvent_t e0, e1; cudaEventCreate(&e0); cudaEventCreate(&e1);
@@ -115,9 +145,11 @@ int main(int argc, char** argv) {
           if (h && cudaStreamSynchronize(s) != cudaSuccess) rc = -1;
           for (int r = 0; h && rc == 0 && r < reps; ++r) {
             auto w0 = std::chrono::steady_clock::now();
+            BENCH_NVTX_PUSH("bench:timed");
             cudaEventRecord(e0, s);
             rc = ggemm_grouped_dgemm(h, p, &cfg, b.probs.data(), G, &st);
             cudaEventRecord(e1, s);
+            BENCH_NVTX_POP();
             cudaEventSynchronize(e1);
             auto w1 = std::chrono::steady_clock::now();
             float ms = 0; cudaEventElapsedTime(&ms, e0, e1);
@@ -136,16 +168,18 @@ int main(int argc, char** argv) {
           }
           double tm = median(t), tmin = t.empty() ? NAN : *std::min_element(t.begin(), t.end());
           double gfl = w.total_flops() / (tm * 1e-3) / 1e9;
-          fprintf(f, "%s,%s,%d,%.6e,%.6f,%.3f,%d,%.6e,%d,%s,%.2f,%d,%.6f,%.6f,%.6e,%.6e,%.6e,%d,%d,%d,%s,%s\n",
+          fprintf(f, "%s,%s,%d,%.6e,%.6f,%.3f,%d,%.6e,%d,%s,%.2f,%d,%.6f,%.6f,%.6e,%.6e,%.6e,%d,%d,%d,%s,%s,%lld,%lld,%lld\n",
                   w.name.c_str(), ggemm_path_name(p), G, w.total_flops(), tm, gfl, st.kernel_launches,
                   have_ref ? e.err_cw : NAN, st.num_fallback, w.family.c_str(), phi, nm, tmin, median(wall),
                   have_ref ? e.ratio_gamma : NAN, vs_native, have_ref ? e.rel_max : NAN, st.moduli_min,
-                  st.moduli_max, (int)t.size(), gpu.c_str(), status);
+                  st.moduli_max, (int)t.size(), gpu.c_str(), status, stats_num_uncertified(st), stats_num_repaired(st),
+                  have_ref ? (long long)e.n_over_gamma : -1LL);
           fflush(f);
           fprintf(stderr, "%-34s %-15s N=%-2d phi=%.1f  %9.4f ms  %9.1f GFLOPS  launches=%-6d fb=%-4d "
                           "err=%.2e (x%.2g native) %s\n",
                   w.name.c_str(), ggemm_path_name(p), nm, phi, tm, gfl, st.kernel_launches, st.num_fallback,
                   have_ref ? e.err_cw : NAN, vs_native, status);
+          if (!strcmp(status, "cuda_error")) { fprintf(stderr, "CUDA error -> abort\n"); fclose(f); exit(1); }
           if (h) ggemm_destroy(h);
         }
       }

@@ -1,6 +1,6 @@
 // Host-only unit tests for src/operand_reuse.{h,cpp} (agent-O).
 // Pointers are fake host addresses (never dereferenced).  Build:
-//   g++ -std=c++17 -O2 -I include -I src -I /usr/local/cuda-13.0/include \
+//   g++ -std=c++17 -O2 -I include -I src -I /usr/local/cuda-13.0/include
 //       tests/test_operand_reuse.cpp src/operand_reuse.cpp -o build/test_operand_reuse
 #include <cstdio>
 #include <vector>

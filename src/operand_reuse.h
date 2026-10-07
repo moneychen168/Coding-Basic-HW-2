@@ -64,7 +64,10 @@ struct reuse_arena {
   std::vector<int> prob_a, prob_b, eff_nmod;
   std::vector<int> uf_parent, uf_max;   // nodes: [0,num_ua) = A, [cap, cap+num_ub) = B
   // Allocates everything. Call once (e.g. in ggemm_create) with max_problems.
-  void reserve(int max_problems);
+  // Returns REUSE_OK, or REUSE_ERR_CAPACITY if max_problems > 2^30 (hash size would overflow);
+  // on error the arena is left empty (cap = 0) so every build reports REUSE_ERR_CAPACITY.
+  // (std::vector may still throw std::bad_alloc.)
+  int reserve(int max_problems);
 };
 
 // The pass.  num_moduli_per_problem[g] <= 0 marks problem g as not emulated.

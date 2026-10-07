@@ -24,7 +24,7 @@ set(CUDAToolkit_ROOT /usr/local/cuda-13.0)
 find_package(CUDAToolkit REQUIRED)
 
 # ---- module sources ------------------------------------------------------------------
-set(GGEMM_SRC src/ggemm.cu src/planner.cpp)
+set(GGEMM_SRC src/ggemm.cu src/ggemm_graph.cu src/planner.cpp src/operand_reuse.cpp)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/ozaki2_numerics.cu)
   list(APPEND GGEMM_SRC src/ozaki2_numerics.cu)

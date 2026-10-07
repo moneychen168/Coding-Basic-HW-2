@@ -4,6 +4,7 @@
 #SBATCH -p dev
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
+#SBATCH --exclude=25a-hgpn001,25a-hgpn003,25a-hgpn085
 #SBATCH --cpus-per-task=12
 #SBATCH --time=02:00:00
 #SBATCH -o results/slurm-%x-%j.out
@@ -12,7 +13,7 @@
 # Env knobs: BENCH_SET=bench|quick  PATHS=all  REPS=20  WARMUP=5  ONLY=<substr>
 #            ACC=1 (also run the phi x num_moduli accuracy sweep)  SKIP_BUILD=1
 set -uo pipefail
-ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"
+ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"; cuda_preflight
 OUT="$ROOT/results/bench_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
@@ -22,6 +23,7 @@ B="$ROOT/build/bench_grouped"
 # 1) performance: every path, same workloads/data, phi=0.5, adaptive moduli
 "$B" --set "${BENCH_SET:-bench}" --paths "${PATHS:-all}" --phis 0.5 --moduli 0 \
      --reps "${REPS:-20}" --warmup "${WARMUP:-5}" ${ONLY:+--only "$ONLY"} --csv "$OUT/bench.csv" \
+     --dump-shapes "$OUT/shapes.csv" \
      2>&1 | tee "$OUT/bench.log"
 
 # 2) accuracy vs phi and fixed moduli count (timing is a by-product; fewer reps)

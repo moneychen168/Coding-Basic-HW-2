@@ -30,7 +30,7 @@ fi
 
 [[ -n "$NANO4_MODULES" ]] && module load $NANO4_MODULES
 export CUDA_HOME="$NANO4_CUDA_HOME"
-source "$ROOT/scripts/env.sh"
+source "$ROOT/scripts/env.sh"; cuda_preflight
 OUT="$ROOT/results/nano4_${SLURM_JOB_ID:-$(date +%Y%m%d_%H%M%S)}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
@@ -38,7 +38,7 @@ select_calib "$OUT"
 BIN="$ROOT/build_sm120"
 "$BIN/test_grouped" --set test --csv "$OUT/tests.csv" 2>&1 | tee "$OUT/tests.log"
 "$BIN/bench_grouped" --set "${BENCH_SET:-bench}" --paths all --phis 0.5 --moduli 0 \
-     --reps "${REPS:-20}" --warmup "${WARMUP:-5}" --csv "$OUT/bench.csv" 2>&1 | tee "$OUT/bench.log"
+     --reps "${REPS:-20}" --warmup "${WARMUP:-5}" --csv "$OUT/bench.csv" --dump-shapes "$OUT/shapes.csv" 2>&1 | tee "$OUT/bench.log"
 "$BIN/bench_grouped" --set quick --paths native_loop,emu_grouped,auto --phis 0,0.5,1,2 \
      --moduli 0,8,10,12,14,16,18,20 --reps 3 --warmup 1 --csv "$OUT/accuracy.csv" 2>&1 | tee "$OUT/accuracy.log"
 plot_results "$OUT/bench.csv" "$OUT/plots"

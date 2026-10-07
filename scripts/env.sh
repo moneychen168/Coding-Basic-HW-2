@@ -40,3 +40,20 @@ select_calib() {      # $1 = output dir (logs the choice into $1/calib.txt and s
   fi
   echo "[calib] GGEMM_CALIB_JSON = $f" | tee "$1/calib.txt"
 }
+# GPU sanity check at job start. On failure prints host + nvidia-smi and exits 75 (EX_TEMPFAIL),
+# so a node whose GPU passes NVML but fails CUDA init shows up as FAILED, not an empty COMPLETED.
+cuda_preflight() {
+  local src="$ROOT/scripts/cuda_preflight.cu" dir="${TMPDIR:-/tmp}/ggemm_preflight_${SLURM_JOB_ID:-$$}"
+  mkdir -p "$dir"
+  if ! "$CUDA_HOME/bin/nvcc" -O1 -gencode arch=compute_90,code=sm_90 -gencode arch=compute_120,code=sm_120 \
+        "$src" -o "$dir/cuda_preflight" >"$dir/nvcc.log" 2>&1; then
+    echo "[preflight] cannot compile $src:"; cat "$dir/nvcc.log"; exit 75
+  fi
+  if ! "$dir/cuda_preflight"; then
+    echo "[preflight] CUDA unusable on host $(hostname) (CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}, job ${SLURM_JOB_ID:-none})" >&2
+    nvidia-smi --query-gpu=index,name,pci.bus_id,driver_version,clocks.sm,clocks.max.sm,memory.used,ecc.errors.uncorrected.volatile.total --format=csv >&2
+    nvidia-smi >&2
+    exit 75
+  fi
+  rm -rf "$dir"
+}

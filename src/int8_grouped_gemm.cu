@@ -21,6 +21,9 @@
 //        cfg0 128x128, BK=64,  3 stages  (warp tile 64x32, 16 mma / k32-step)
 //        cfg1  64x64,  BK=128, 3 stages  (warp tile 32x16,  4 mma / k32-step)
 //        cfg2  32x32,  BK=256, 3 stages  (warp tile 16x8,   1 mma / k32-step)
+//    (Round 2 tried thread-0 decode overlap, cross-tile prologue overlap, no zero-fill and an
+//    intra-CTA split-K cfg2; H200 ablation job 510965 showed a structural ~10% cfg0 regression,
+//    so this file is round 1 + the safe fixes. Round-2 source: build/abl/round2_int8_grouped_gemm.cu.)
 //    k32-steps beyond kp inside a BK tile are skipped (CTA-uniform branch), so the deep BK of
 //    small configs does not waste MMAs when kp is small.
 //    48 KB smem + <=128 regs -> 2 CTAs/SM on both sm_90 (228 KB smem) and sm_120 (~100 KB smem).
@@ -236,6 +239,109 @@ __device__ __forceinline__ void run_tile(int8_t* smem, const i8_problem& P, int 
   }
 }
 
+#ifdef I8_CFG2_SPLITK
+// cfg2 (32x32, BK=256) with intra-CTA split-K. Touches ONLY the cfg2 path: it reuses
+// load_stage<Cfg2> (same smem layout / swizzle / zero-fill) and the same prologue/pipeline
+// structure as run_tile, but all 8 warps own the full 32x32 tile and warp w computes k32-step w
+// of every BK=256 stage (2x4 m16n8 fragments = 8 mma per 4 ldmatrix.x4). Partial sums are
+// reduced through shared memory (one int4 per (warp, fragment, lane); 8*8*32*16 B = 32 KB).
+__device__ __forceinline__ void run_tile_cfg2_splitk(int8_t* smem, const i8_problem& P, int tm,
+                                                     int tn) {
+  using C = Cfg2;
+  constexpr int MF = C::BM / 16, NF = C::BN / 8;          // 2 x 4 fragments per warp
+  static_assert(C::BK / 32 == kThreads / 32, "one k32 step per warp per stage");
+  static_assert(MF * NF * 32 == kThreads, "one reduction slot per thread");
+  static_assert((kThreads / 32) * MF * NF * 32 * 16 <= kSmemBytes, "reduction buffer");
+  const int tid = threadIdx.x, lane = tid & 31, warp = tid >> 5;
+  const int m0 = tm * C::BM, n0 = tn * C::BN;
+  const int m_rem = P.m - m0, n_rem = P.n - n0, kp = P.kp;
+  const int8_t* A = P.A + (size_t)m0 * kp;
+  const int8_t* B = P.B + (size_t)n0 * kp;
+  const int ktiles = (kp + C::BK - 1) / C::BK;
+
+  int acc[MF][NF][4];
+#pragma unroll
+  for (int i = 0; i < MF; ++i)
+#pragma unroll
+    for (int j = 0; j < NF; ++j)
+#pragma unroll
+      for (int r = 0; r < 4; ++r) acc[i][j][r] = 0;
+
+#pragma unroll
+  for (int s = 0; s < kStages - 1; ++s) {
+    if (s < ktiles) load_stage<C>(smem + s * C::STAGE_BYTES, A, B, m_rem, n_rem, kp, s * C::BK, tid);
+    cp_async_commit();
+  }
+  const int a_row = (lane & 7) + ((lane >> 3) & 1) * 8, a_ch = warp * 2 + (lane >> 4);
+  const int b_row = (lane & 7) + ((lane >> 4) & 1) * 8, b_ch = warp * 2 + ((lane >> 3) & 1);
+
+  for (int kt = 0; kt < ktiles; ++kt) {
+    cp_async_wait<kStages - 2>();
+    __syncthreads();
+    {
+      int nk = kt + kStages - 1;
+      if (nk < ktiles)
+        load_stage<C>(smem + (nk % kStages) * C::STAGE_BYTES, A, B, m_rem, n_rem, kp, nk * C::BK, tid);
+      cp_async_commit();
+    }
+    if (kt * C::BK + warp * 32 < kp) {   // warp-uniform: this warp's k32 step is inside kp
+      const uint32_t sA = smem_u32(smem + (kt % kStages) * C::STAGE_BYTES);
+      const uint32_t sB = sA + C::BM * C::BK;
+      uint32_t af[MF][4], bf[NF][2];
+#pragma unroll
+      for (int i = 0; i < MF; ++i) {
+        int r = a_row + i * 16;
+        ldsm_x4(sA + r * C::BK + swz<C::CPR>(r, a_ch) * 16, af[i][0], af[i][1], af[i][2], af[i][3]);
+      }
+#pragma unroll
+      for (int j = 0; j < NF / 2; ++j) {
+        int r = b_row + j * 16;
+        ldsm_x4(sB + r * C::BK + swz<C::CPR>(r, b_ch) * 16, bf[2 * j][0], bf[2 * j][1],
+                bf[2 * j + 1][0], bf[2 * j + 1][1]);
+      }
+#pragma unroll
+      for (int i = 0; i < MF; ++i)
+#pragma unroll
+        for (int j = 0; j < NF; ++j) mma_s8(acc[i][j], af[i], bf[j][0], bf[j][1]);
+    }
+  }
+  cp_async_wait<0>();
+  __syncthreads();   // all stages consumed -> smem reused as the reduction buffer
+
+  int4* red = reinterpret_cast<int4*>(smem);
+#pragma unroll
+  for (int i = 0; i < MF; ++i)
+#pragma unroll
+    for (int j = 0; j < NF; ++j)
+      red[warp * kThreads + (i * NF + j) * 32 + lane] =
+          make_int4(acc[i][j][0], acc[i][j][1], acc[i][j][2], acc[i][j][3]);
+  __syncthreads();
+  // Thread tid owns slot tid = (fragment f, lane). In-range sums are exact (|C| fits int32);
+  // unsigned adds keep rows/cols beyond m/n (zero-filled anyway) free of signed-overflow UB.
+  unsigned s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+#pragma unroll
+  for (int q = 0; q < kThreads / 32; ++q) {
+    int4 x = red[q * kThreads + tid];
+    s0 += (unsigned)x.x; s1 += (unsigned)x.y; s2 += (unsigned)x.z; s3 += (unsigned)x.w;
+  }
+  // The kernel loop's __syncthreads after run_tile protects `red` from the next prologue.
+  const int f = tid >> 5, fi = f / NF, fj = f % NF;
+  const int g = lane >> 2, t = lane & 3;
+  const int r0 = m0 + fi * 16 + g, c0 = n0 + fj * 8 + t * 2;
+  const int v[4] = {(int)s0, (int)s1, (int)s2, (int)s3};
+  int32_t* Cp = P.C;
+  const int M = P.m;
+#pragma unroll
+  for (int h = 0; h < 2; ++h) {
+    int r = r0 + h * 8;
+    if (r < M) {
+      if (c0 < P.n) Cp[(size_t)c0 * M + r] = v[2 * h];
+      if (c0 + 1 < P.n) Cp[(size_t)(c0 + 1) * M + r] = v[2 * h + 1];
+    }
+  }
+}
+#endif
+
 __global__ void __launch_bounds__(kThreads, 2)
     i8_grouped_persistent_kernel(const i8_problem* __restrict__ probs, int* __restrict__ ws,
                                  int total_tiles) {
@@ -270,7 +376,11 @@ __global__ void __launch_bounds__(kThreads, 2)
     switch (cfg) {
       case 0: run_tile<Cfg0>(smem, P, tm, tn); break;
       case 1: run_tile<Cfg1>(smem, P, tm, tn); break;
+#ifdef I8_CFG2_SPLITK
+      default: run_tile_cfg2_splitk(smem, P, tm, tn); break;
+#else
       default: run_tile<Cfg2>(smem, P, tm, tn); break;
+#endif
     }
     __syncthreads();   // makes s_tile[(it+1)&1] visible; run_tile already ended with a barrier
   }
@@ -323,8 +433,8 @@ double tile_cost(int c, int kp) {
 }
 
 bool valid_problem(const i8_problem& p) {
-  if (p.m < 0 || p.n < 0 || p.kp <= 0 || (p.kp % 32) != 0 || p.kp > 131040) return false;
-  if (p.m == 0 || p.n == 0) return true;
+  if (p.m < 0 || p.n < 0 || p.kp < 0 || (p.kp % 32) != 0 || p.kp > 131040) return false;
+  if (p.m == 0 || p.n == 0 || p.kp == 0) return true;   // empty: skipped, C untouched
   if (!p.A || !p.B || !p.C) return false;
   if ((reinterpret_cast<uintptr_t>(p.A) & 15) || (reinterpret_cast<uintptr_t>(p.B) & 15)) return false;
   if (reinterpret_cast<uintptr_t>(p.C) & 3) return false;
@@ -333,14 +443,16 @@ bool valid_problem(const i8_problem& p) {
 
 }  // namespace
 
-// Heuristic: estimated issue cost = tiles * BM*BN / relative_efficiency(cfg). The relative
-// efficiencies (1.0 / 0.6 / 0.3) are UNMEASURED placeholders; calibrate with the test sweep.
-// If the problem alone cannot fill the GPU with 128x128 tiles, prefer smaller tiles once.
+// Heuristic: estimated cost = tiles * BM*BN / relative_efficiency(cfg), per problem.
+// eff[1] = 0.63 from H200 job 510874 (cfg1/cfg0 TOPS: random64 0.66, ozaki-like 0.62, 8192^3 0.62);
+// eff[2] = 0.30 from the same job (0.29). The round-1 per-problem "cannot fill the GPU -> 64x64"
+// override was removed (job 510874: auto lost 9% to all-cfg0 on random64); the fill rule is now
+// group-level in build_schedule.
 int i8_choose_tile_cfg(int m, int n, int kp, int num_sms) {
   (void)kp;
+  (void)num_sms;
   if (m <= 0 || n <= 0) return I8_TILE_32x32;
-  if (num_sms <= 0) num_sms = dev_info().sms;
-  static const double eff[3] = {1.0, 0.6, 0.3};
+  static const double eff[3] = {1.0, 0.63, 0.30};
   int best = 0;
   double best_cost = 1e300;
   for (int c = 0; c < 3; ++c) {
@@ -348,7 +460,6 @@ int i8_choose_tile_cfg(int m, int n, int kp, int num_sms) {
     double cost = cfg_tiles(c, m, n) * b * b / eff[c];
     if (cost < best_cost) { best_cost = cost; best = c; }
   }
-  if (best == 0 && cfg_tiles(0, m, n) < num_sms / 2 && cfg_tiles(1, m, n) <= 2 * num_sms) best = 1;
   return best;
 }
 
@@ -368,11 +479,27 @@ int i8_grouped_gemm_build_schedule(const i8_problem* h, int num, void* h_ws, siz
   int sms = 0;
   for (int i = 0; i < num; ++i) {
     if (!valid_problem(h[i])) return 3;
-    if (h[i].m == 0 || h[i].n == 0) continue;
+    if (h[i].m == 0 || h[i].n == 0 || h[i].kp == 0) continue;   // skipped (C not written)
     int c = h[i].tile_cfg;
     if (c < 0) { if (!sms) sms = dev_info().sms; c = i8_choose_tile_cfg(h[i].m, h[i].n, h[i].kp, sms); }
     if (c >= I8_NUM_TILE_CFGS) return 4;
     ents.push_back({tile_cost(c, h[i].kp), cfg_tiles(c, h[i].m, h[i].n), i, c});
+  }
+  // Group-level fill rule: if the whole group has fewer tiles than SMs, split auto-chosen
+  // 128x128 problems into 64x64 tiles (more CTAs busy). Explicit tile_cfg is never changed.
+  {
+    long long t = 0;
+    for (auto& e : ents) t += e.tiles;
+    if (!sms) sms = dev_info().sms;
+    if (t < sms) {
+      for (auto& e : ents) {
+        if (e.cfg == 0 && h[e.prob].tile_cfg < 0) {
+          e.cfg = 1;
+          e.tiles = cfg_tiles(1, h[e.prob].m, h[e.prob].n);
+          e.cost = tile_cost(1, h[e.prob].kp);
+        }
+      }
+    }
   }
   // LPT: heaviest tiles first; ties -> more tiles first, then original order (deterministic).
   std::stable_sort(ents.begin(), ents.end(), [](const Ent& a, const Ent& b) {
@@ -406,6 +533,7 @@ int i8_grouped_gemm_launch(const i8_problem* d_probs, int num, const void* d_sch
   const DevInfo& di = dev_info();
   long long grid = (long long)di.sms * di.ctas_per_sm;
   if (grid > total_tiles) grid = total_tiles;
+  (void)cudaGetLastError();   // clear a stale (non-sticky) error so we only report our launch
   i8_grouped_persistent_kernel<<<(int)grid, kThreads, kSmemBytes, s>>>(
       d_probs, const_cast<int*>(static_cast<const int*>(d_sched_ws)), total_tiles);
   return cudaGetLastError() == cudaSuccess ? 0 : 6;

@@ -4,13 +4,14 @@
 #SBATCH -p dev
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
+#SBATCH --exclude=25a-hgpn001,25a-hgpn003,25a-hgpn085
 #SBATCH --cpus-per-task=12
 #SBATCH --time=02:00:00
 #SBATCH -o results/slurm-%x-%j.out
 # scripts/run_i8_unit.slurm -- build + run tests/test_i8_grouped (agent-K's unit test) (owner: agent-B).
 # Submit from repo root:  sbatch scripts/run_i8_unit.slurm      (extra args: I8_ARGS="...")
 set -uo pipefail
-ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"
+ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"; cuda_preflight
 OUT="$ROOT/results/i8unit_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"

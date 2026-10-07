@@ -10,8 +10,16 @@ typedef enum {
   GGEMM_ROUTE_K_TOO_LARGE = 3,  // k > GGEMM_MAX_K_EXACT (INT32 overflow)
   GGEMM_ROUTE_TINY = 4,         // m*n*k < tiny_mnk
   GGEMM_ROUTE_UNPROFITABLE = 5, // cost model: emulation slower than native
-  GGEMM_ROUTE_PRECISION = 6     // oz2_choose_num_moduli: no N <= GGEMM_MAX_MODULI meets target
+  GGEMM_ROUTE_PRECISION = 6,    // oz2_choose_num_moduli: no N <= GGEMM_MAX_MODULI meets target
+  GGEMM_ROUTE_SMALL_K = 7       // AUTO: k <= GGEMM_AUTO_NATIVE_MAX_K -> native FP64
 } ggemm_route_t;
+
+// AUTO only (with allow_fallback): k at or below this goes straight to native FP64.
+#define GGEMM_AUTO_NATIVE_MAX_K 16
+// AUTO adaptive N uses oz2_choose_num_moduli_cw(k, rho_budget). rho_budget = env
+// GGEMM_RHO_BUDGET, else this default. PLACEHOLDER, NOT TUNED: tune it with
+// stats.num_repaired (GGEMM_STATS_REPAIR=1); it only moves the FP64-repair rate, never accuracy.
+#define GGEMM_RHO_BUDGET_DEFAULT 16.0
 
 typedef struct {
   int route;        // ggemm_route_t

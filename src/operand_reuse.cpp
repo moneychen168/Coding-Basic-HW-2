@@ -27,8 +27,9 @@ inline size_t kp_of(int k) { return align_up((size_t)k, 32); }
 
 }  // namespace
 
-void reuse_arena::reserve(int max_problems) {
+int reuse_arena::reserve(int max_problems) {
   if (max_problems < 1) max_problems = 1;
+  if (max_problems > (1 << 30)) { cap = 0; mask = 0; return REUSE_ERR_CAPACITY; }   // 2*cap > 2^31
   cap = max_problems;
   uint32_t sz = 1;
   while (sz < 2u * (uint32_t)max_problems) sz <<= 1;
@@ -40,6 +41,7 @@ void reuse_arena::reserve(int max_problems) {
   ub_rep.assign(cap, -1); ub_nmod.assign(cap, 0);
   prob_a.assign(cap, -1); prob_b.assign(cap, -1); eff_nmod.assign(cap, 0);
   uf_parent.assign(2 * (size_t)cap, 0); uf_max.assign(2 * (size_t)cap, 0);
+  return REUSE_OK;
 }
 
 reuse_plan build_operand_reuse(reuse_arena& ws, const ggemm_problem_t* probs, int num,
@@ -141,6 +143,11 @@ reuse_plan build_operand_reuse(reuse_arena& ws, const ggemm_problem_t* probs, in
 void operand_reuse_bytes(const reuse_plan& plan, const ggemm_problem_t* probs, const int* nmod,
                          reuse_bytes* before, reuse_bytes* after) {
   reuse_bytes b{}, a{};
+  if (plan.status != REUSE_OK || (plan.num_problems > 0 && (!probs || !nmod))) {   // no valid view
+    if (before) *before = b;
+    if (after) *after = a;
+    return;
+  }
   int nmax_b = 0;
   double SA = 0, SB = 0;
   for (int g = 0; g < plan.num_problems; ++g) {

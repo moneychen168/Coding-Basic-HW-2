@@ -20,11 +20,14 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
 # Categorical slots in fixed order (color follows the path, never its rank).
-PATH_ORDER = ["native_loop", "native_grouped", "emu_loop", "emu_grouped", "auto"]
+PATH_ORDER = ["native_loop", "native_grouped", "emu_loop", "emu_grouped", "auto", "emu_grouped_reuse", "emu_loop_batched"]
 PATH_LABEL = {"native_loop": "native loop (cuBLAS DGEMM)", "native_grouped": "native grouped (cuBLAS)",
-              "emu_loop": "emu loop (starter)", "emu_grouped": "emu grouped (ours)", "auto": "auto (ours+planner)"}
+              "emu_loop": "emu loop (starter)", "emu_grouped": "emu grouped (ours)", "auto": "auto (ours+planner)",
+              "emu_grouped_reuse": "emu grouped + operand reuse",
+              "emu_loop_batched": "emu loop batched (GEMMul8-like)"}
 PATH_COLOR = {"native_loop": "#2a78d6", "native_grouped": "#eb6834", "emu_loop": "#1baf7a",
-              "emu_grouped": "#eda100", "auto": "#e87ba4"}
+              "emu_grouped": "#eda100", "auto": "#e87ba4", "emu_grouped_reuse": "#008300",  # slot 6
+              "emu_loop_batched": "#4a3aa7"}  # slot 7
 PHI_COLOR = {0.0: "#9ec5f4", 0.5: "#5598e7", 1.0: "#256abf", 2.0: "#0d366b"}  # sequential, one hue
 INK, INK2, GRID = "#1a1a19", "#5f5e58", "#e4e3dc"
 

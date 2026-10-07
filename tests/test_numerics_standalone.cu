@@ -6,8 +6,11 @@
 // Metrics (all against a CPU long double reference with Neumaier summation):
 //   rel_cw  = max_ij |C - R| / |R|                     (componentwise relative, R != 0)
 //   rel_abs = max_ij |C - R| / (|alpha| (|A||B|)_ij)   (relative to |A||B|)
-//   rel_nrm = max_ij |C - R| / (|alpha| ||A(i,:)|| ||B(:,j)||) -- compared to oz2_error_bound
-// Exit code 0 iff every rel_nrm <= bound and the residue check passes.
+//   rel_nrm = max_ij |C - R| / (|alpha| ||A(i,:)|| ||B(:,j)||) -- informational (oz2_error_bound)
+//   gate    = max_ij |C - R| / (gamma_n (|alpha|(|A||B|)_ij + |beta||C0_ij|)),
+//             n = k (+1 alpha != 1) (+1 beta != 0): the componentwise FP64 contract, must be <= 1
+//   rep     = entries recomputed in FP64 by the certificate (oz2_read_counters)
+// Exit code 0 iff every gate <= 1 and the residue checks pass.
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -31,7 +34,7 @@
 __global__ void naive_i8_gemm(const oz2_problem* probs) {
   const oz2_problem& p = probs[blockIdx.z];
   const int l = blockIdx.y;
-  if (l >= p.num_moduli) return;
+  if (l > p.num_moduli) return;  // planes 0..N (N = abs plane)
   const size_t total = (size_t)p.m * p.n;
   for (size_t idx = (size_t)blockIdx.x * blockDim.x + threadIdx.x; idx < total; idx += (size_t)gridDim.x * blockDim.x) {
     const int i = (int)(idx % p.m), j = (int)(idx / p.m);
@@ -109,8 +112,9 @@ static void setup(Dev& d, std::vector<HostProb>& hs) {
   size_t a8 = 0, b8 = 0, c32 = 0, rsz = 0, csz = 0;
   for (auto& h : hs) {
     int kp = (h.k + 31) / 32 * 32;
-    a8 += (size_t)h.N * h.m * kp; b8 += (size_t)h.N * h.n * kp; c32 += (size_t)h.N * h.m * h.n;
-    rsz += h.m; csz += h.n;
+    const int NP = oz2_num_planes(h.N);
+    a8 += (size_t)NP * h.m * kp; b8 += (size_t)NP * h.n * kp; c32 += (size_t)NP * h.m * h.n;
+    rsz += OZ2_ROW_WS_PER_ROW * h.m; csz += OZ2_ROW_WS_PER_ROW * h.n;
   }
   CK(cudaMalloc(&d.A8, a8 + 16)); CK(cudaMalloc(&d.B8, b8 + 16)); CK(cudaMalloc(&d.C32, 4 * c32 + 16));
   CK(cudaMalloc(&d.rs, 4 * rsz + 16)); CK(cudaMalloc(&d.cs, 4 * csz + 16));
@@ -131,8 +135,9 @@ static void setup(Dev& d, std::vector<HostProb>& hs) {
     p.B8 = d.B8 + ob; p.b8_mod_stride = (size_t)h.n * p.kp;
     p.C32 = d.C32 + oc; p.c32_mod_stride = (size_t)h.m * h.n;
     p.row_shift = d.rs + orr; p.col_shift = d.cs + occ;
-    oa += (size_t)h.N * p.a8_mod_stride; ob += (size_t)h.N * p.b8_mod_stride;
-    oc += (size_t)h.N * p.c32_mod_stride; orr += h.m; occ += h.n;
+    const int NP = oz2_num_planes(h.N);
+    oa += (size_t)NP * p.a8_mod_stride; ob += (size_t)NP * p.b8_mod_stride;
+    oc += (size_t)NP * p.c32_mod_stride; orr += OZ2_ROW_WS_PER_ROW * h.m; occ += OZ2_ROW_WS_PER_ROW * h.n;
     d.hp.push_back(p);
     d.max_m = std::max(d.max_m, h.m); d.max_n = std::max(d.max_n, h.n); d.max_N = std::max(d.max_N, h.N);
   }
@@ -151,13 +156,25 @@ static void run(Dev& d) {
   const int num = (int)d.hp.size();
   if (oz2_prep_grouped(d.dprobs, num, d.max_m, d.max_n, 0)) { fprintf(stderr, "prep failed\n"); exit(2); }
   int gx = (int)std::min<size_t>(((size_t)d.max_m * d.max_n + 255) / 256, 4096);
-  naive_i8_gemm<<<dim3(gx, d.max_N, num), 256>>>(d.dprobs);
+  naive_i8_gemm<<<dim3(gx, oz2_num_planes(d.max_N), num), 256>>>(d.dprobs);
   CK(cudaGetLastError());
   if (oz2_reconstruct_grouped(d.dprobs, num, d.max_m, d.max_n, 0)) { fprintf(stderr, "recon failed\n"); exit(2); }
   CK(cudaDeviceSynchronize());
 }
 
-struct Err { double cw = 0, ab = 0, nr = 0; bool beta_ok = true; };
+struct Err { double cw = 0, ab = 0, nr = 0, gate = 0; bool beta_ok = true; };
+
+static double gamma_n(const HostProb& h) {
+  double n = h.k + (h.alpha != 1.0) + (h.beta != 0.0);
+  if (n < 1) n = 1;
+  const double u = std::ldexp(1.0, -53);
+  return n * u / (1.0 - n * u);
+}
+static unsigned long long take_repairs() {
+  unsigned long long r = 0;
+  oz2_read_counters(nullptr, &r, 1, 0);
+  return r;
+}
 
 static Err check(const Dev& d, int idx, const HostProb& h) {
   std::vector<double> C(h.C0.size());
@@ -177,6 +194,9 @@ static Err check(const Dev& d, int idx, const HostProb& h) {
       if (sa > 0) e.ab = std::max(e.ab, (double)(err_ab / sa));
       if (sn > 0) e.nr = std::max(e.nr, (double)(err_ab / sn));
       else if (err_ab > 0) e.nr = INFINITY;
+      long double den = gamma_n(h) * ((long double)sa + fabsl((long double)h.beta * h.C0[i + (size_t)j * h.ldc]));
+      if (den > 0) e.gate = std::max(e.gate, (double)(err / den));
+      else if (err > 0) e.gate = INFINITY;
     }
     for (int i = h.m; i < h.ldc; ++i)  // padding rows of C must be untouched
       if (C[i + (size_t)j * h.ldc] != h.C0[i + (size_t)j * h.ldc]) e.beta_ok = false;
@@ -188,12 +208,16 @@ static Err check(const Dev& d, int idx, const HostProb& h) {
 // long double; fmodl is exact.
 static bool check_residues(const Dev& d, int idx, const HostProb& h) {
   const oz2_problem& p = d.hp[idx];
-  std::vector<int8_t> A8((size_t)h.N * p.a8_mod_stride), B8((size_t)h.N * p.b8_mod_stride);
-  std::vector<int32_t> rs(h.m), cs(h.n);
+  const int NP = oz2_num_planes(h.N);
+  std::vector<int8_t> A8((size_t)NP * p.a8_mod_stride), B8((size_t)NP * p.b8_mod_stride);
+  std::vector<int32_t> rs(OZ2_ROW_WS_PER_ROW * h.m), cs(OZ2_ROW_WS_PER_ROW * h.n);
   CK(cudaMemcpy(A8.data(), p.A8, A8.size(), cudaMemcpyDeviceToHost));
   CK(cudaMemcpy(B8.data(), p.B8, B8.size(), cudaMemcpyDeviceToHost));
-  CK(cudaMemcpy(rs.data(), p.row_shift, 4 * h.m, cudaMemcpyDeviceToHost));
-  CK(cudaMemcpy(cs.data(), p.col_shift, 4 * h.n, cudaMemcpyDeviceToHost));
+  CK(cudaMemcpy(rs.data(), p.row_shift, 4 * rs.size(), cudaMemcpyDeviceToHost));
+  CK(cudaMemcpy(cs.data(), p.col_shift, 4 * cs.size(), cudaMemcpyDeviceToHost));
+  auto absval = [](double a, int sg) {
+    return sg == OZ2_SHIFT_ZERO ? 0 : (int)truncl(ldexpl(fabsl((long double)a), sg));
+  };
   oz2_crt_tables t; oz2_build_crt_tables(&t);
   const long double T = t.T[h.N];
   long bad = 0;
@@ -211,6 +235,8 @@ static bool check_residues(const Dev& d, int idx, const HostProb& h) {
       n2 += x * x;
       for (int l = 0; l < h.N; ++l)
         if (A8[l * p.a8_mod_stride + (size_t)i * p.kp + q] != sym(x, t.p[l])) ++bad;
+      int av = q < h.k ? absval(h.A[i + (size_t)q * h.lda], rs[h.m + i]) : 0;
+      if (av < 0 || av > 127 || A8[h.N * p.a8_mod_stride + (size_t)i * p.kp + q] != av) ++bad;
     }
     if (sqrtl(n2) > T) { ++bad; fprintf(stderr, "row %d norm %Lg > T %Lg\n", i, sqrtl(n2), T); }
   }
@@ -221,6 +247,8 @@ static bool check_residues(const Dev& d, int idx, const HostProb& h) {
       n2 += x * x;
       for (int l = 0; l < h.N; ++l)
         if (B8[l * p.b8_mod_stride + (size_t)j * p.kp + q] != sym(x, t.p[l])) ++bad;
+      int bv = q < h.k ? absval(h.B[q + (size_t)j * h.ldb], cs[h.n + j]) : 0;
+      if (bv < 0 || bv > 127 || B8[h.N * p.b8_mod_stride + (size_t)j * p.kp + q] != bv) ++bad;
     }
     if (sqrtl(n2) > T) { ++bad; fprintf(stderr, "col %d norm %Lg > T %Lg\n", j, sqrtl(n2), T); }
   }
@@ -253,7 +281,7 @@ int main() {
   }
 
   // 2) sweep N = 8..20 x phi, single problem per launch (same data reused across N)
-  const int shapes[][3] = {{128, 96, 1000}, {64, 64, 4096}};
+  const int shapes[][3] = {{16, 16, 16}, {64, 64, 64}, {128, 96, 1000}, {64, 64, 4096}};
   for (auto& sh : shapes)
     for (double phi : {0.0, 0.5, 1.0, 2.0, 4.0}) {
       HostProb base;
@@ -269,16 +297,18 @@ int main() {
           if (r != 0) fp64_cw = std::max(fp64_cw, (double)(fabsl(s - r) / fabsl(r)));
         }
       printf("\nshape m=%d n=%d k=%d phi=%.1f   (naive FP64 dot rel_cw=%.3e)\n", sh[0], sh[1], sh[2], phi, fp64_cw);
-      printf(" N   rel_cw      rel_abs     rel_nrm     bound       ok\n");
+      printf(" N   rel_cw      rel_abs     rel_nrm     bound       gate        rep     ok\n");
       for (int N = 8; N <= GGEMM_MAX_MODULI; ++N) {
         std::vector<HostProb> hs(1, base);
         hs[0].N = N;
+        take_repairs();
         Dev d; setup(d, hs); run(d);
+        unsigned long long rp = take_repairs();
         Err e = check(d, 0, hs[0]);
         double bnd = oz2_error_bound(base.k, N);
-        bool ok = e.nr <= bnd && e.beta_ok;
+        bool ok = e.gate <= 1.0 && e.beta_ok;
         if (!ok) ++fails;
-        printf("%2d  %.3e  %.3e  %.3e  %.3e  %s\n", N, e.cw, e.ab, e.nr, bnd, ok ? "ok" : "FAIL");
+        printf("%2d  %.3e  %.3e  %.3e  %.3e  %.3e  %-6llu  %s\n", N, e.cw, e.ab, e.nr, bnd, e.gate, rp, ok ? "ok" : "FAIL");
         teardown(d);
       }
     }
@@ -294,6 +324,8 @@ int main() {
         {64, 48, 512, 18, 1.0, 1.0, 0.0, 1},   // extreme exponents: A*2^-700, B*2^650 (rescan path)
         {40, 33, 300, 14, 1.0, 1.0, 0.0, 2},   // zero row and zero column
         {33, 65, 2048, 10, 4.0, 1.0, 0.25, 0},
+        {48, 48, 256, 15, 1.0, 1.0, 0.0, 3},   // adversarial cancellation: B(:,j) orthogonal-ish to A rows
+        {16, 16, 16, 15, 2.0, 1.0, 0.0, 0},    // the 0926 failing class (k=16, phi=2, N=15)
     };
     std::vector<HostProb> hs;
     for (auto& s : spec) {
@@ -306,21 +338,61 @@ int main() {
       } else if (s.special == 2) {
         for (int q = 0; q < h.k; ++q) h.A[3 + (size_t)q * h.lda] = 0.0;
         for (int q = 0; q < h.k; ++q) h.B[q + (size_t)5 * h.ldb] = 0.0;
+      } else if (s.special == 3) {  // B(:,j) = x_j * (A(0,:) shifted) - pairs that cancel in row 0
+        for (int j = 0; j < h.n; ++j)
+          for (int q = 0; q + 1 < h.k; q += 2) {
+            h.B[q + (size_t)j * h.ldb] = h.A[0 + (size_t)(q + 1) * h.lda];
+            h.B[q + 1 + (size_t)j * h.ldb] = -h.A[0 + (size_t)q * h.lda] * (1.0 + std::ldexp((double)j, -40));
+          }
       }
       reference(h);
       hs.push_back(std::move(h));
     }
+    take_repairs();
     Dev d; setup(d, hs); run(d);
-    printf("\ngrouped launch (%zu problems, 1 prep + 1 recon launch)\n", hs.size());
-    printf(" m    n    k     N   rel_cw      rel_abs     rel_nrm     bound       ok\n");
+    printf("\ngrouped launch (%zu problems, 1 prep + 1 recon launch), total repaired entries=%llu\n", hs.size(),
+           take_repairs());
+    printf(" m    n    k     N   rel_cw      rel_abs     rel_nrm     bound       gate        ok\n");
     for (size_t g = 0; g < hs.size(); ++g) {
       Err e = check(d, (int)g, hs[g]);
       double bnd = oz2_error_bound(hs[g].k, hs[g].N);
-      bool ok = e.nr <= bnd && e.beta_ok;
+      bool ok = e.gate <= 1.0 && e.beta_ok;
       if (!ok) ++fails;
-      printf("%4d %4d %5d %3d  %.3e  %.3e  %.3e  %.3e  %s\n", hs[g].m, hs[g].n, hs[g].k, hs[g].N, e.cw, e.ab, e.nr, bnd,
-             ok ? "ok" : "FAIL");
+      printf("%4d %4d %5d %3d  %.3e  %.3e  %.3e  %.3e  %.3e  %s\n", hs[g].m, hs[g].n, hs[g].k, hs[g].N, e.cw, e.ab, e.nr,
+             bnd, e.gate, ok ? "ok" : "FAIL");
     }
+    teardown(d);
+  }
+
+  // 4) non-finite handling: NaN in A row 2, +Inf in B column 4 -> those entries non-finite
+  //    (computed by the FP64 repair path, like a native dot), rest meets the gate
+  {
+    std::vector<HostProb> hs(1);
+    make(hs[0], 50, 40, 200, 2, 1.0, 1.0, 0.0);
+    hs[0].N = 16;
+    reference(hs[0]);
+    hs[0].A[2 + (size_t)17 * hs[0].lda] = NAN;
+    hs[0].B[33 + (size_t)4 * hs[0].ldb] = INFINITY;
+    int cnt0 = 0;
+    oz2_nonfinite_count(&cnt0, 1, 0);
+    Dev d; setup(d, hs); run(d);
+    int cnt = -1;
+    oz2_nonfinite_count(&cnt, 1, 0);
+    std::vector<double> C(hs[0].C0.size());
+    CK(cudaMemcpy(C.data(), d.dC[0], 8 * C.size(), cudaMemcpyDeviceToHost));
+    long badnan = 0; double gate = 0;
+    const HostProb& h = hs[0];
+    for (int j = 0; j < h.n; ++j)
+      for (int i = 0; i < h.m; ++i) {
+        double c = C[i + (size_t)j * h.ldc];
+        if (i == 2 || j == 4) { if (std::isfinite(c)) ++badnan; continue; }
+        long double err = fabsl((long double)c - h.R[i + (size_t)j * h.m]);
+        gate = std::max(gate, (double)(err / (gamma_n(h) * h.absAB[i + (size_t)j * h.m])));
+      }
+    bool ok = cnt == 2 && badnan == 0 && gate <= 1.0;
+    if (!ok) ++fails;
+    printf("\nnon-finite: counter=%d (expect 2), finite entries in poisoned row/col=%ld, gate(rest)=%.3e %s\n",
+           cnt, badnan, gate, ok ? "ok" : "FAIL");
     teardown(d);
   }
 

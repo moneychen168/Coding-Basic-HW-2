@@ -77,6 +77,8 @@ inline const char* ggemm_path_name(ggemm_path_t p) {
     case GGEMM_PATH_EMU_LOOP: return "emu_loop";
     case GGEMM_PATH_EMU_GROUPED: return "emu_grouped";
     case GGEMM_PATH_AUTO: return "auto";
+    case GGEMM_PATH_EMU_GROUPED_REUSE: return "emu_grouped_reuse";
+    case GGEMM_PATH_EMU_LOOP_BATCHED: return "emu_loop_batched";
   }
   return "?";
 }
@@ -84,3 +86,27 @@ inline const char* ggemm_path_name(ggemm_path_t p) {
 std::vector<ggemm_path_t> parse_paths(const std::string& s);
 std::vector<double> parse_doubles(const std::string& s);
 std::vector<int> parse_ints(const std::string& s);
+
+// Emulation paths (Ozaki): everything except the two native cuBLAS baselines.
+inline bool ggemm_path_is_emu(ggemm_path_t p) {
+  return p != GGEMM_PATH_NATIVE_LOOP && p != GGEMM_PATH_NATIVE_GROUPED;
+}
+// Certificate / repair mode expected per path (numerics module defaults):
+//   COUNT: failing entries keep the emulated value and are counted in stats.num_uncertified
+//   ON   : failing entries are recomputed in FP64 and counted in stats.num_repaired
+// EMU_* default COUNT, AUTO default ON, native paths: no certificate (always exact FP64 contract).
+// TODO(agent-B): read the mode from ggemm_config_t once the field exists in include/ggemm.h.
+enum repair_mode_t { REPAIR_NONE = 0, REPAIR_COUNT = 1, REPAIR_ON = 2 };
+inline repair_mode_t ggemm_expected_repair_mode(ggemm_path_t p) {
+  if (!ggemm_path_is_emu(p)) return REPAIR_NONE;
+  return p == GGEMM_PATH_AUTO ? REPAIR_ON : REPAIR_COUNT;
+}
+// Stats fields that may not exist yet in include/ggemm.h: read via SFINAE, -1 = unavailable.
+namespace ggemm_detail {
+template <class T> auto uncert(const T& s, int) -> decltype((long long)s.num_uncertified) { return (long long)s.num_uncertified; }
+template <class T> long long uncert(const T&, long) { return -1; }
+template <class T> auto repaired(const T& s, int) -> decltype((long long)s.num_repaired) { return (long long)s.num_repaired; }
+template <class T> long long repaired(const T&, long) { return -1; }
+}  // namespace ggemm_detail
+inline long long stats_num_uncertified(const ggemm_stats_t& s) { return ggemm_detail::uncert(s, 0); }
+inline long long stats_num_repaired(const ggemm_stats_t& s) { return ggemm_detail::repaired(s, 0); }

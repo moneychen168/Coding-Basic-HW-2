@@ -57,7 +57,7 @@
 #include <cstdlib>
 
 #define WL_CUDA(x) do { cudaError_t e_ = (x); if (e_ != cudaSuccess) { \
-  fprintf(stderr, "CUDA %s at %s:%d\n", cudaGetErrorString(e_), __FILE__, __LINE__); return 1; } } while (0)
+  fprintf(stderr, "CUDA %s at %s:%d\n", cudaGetErrorString(e_), __FILE__, __LINE__); exit(1); } } while (0)
 
 double Workload::total_flops() const {
   double f = 0; for (auto& s : shapes) f += 2.0 * s.m * (double)s.n * s.k; return f;
@@ -305,7 +305,8 @@ static std::vector<std::string> split_csv(const std::string& s) {
 }
 std::vector<ggemm_path_t> parse_paths(const std::string& s) {
   std::vector<ggemm_path_t> all = {GGEMM_PATH_NATIVE_LOOP, GGEMM_PATH_NATIVE_GROUPED, GGEMM_PATH_EMU_LOOP,
-                                   GGEMM_PATH_EMU_GROUPED, GGEMM_PATH_AUTO};
+                                   GGEMM_PATH_EMU_GROUPED, GGEMM_PATH_AUTO, GGEMM_PATH_EMU_GROUPED_REUSE,
+                                   GGEMM_PATH_EMU_LOOP_BATCHED};
   if (s == "all") return all;
   std::vector<ggemm_path_t> out;
   for (auto& t : split_csv(s))

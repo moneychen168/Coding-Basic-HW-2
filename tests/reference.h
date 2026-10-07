@@ -18,7 +18,7 @@
 
 struct RefBuffers {
   double *hi = nullptr, *lo = nullptr, *den = nullptr;
-  unsigned long long* d_stats = nullptr;   // 3 per problem: err_cw bits, rel bits, nonfinite count
+  unsigned long long* d_stats = nullptr;   // 4 per problem: err_cw bits, rel bits, nonfinite, #entries over gamma
   size_t n = 0; int G = 0;
 };
 
@@ -28,6 +28,7 @@ struct ErrStats {
   double ratio_gamma = 0;  // max_g err_cw_g / gamma_{n_g}, n_g = fp64_bound_terms  (<= 1 means FP64-level bound met)
   int worst_problem = -1;  // argmax of err_cw_g / gamma
   unsigned long long nonfinite = 0;
+  unsigned long long n_over_gamma = 0;  // entries with err_cw_ij > gamma_n (non-finite included)
   std::vector<double> per_problem_cw;   // err_cw_g
 };
 
