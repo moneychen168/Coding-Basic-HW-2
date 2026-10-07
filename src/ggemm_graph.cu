@@ -42,6 +42,7 @@ struct ggemm_plan_s {
   char* h_blob;                    // pinned mirror of d_blob (also the source of update H2Ds)
   char* d_blob;                    // plan-owned descriptors + schedule image + native ptrs
   // plan-owned host metadata for cublasDgemmGroupedBatched (must outlive the graph)
+  int nat_ngroups;                 // cuBLAS groups of the native problems (ggemm_group_native)
   cublasOperation_t *nat_ta, *nat_tb;
   int *nat_m, *nat_n, *nat_k, *nat_lda, *nat_ldb, *nat_ldc, *nat_gsize;
   double *nat_alpha, *nat_beta;
@@ -96,7 +97,7 @@ static int enqueue(ggemm_plan_t p, cudaStream_t s, int* launches) {
                                  p->nat_alpha, reinterpret_cast<const double* const*>(base),
                                  p->nat_lda, reinterpret_cast<const double* const*>(base + c),
                                  p->nat_ldb, p->nat_beta, reinterpret_cast<double* const*>(base + 2 * c),
-                                 p->nat_ldc, c, p->nat_gsize));
+                                 p->nat_ldc, p->nat_ngroups, p->nat_gsize));
     ++*launches;
   }
   return GGEMM_OK;
@@ -228,12 +229,12 @@ static int build(ggemm_plan_t p, ggemm_path_t path, const ggemm_config_t* cfg) {
     return GGEMM_ERR_I8GEMM;
 
   // native metadata (plan-owned, so the captured cuBLAS call never references handle scratch)
-  for (int i = 0; i < p->nn; ++i) {
-    const ggemm_problem_t& q = p->probs[p->nat_idx[i]];
-    p->nat_ta[i] = CUBLAS_OP_N; p->nat_tb[i] = CUBLAS_OP_N;
-    p->nat_m[i] = q.m; p->nat_n[i] = q.n; p->nat_k[i] = q.k;
-    p->nat_lda[i] = q.lda; p->nat_ldb[i] = q.ldb; p->nat_ldc[i] = q.ldc;
-    p->nat_alpha[i] = q.alpha; p->nat_beta[i] = q.beta; p->nat_gsize[i] = 1;
+  // Same grouping as the direct NATIVE_GROUPED path (review L4). Sorting nat_idx here is safe:
+  // write_ptrs / update_pointers follow nat_idx, so pointers stay in group order.
+  {
+    const ggemm_nat_groups grp = {p->nat_ta, p->nat_tb, p->nat_m, p->nat_n, p->nat_k, p->nat_lda,
+                                  p->nat_ldb, p->nat_ldc, p->nat_gsize, p->nat_alpha, p->nat_beta};
+    p->nat_ngroups = p->nn >= 2 ? ggemm_group_native(p->probs, p->nat_idx, p->nn, grp) : 0;
   }
   write_ptrs(p);
 

@@ -55,6 +55,9 @@ typedef struct {
   int num_unique_A;       // A operands prepped (== emulated problems when reuse is off)
   int num_unique_B;       // B operands prepped (== emulated problems when reuse is off)
   int num_promoted;       // problems run with more moduli than planned (REUSE_PROMOTE only)
+  // The three counters below come from agent-N's process-wide device counters (reset before /
+  // read after each call). They are NOT per handle: with several handles running concurrently on
+  // different streams (or a plan executing on another stream) the counts mix and are unreliable.
   long long num_repaired; // C entries recomputed in FP64 by the certificate (repair ON);
                           // -1 = not measured (needs env GGEMM_STATS_REPAIR=1: syncs the stream)
   long long num_uncertified;      // repair COUNT: entries failing the certificate (-1 as above)

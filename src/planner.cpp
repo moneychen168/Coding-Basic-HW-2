@@ -30,14 +30,15 @@ static bool in_range(const calib_range& r, double v, const char* src) {
   return false;
 }
 
-// env override with range check (keeps dflt if unset / unparsable / out of range).
-static double env_range(const char* name, const calib_range& r, double dflt) {
+// env override with range check (keeps *v if unset / unparsable / out of range); true if used.
+static bool env_range(const char* name, const calib_range& r, double* v) {
   const char* s = std::getenv(name);
-  if (!s || !*s) return dflt;
+  if (!s || !*s) return false;
   char* end = nullptr;
-  double v = std::strtod(s, &end);
-  if (end == s) return dflt;
-  return in_range(r, v, name) ? v : dflt;
+  double x = std::strtod(s, &end);
+  if (end == s || !in_range(r, x, name)) return false;
+  *v = x;
+  return true;
 }
 
 // Minimal reader for the scalar fields of bench/calib params JSON ("key": number).
@@ -55,9 +56,10 @@ static bool json_num(const char* txt, const char* key, double* v) {
 // params file: env GGEMM_CALIB_JSON, else <GGEMM_CALIB_DIR>/params_<slug>.json where slug
 // follows bench/calib/fit.py: non-alnum runs -> '_', trimmed, lowercased ("NVIDIA H200" ->
 // "nvidia_h200"). Missing file -> nominal defaults stay.
-// used: receives the path actually read (left untouched when no file was read).
+// used: receives the path actually read (left untouched when no file was read);
+// got[0..2]: fp64 / i8 / bw taken from the file (present and in range).
 static void load_calib_json(const char* gpu_name, double* fp64, double* i8, double* bw,
-                            char* used, size_t used_sz) {
+                            char* used, size_t used_sz, bool* got) {
   char path[1024];
   const char* env = std::getenv("GGEMM_CALIB_JSON");
   if (env && *env) {
@@ -82,9 +84,9 @@ static void load_calib_json(const char* gpu_name, double* fp64, double* i8, doub
   static char buf[1 << 16];           // scalars sit at the top of the file
   size_t n = std::fread(buf, 1, sizeof buf - 1, f); buf[n] = 0; std::fclose(f);
   double v;
-  if (json_num(buf, "f64_peak_flops", &v) && in_range(kRangeFP64, v, path)) *fp64 = v;
-  if (json_num(buf, "i8_peak_ops", &v) && in_range(kRangeI8, v, path)) *i8 = v;
-  if (json_num(buf, "bw_Bps", &v) && in_range(kRangeBW, v, path)) *bw = v;
+  if (json_num(buf, "f64_peak_flops", &v) && in_range(kRangeFP64, v, path)) { *fp64 = v; got[0] = true; }
+  if (json_num(buf, "i8_peak_ops", &v) && in_range(kRangeI8, v, path)) { *i8 = v; got[1] = true; }
+  if (json_num(buf, "bw_Bps", &v) && in_range(kRangeBW, v, path)) { *bw = v; got[2] = true; }
   if (used) std::snprintf(used, used_sz, "%s", path);
 }
 
@@ -100,19 +102,28 @@ void ggemm_device_model_init(ggemm_device_model_t* dm, const char* gpu_name, int
   } else {                      // unknown arch: conservative guess, calibrate via env
     fp64 = 10e12;  i8 = 200e12;  bw = 1e12;
   }
-  char used[1024] = "nominal";
-  load_calib_json(gpu_name, &fp64, &i8, &bw, used, sizeof used);
-  static bool printed = false;          // one line per process
-  if (!printed) { printed = true; std::fprintf(stderr, "[ggemm] calib=%s\n", used); }
+  char used[1024] = "none";
+  bool got[3] = {false, false, false};
+  load_calib_json(gpu_name, &fp64, &i8, &bw, used, sizeof used, got);
+  const char* src[4];
+  for (int i = 0; i < 3; ++i) src[i] = got[i] ? "json" : "nominal";
+  if (env_range("GGEMM_FP64_FLOPS", kRangeFP64, &fp64)) src[0] = "env";
+  if (env_range("GGEMM_INT8_OPS", kRangeI8, &i8)) src[1] = "env";
+  if (env_range("GGEMM_MEM_BW", kRangeBW, &bw)) src[2] = "env";
   dm->num_sms = num_sms > 0 ? num_sms : 1;
-  dm->fp64_flops = env_range("GGEMM_FP64_FLOPS", kRangeFP64, fp64);
-  dm->int8_ops   = env_range("GGEMM_INT8_OPS", kRangeI8, i8);
-  dm->mem_bw     = env_range("GGEMM_MEM_BW", kRangeBW, bw);
+  dm->fp64_flops = fp64; dm->int8_ops = i8; dm->mem_bw = bw;
   // GGEMM_TINY_MNK=0 disables the tiny route (env_or would reject 0).
-  dm->tiny_mnk   = 32.0 * 32.0 * 32.0;
+  dm->tiny_mnk = 32.0 * 32.0 * 32.0; src[3] = "default";
   if (const char* s = std::getenv("GGEMM_TINY_MNK")) {
     char* end = nullptr; double v = std::strtod(s, &end);
-    if (end != s && v >= 0) dm->tiny_mnk = v;
+    if (end != s && v >= 0) { dm->tiny_mnk = v; src[3] = "env"; }
+  }
+  static bool printed = false;          // one line per process, after env + range checks
+  if (!printed) {
+    printed = true;
+    std::fprintf(stderr, "[ggemm] calib fp64_flops=%.3g(%s) int8_ops=%.3g(%s) mem_bw=%.3g(%s) "
+                 "tiny_mnk=%.3g(%s) json=%s\n", fp64, src[0], i8, src[1], bw, src[2],
+                 dm->tiny_mnk, src[3], used);
   }
 }
 
@@ -157,7 +168,8 @@ static double tiles_of(int m, int n, int cfg) {
 
 #define GGEMM_PREP_PASSES 2.0
 static const double kTileEff[GGEMM_NUM_TILE_CFG] = {1.0, 0.63, 0.30};   // code review (2)
-// Resident CTAs per SM of agent-K's persistent kernel (not queried; constant per review (2)).
+// Resident CTAs per SM of agent-K's persistent kernel. Constant until agent-K exposes its
+// occupancy query (internal dev_info().ctas_per_sm); review L1 asks to switch to that.
 #define GGEMM_I8_CTAS_PER_SM 2
 
 static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_model_t* dm,
@@ -175,7 +187,11 @@ static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_m
   double prep  = (GGEMM_PREP_PASSES * (m * k + k * n) * 8 + np * (m + n) * kp +
                   4.0 * OZ2_ROW_WS_PER_ROW * (m + n)) / dm->mem_bw;
   // effective INT8 rate per tile config (smaller tiles: lower MMA efficiency)
-  double gemm  = np * 2.0 * rup(m, t) * rup(n, t) * kp / (dm->int8_ops * kTileEff[cfg]) +
+  // Wave quantization (review M3): the persistent grid runs `slots` tiles at a time, each slot
+  // at int8_ops * eff / slots; np * tiles tiles take ceil(np * tiles / slots) waves.
+  const double slots = (double)dm->num_sms * GGEMM_I8_CTAS_PER_SM;
+  const double per_tile = 2.0 * t * t * kp / (dm->int8_ops * kTileEff[cfg] / slots);
+  double gemm  = std::ceil(np * tiles_of(p.m, p.n, cfg) / slots) * per_tile +
                  np * m * n * 4 / dm->mem_bw;
   double recon = (np * m * n * 4 + c_rw * m * n * 8) / dm->mem_bw;
   *t_emu = prep + gemm + recon;

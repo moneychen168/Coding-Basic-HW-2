@@ -588,6 +588,14 @@ void i8_grouped_gemm_reserve(int max_problems, size_t /*max_tiles*/) {
 }
 long long i8_grouped_gemm_host_allocs() { return g_host_allocs; }
 
+// Resident CTAs/SM of the kernel that runs tile_cfg (cfg 0/1/2 share the main kernel, so they
+// return the same value; cfg 3 = split-K kernel). -1 for an invalid tile_cfg.
+int i8_grouped_gemm_ctas_per_sm(int tile_cfg) {
+  if (tile_cfg < 0 || tile_cfg >= I8_NUM_TILE_CFGS) return -1;
+  const DevInfo& di = dev_info();
+  return tile_cfg == I8_TILE_32x32_SPLITK ? di.ctas_per_sm_sk : di.ctas_per_sm;
+}
+
 namespace {
 // allow_splitk = false (legacy int* API): cfg 3 is mapped to cfg 2, so the schedule only ever
 // needs the main kernel (exact round-1 behaviour, 1 launch).

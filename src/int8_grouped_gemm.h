@@ -46,6 +46,10 @@ size_t i8_grouped_gemm_sched_ws_bytes(int max_problems, size_t max_tiles);
 void i8_grouped_gemm_reserve(int max_problems, size_t max_tiles);
 // Number of host-buffer growths so far (should stay constant after reserve; for tests/stats).
 long long i8_grouped_gemm_host_allocs();
+// Resident CTAs per SM (cudaOccupancyMaxActiveBlocksPerMultiprocessor, current device, cached)
+// of the kernel that executes tile_cfg: 0/1/2 -> main kernel (same value), 3 -> split-K kernel.
+// Returns -1 for an invalid tile_cfg. Grid size of a launch = SMs * this value (capped by tiles).
+int i8_grouped_gemm_ctas_per_sm(int tile_cfg);
 
 // Schedule summary. num_launches = (tiles_main > 0) + (tiles_splitk > 0), i.e. 0, 1 or 2
 // kernels: the main kernel (cfg 0/1/2, unchanged round-1 SASS) and, only if the schedule has

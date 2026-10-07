@@ -72,6 +72,9 @@ SIMPLE = {  # key -> (raw names..., details labels...)
     "regs": (["launch__registers_per_thread"], ["Registers Per Thread"]),
     "smem_static_B": (["launch__shared_mem_per_block_static"], ["Static Shared Memory Per Block"]),
     "smem_dyn_B": (["launch__shared_mem_per_block_dynamic"], ["Dynamic Shared Memory Per Block"]),
+    "lim_regs": (["launch__occupancy_limit_registers"], ["Block Limit Registers"]),
+    "lim_smem": (["launch__occupancy_limit_shared_mem"], ["Block Limit Shared Mem"]),
+    "lim_warps": (["launch__occupancy_limit_warps"], ["Block Limit Warps"]),
 }
 _RE_STALL = re.compile(r"^smsp__average_warps_issue_stalled_(\w+?)_per_issue_active\.ratio$")
 _RE_STALL_PC = re.compile(r"^smsp__pcsamp_warps_issue_stalled_(\w+)$")
@@ -85,6 +88,8 @@ _UNIT_SCALE = {  # -> canonical unit of the key (us for time, bytes for memory, 
 
 def _scaled(v, unit, key):
     u = (unit or "").strip().lower()
+    if u.endswith("/block"):          # ncu 2025: "Kbyte/block", "byte/block"
+        u = u[: -len("/block")]
     if key in ("duration_us", "smem_static_B", "smem_dyn_B", "dram_GBps") and u in _UNIT_SCALE:
         return v * _UNIT_SCALE[u]
     if key == "duration_us" and not u:   # raw page without unit row: gpu__time_duration is in ns
@@ -208,13 +213,14 @@ def aggregate(kern, all_kernels):
 
 
 def short(name, n=48):
-    base = re.split(r"[(<]", name, 1)[0].strip()
+    base = re.sub(r"^(void\s+)?((<unnamed>|\(anonymous namespace\))::)?", "", name.strip())
+    base = re.split(r"[(<]", base, 1)[0].strip() or name.strip()
     return base if len(base) <= n else base[: n - 1] + "~"
 
 
 def write(rows, out, label):
     hdr = ["stage", "kernel", "launches", "duration (us)", "INT8 tensor pipe %", "DRAM thru %", "SM thru %",
-           "achieved occ %", "theor. occ %", "regs/thread", "smem/block (B)", "top-3 stalls (% of stall)"]
+           "achieved occ %", "theor. occ %", "regs/thread", "smem/block (B)", "block limit reg/smem/warp", "top-3 stalls (% of stall)"]
     tab = []
     for r in rows:
         smem = (r["smem_static_B"] if r["smem_static_B"] == r["smem_static_B"] else 0) + \
@@ -224,12 +230,16 @@ def write(rows, out, label):
         imma = fmt(r["imma_pct"], 1) + (" (all)" if "(all tensor)" in r["imma_metric"] else "")
         tab.append([STAGE_NAME.get(r["stage"], r["stage"]), "`" + short(r["kernel"]) + "`", r["launches"],
                     fmt(r["duration_us"], 1), imma, fmt(r["dram_pct"], 1), fmt(r["sm_pct"], 1), fmt(r["occ_pct"], 1),
-                    fmt(r["occ_theo_pct"], 1), fmt(r["regs"], 0), smem_s, st])
+                    (fmt(r["occ_theo_pct"], 1) + ("*" if r["occ_theo_pct"] == 0 and r["occ_pct"] > 0 else "")), fmt(r["regs"], 0), smem_s,
+                    "/".join(fmt(r[k], 0) for k in ("lim_regs", "lim_smem", "lim_warps")), st])
     used = sorted({r["imma_metric"] for r in rows})
     srcs = sorted({r["stall_src"] for r in rows})
     md = (f"# ncu summary: {label}\n\nMedian over launches of each kernel. INT8 tensor pipe metric: "
           + ", ".join(f"`{u}`" for u in used) + f". Stall source: {', '.join(srcs)}"
-          " (share of all stall reasons, `selected` excluded).\n\n" + md_table(hdr, tab, "ll" + "r" * 9 + "l"))
+          " (share of all stall reasons, `selected` excluded).\n\n" + md_table(hdr, tab, "ll" + "r" * 10 + "l"))
+    if any(r["occ_theo_pct"] == 0 and r["occ_pct"] > 0 for r in rows):
+        md += ("\n\\* ncu itself reports theoretical occupancy 0 (and Block Limit Shared Mem 0) for this kernel while "
+               "achieved occupancy is > 0, so that theoretical value is not usable; see the block-limit column.\n")
     if any(r["imma_metric"] == "missing" for r in rows) or any(r["stall_src"] == "missing" for r in rows):
         md += ("\nNote: tensor-pipe or stall metrics missing -> also export the raw page: "
                "`ncu --import X.ncu-rep --page raw --csv > X_raw.csv` and pass both CSVs.\n")
@@ -238,7 +248,7 @@ def write(rows, out, label):
         f.write(md)
     p_csv = os.path.join(out, f"ncu_summary_{label}.csv")
     keys = ["stage", "kernel", "launches", "cc", "duration_us", "imma_pct", "imma_metric", "dram_pct", "dram_GBps",
-            "sm_pct", "occ_pct", "occ_theo_pct", "regs", "smem_static_B", "smem_dyn_B", "stall_src"]
+            "sm_pct", "occ_pct", "occ_theo_pct", "regs", "smem_static_B", "smem_dyn_B", "lim_regs", "lim_smem", "lim_warps", "stall_src"]
     with open(p_csv, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(keys + ["stall1", "stall1_pct", "stall2", "stall2_pct", "stall3", "stall3_pct"])

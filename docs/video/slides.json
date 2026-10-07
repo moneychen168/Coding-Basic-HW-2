@@ -2,14 +2,14 @@
  "voice": "zh-TW-HsiaoChenNeural",
  "slides": [
   {
-   "title": "Grouped GEMM 延伸題：目前進度",
+   "title": "Grouped GEMM 延伸題：最新進度",
    "bullets": [
     "Coding-Basic-HW-2 延伸題：Batched/Grouped GEMM",
     "Ozaki scheme II（CRT）+ INT8 Tensor Core",
     "以 INT8 模擬 FP64，並做成 grouped 版本",
-    "進度報告 10/07"
+    "進度報告 10/07（更新版）"
    ],
-   "narr": "大家好，這是 Coding-Basic-HW-2 延伸題，Batched 與 Grouped GEMM 的目前進度報告。我們的做法是用 Ozaki scheme II，也就是以中國剩餘定理 CRT 搭配 INT8 Tensor Core 來模擬 FP64 矩陣乘法，並進一步做成 grouped 版本，讓一組大小不同的矩陣乘法可以一次完成。"
+   "narr": "大家好，這是 Coding-Basic-HW-2 延伸題，Batched 與 Grouped GEMM。我們用 Ozaki scheme II，以 CRT 搭配 INT8 Tensor Core 模擬 FP64 矩陣乘法，並做成 grouped 版本。負面結果照實說明。"
   },
   {
    "title": "方法：Ozaki scheme II",
@@ -20,18 +20,18 @@
     "CRT 重建，約 67 bit 定點",
     "最後反 scale 回 FP64"
    ],
-   "narr": "方法分成幾步。首先把 FP64 輸入用二的冪次 scale 截斷成整數。接著對 N 個兩兩互質、且不超過 256 的模數，取 int8 residue。每個模數各做一次 INT8 GEMM，以 INT32 精確累加。然後用 CRT 重建出約 67 bit 的定點結果，最後再反 scale 回 FP64。"
+   "narr": "FP64 輸入先以二的冪次 scale 截成整數，再對 N 個兩兩互質、不超過 256 的模數取 int8 residue。每個模數做一次 INT8 GEMM，以 INT32 精確累加，再用 CRT 重建約 67 bit 的定點結果，最後反 scale 回 FP64。"
   },
   {
-   "title": "Grouped 設計",
+   "title": "Grouped 設計與新的 baseline",
    "bullets": [
-    "EMU_LOOP：每個問題 N+2 次 launch",
+    "EMU_LOOP：每題 N+2 次 launch，naive 下界",
+    "EMU_LOOP_BATCHED：仿 GEMMul8 strided-batched，每題 3 次 launch",
     "EMU_GROUPED：整組固定 3 個 kernel",
     "prep → persistent grouped INT8 GEMM → reconstruct",
-    "LPT tile scheduler，tile 有 128/64/32 三種",
-    "AUTO planner 逐題決定 N、tile、是否 fallback native"
+    "主要加速比：EMU_LOOP_BATCHED → EMU_GROUPED"
    ],
-   "narr": "Grouped 設計是這份工作的核心。原本的 EMU_LOOP 每個問題需要 N 加 2 次 launch。EMU_GROUPED 則讓整組問題固定只用三個 kernel：先 prep，再跑 persistent grouped INT8 GEMM，使用 LPT tile scheduler，tile 有 128、64、32 三種，最後 reconstruct。descriptor 只做一次 pinned H2D。AUTO planner 會逐題決定 N、tile，以及是否 fallback 到 native，cost model 使用實測校正值。"
+   "narr": "Grouped 版只用三個 kernel，prep、persistent grouped INT8 GEMM、reconstruct。比較基準方面，naive 的 EMU_LOOP 每題要 N 加 2 次 launch；新 baseline EMU_LOOP_BATCHED 仿 GEMMul8 strided-batched，每題三次 launch，加速比以它為準。"
   },
   {
    "title": "平台與校正實測",
@@ -40,107 +40,124 @@
     "launch 約 2.07 µs",
     "DRAM 3.94 TB/s",
     "FP64 GEMM 擬合峰值 61.3 TFLOPS",
-    "INT8 GEMM 1,676 TOPS"
+    "INT8 GEMM 擬合峰值 1,676 TOPS"
    ],
-   "narr": "平台是國網的 nano4，GPU 為 NVIDIA H200，CUDA 13.0。我們先在 H200 上做校正實測：launch 開銷約 2.07 微秒，DRAM 頻寬 3.94 TB/s，FP64 GEMM 擬合峰值是 61.3 TFLOPS，INT8 GEMM 則是 1,676 TOPS。這些數字會餵給 AUTO planner 的 cost model。"
+   "foot": "來源：bench/calib/params_nvidia_h200.json（calib_510850.csv）",
+   "narr": "平台是國網 nano4 的 H200，CUDA 13.0。實測launch 開銷約 2.07 微秒，DRAM 頻寬約 3.94 TB/s，FP64 GEMM 擬合峰值 61.3 TFLOPS，INT8 GEMM 擬合峰值 1,676 TOPS。這些參數餵給 AUTO planner 的 cost model。"
   },
   {
-   "title": "INT8 Grouped GEMM 單元測試",
+   "title": "正確性：certify-and-repair",
    "bullets": [
-    "18 種異質 shape，全部 bit-exact PASS",
-    "256 個小問題：我們 0.026 ms",
-    "cuBLASLt 逐題呼叫 2.36 ms",
-    "8192³：我們 624 TOPS，cuBLASLt 1,459 TOPS",
-    "cuBLASLt 用 wgmma，我們用 mma.sync"
+    "abs plane 下界 + 逐 entry 嚴格誤差界做認證",
+    "未通過的 entry：FP64 repair",
+    "phi=2 N=15：COUNT 未認證 899；ON 修復 899，gate 5.919→0.287",
+    "OFF 與 COUNT bitwise 相同；numerics 全數 PASSED",
+    "規則處理：EMU 系列預設 COUNT（計時路徑無 FP64 dot），只有 AUTO 用 ON"
    ],
-   "narr": "INT8 grouped GEMM 的單元測試中，18 種異質 shape 全部 bit-exact 通過。在 256 個小問題的情況下，我們的版本只要 0.026 毫秒，cuBLASLt 逐題呼叫則需要 2.36 毫秒。但在 8192 立方的大矩陣上，我們是 624 TOPS，cuBLASLt 達到 1,459 TOPS，原因是它在 H200 上使用 wgmma，而我們目前用的是 mma.sync。"
+   "foot": "job 511009（numerics log）",
+   "narr": "正確性改用 certify-and-repair：逐 entry 以嚴格誤差界認證，未通過的用 FP64 repair。以 phi 等於 2、N 等於 15 為例，OFF 與 COUNT 的 gate 都是 5.919，COUNT 找出 899 個未認證 entry，ON 修復後 gate 降到 0.287，OFF 與 COUNT 逐位元相同。EMU 系列預設 COUNT，只有 AUTO 用 ON，計時中的 emulation 不做 FP64 dot。"
   },
   {
-   "title": "正確性測試",
+   "title": "測試結果（commit da18425）",
    "bullets": [
-    "2007 項通過、26 項失敗",
-    "失敗全在動態範圍最大的 phi=2 資料",
-    "componentwise 誤差約為 native 的 34 倍",
-    "原因：N 的選擇用 normwise 誤差界；修正中（ρ-aware）",
-    "phi≤1：誤差為 native 的 0.24–0.37 倍；memcheck 0 errors"
+    "完整正確性測試：2955 項通過、0 項失敗",
+    "EMU 系列用 COUNT：certificate 不可漏報；AUTO 用 ON：全部過 γ_n 門檻",
+    "CUDA Graph plan/execute：63/63，與直接呼叫 bit-exact",
+    "operand reuse：30/30（EXACT_N 與 PROMOTE）",
+    "planner 單元測試 1607/1607；數值單元測試 PASSED"
    ],
-   "narr": "正確性測試共有 2007 項通過、26 項失敗。失敗全部集中在動態範圍最大的 phi 等於 2 的資料，emulation 的 componentwise 誤差約是 native 的 34 倍。原因是 N 的選擇使用 normwise 誤差界，我們正在改成 ρ-aware 的 N 選擇。phi 小於等於 1 時，emulation 的誤差只有 native 的 0.24 到 0.37 倍。compute-sanitizer memcheck 為 0 errors。"
+   "foot": "job 511059（tests）、511060（graph/reuse/num）、511063（planner）",
+   "narr": "在 commit da18425 上重跑全部測試，完整正確性測試 2955 項全部通過，零失敗。純 emulation 用 COUNT，超標元素必須被 certificate 抓到；AUTO 用 ON，全部落在 FP64 誤差界內。CUDA Graph 六十三項、operand reuse 三十項、planner 一千六百零七項與數值測試也全數通過。"
   },
   {
-   "title": "效能：EMU_LOOP → EMU_GROUPED",
+   "title": "效能：EMU_LOOP_BATCHED → EMU_GROUPED",
    "table": [
     [
-     "工作負載",
-     "EMU_LOOP (ms)",
-     "EMU_GROUPED (ms)",
-     "加速"
+     "案例（H200）",
+     "LOOP_BATCHED",
+     "GROUPED",
+     "加速",
+     "AUTO→native"
     ],
     [
-     "uniform G=1024 s=32",
-     "107.8",
-     "1.04",
-     "104×"
+     "LoRA G=16",
+     "13.89 ms",
+     "1.66 ms",
+     "8.4×",
+     "0.22 ms"
     ],
     [
-     "MoE E=64 up",
-     "54.6",
-     "6.19",
-     "8.8×"
+     "TP G=8",
+     "8.15 ms",
+     "1.58 ms",
+     "5.2×",
+     "0.37 ms"
     ],
     [
-     "hetero G=256",
-     "68.5",
-     "9.11",
-     "7.5×"
+     "none G=16",
+     "4.16 ms",
+     "0.65 ms",
+     "6.4×",
+     "0.16 ms"
     ],
     [
-     "LoRA shrink G=64",
-     "88.8",
-     "2.03",
-     "44×"
-    ],
-    [
-     "LoRA expand",
-     "8.39",
-     "1.97",
-     "4.3×"
+     "uniform G=1024（vs naive）",
+     "107.8 ms",
+     "1.04 ms",
+     "104×",
+     "0.18 ms"
     ]
    ],
-   "foot": "uniform G=1024：launch 17,408 → 3 次（H200，quick set）",
-   "narr": "這是 H200 上 quick set 的效能表，比較 EMU_LOOP 與 EMU_GROUPED。uniform G 等於 1024、size 32 的案例，從 107.8 毫秒降到 1.04 毫秒，快了 104 倍，launch 數從 17,408 次降到 3 次。MoE up 加速 8.8 倍，hetero 加速 7.5 倍，LoRA shrink 加速 44 倍，LoRA expand 加速 4.3 倍。"
+   "foot": "形狀 16×256×4096、256×512×4096、256×256×1024；job 510998/510894",
+   "narr": "相對 EMU_LOOP_BATCHED，EMU_GROUPED 讓LoRA 十六題從 13.9 毫秒降到 1.66 毫秒，快 8.4 倍；TP 八題從 8.15 降到 1.58 毫秒，快 5.2 倍；不共用的十六題從 4.16 降到 0.65 毫秒，快 6.4 倍。對照 naive 的 EMU_LOOP，uniform 一千零二十四題從 107.8 毫秒降到 1.04 毫秒。AUTO 在 H200 上全改走 native FP64，只要 0.16 到 0.37 毫秒。"
+  },
+  {
+   "title": "Operand reuse（path 5）",
+   "bullets": [
+    "共用 A/B 只 prep 一次",
+    "與 EMU_GROUPED bit-exact（0 個 entry 不同）",
+    "test_reuse_e2e：30/30 通過",
+    "加速 1.015–1.079×",
+    "加速有限，但沒有精度代價"
+   ],
+   "foot": "job 510998（test_reuse_e2e）",
+   "narr": "第二項 operand reuse，即 path 5：共用的 A 或 B 只 prep 一次。與 EMU_GROUPED 完全 bit-exact，三十項測試全過。加速比約 1.02 到 1.08 倍，最高 1.079，最低 1.015。因為 prep 占比有限，但沒有精度代價。"
+  },
+  {
+   "title": "INT8 kernel ablation：負面結果",
+   "bullets": [
+    "第二輪 ablation 退步約 10%；revert_all 回不到 r1",
+    "結構性擾動，改回 r1 kernel",
+    "r1：random 443、ozaki 544、8k 592、k16k 608 TOPS",
+    "auto 439 TOPS；small256 auto 0.0237 ms",
+    "split-K：同 kernel 時 cfg0 −3–5%；拆成第二個 kernel 時 small256 慢 31%、mix 慢 3% → 預設關閉"
+   ],
+   "foot": "job 510965（i8abl）；510989（i8unit）；511001、511054（split-K）",
+   "narr": "第三項 INT8 kernel ablation 是負面結果：第二輪修改後整體退步約百分之十，連 revert all 都回不到 r1，故改回 r1。r1 實測 random 443、ozaki 544、8192 立方 592、k 等於 16384 是 608 TOPS；auto 為 439 TOPS，小問題 0.0237 毫秒。split-K 讓 cfg2 提升 37 到 53 百分比，但 cfg0 下降 3 到 5 百分比；拆成獨立 kernel 則因多一次 launch 與 tail 效應，小問題慢了 31%，所以預設關閉。"
   },
   {
    "title": "對 native 的誠實結論",
    "bullets": [
     "native：cuBLAS DgemmGroupedBatched",
-    "H200 的 FP64 很強，emulation 慢 4–15 倍",
+    "H200 上 native FP64 很強，emulation 較慢",
     "例：MoE up native 1.58 ms，emu_grouped 6.19 ms",
-    "AUTO 在 H200 上全部 fallback native，時間同 native_grouped",
-    "價值：相對 per-problem emulation 的 launch 合併"
+    "AUTO 的 cost model 全部 fallback native",
+    "價值：相對逐題 emulation 的 launch 合併"
    ],
-   "narr": "我們要誠實地說明：對照 native 的 cuBLAS DgemmGroupedBatched，H200 的 FP64 非常強，emulation 慢了 4 到 15 倍。例如 MoE up，native 是 1.58 毫秒，emu_grouped 是 6.19 毫秒。所以 AUTO 的 cost model 在 H200 上全部 fallback 到 native，時間與 native_grouped 相同。結論是，在 FP64 很強的 GPU 上 emulation 並不划算，grouped 優化的價值在於相對於逐題 emulation 的 launch 合併。"
+   "foot": "job 510894（bench.csv，quick set）；較弱 FP64 硬體未實測",
+   "narr": "最後，H200 native FP64 很強：cuBLAS DgemmGroupedBatched 做 MoE up 只要 1.58 毫秒，emu grouped 要 6.19 毫秒。AUTO 因此全部 fallback 到 native。在 FP64 很強的 GPU 上 emulation 不划算，grouped 的價值在於相對逐題 emulation 的 launch 合併；FP64 較弱的硬體我們沒有實測，不做宣稱。"
   },
   {
-   "title": "進行中的項目",
+   "title": "後續計畫與 AI 使用聲明",
    "bullets": [
-    "修正 phi=2 精度（ρ-aware 的 N 選擇）",
-    "operand packing 重用：共用 A/B 只 prep 一次，需 N 升級策略",
-    "INT8 kernel 第二輪：32x32 tile 改 split-K、tile 解碼重疊",
-    "CUDA Graph plan/execute",
-    "端到端 FP64 MoE、block-sparse 應用、nsys/ncu 分析工具"
-   ],
-   "narr": "目前進行中的項目有幾個。第一，修正 phi 等於 2 的精度。第二，operand packing 重用，共用的 A 與 B 只 prep 一次，但已發現 shift 與 N 有關，所以需要 N 升級策略。第三，INT8 kernel 第二輪，把 32 乘 32 的 tile 改成 split-K，並讓 tile 解碼重疊。第四，CUDA Graph 的 plan 與 execute。第五，端到端 FP64 MoE 與 block-sparse 應用，以及 nsys 與 ncu 的 profiling 分析工具。"
-  },
-  {
-   "title": "最後一週計畫與 AI 使用聲明",
-   "bullets": [
-    "完成上述進行中項目",
+    "量測 repair 比例與成本、調 rho_budget",
+    "新 quick bench、端到端應用：結果待補",
     "profiling 證據：nsys launch gap、ncu tensor pipe",
     "補完報告與 README，10/14 交件",
-    "AI：Claude Code 多 agent 輔助實作",
-    "所有數字都來自實測 job"
+    "AI：Claude Code 多 agent 輔助；數字皆來自實測 job"
    ],
-   "narr": "最後一週的計畫是完成上述項目，並做出 profiling 證據：用 nsys 看 launch gap，用 ncu 看 tensor pipe，接著補完報告與 README，10 月 14 日交件。AI 使用聲明：本專案使用 Claude Code 多 agent 輔助實作，報告中所有數字都來自實測 job。以上是我們的進度報告，謝謝。"
+   "narr": "後續將補上新的 quick bench 與端到端應用結果，補 nsys 與 ncu 的 profiling 證據，完成報告與 README，十月十四日交件。AI 聲明：本專案以 Claude Code 多 agent 輔助實作，所有數字都來自實測 job。謝謝。"
   }
- ]
+ ],
+ "rate": "+25%"
 }

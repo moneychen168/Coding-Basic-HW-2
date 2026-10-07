@@ -49,6 +49,15 @@ int ggemm_oz2_repair_mode(ggemm_path_t path, const ggemm_config_t* cfg);
 // and fills num_repaired / num_uncertified / num_safety_fallback (all -1 when disabled).
 int ggemm_counters_reset(ggemm_handle_t h, cudaStream_t s);
 int ggemm_counters_read(ggemm_handle_t h, cudaStream_t s, ggemm_stats_t* st);
+// Native FP64 grouping (shared with the graph module): host arrays of >= cnt entries each.
+struct ggemm_nat_groups {
+  cublasOperation_t *ta, *tb;
+  int *m, *n, *k, *lda, *ldb, *ldc, *gsize;
+  double *alpha, *beta;
+};
+// Sorts idx[0..cnt) so equal (m,n,k,lda,ldb,ldc,alpha,beta) problems are contiguous, fills one
+// entry per group in out, returns the group count. Pointer arrays must follow the sorted idx.
+int ggemm_group_native(const ggemm_problem_t* probs, int* idx, int cnt, const ggemm_nat_groups& out);
 // Argument / element-budget check shared by ggemm_grouped_dgemm and the graph module.
 int ggemm_validate(ggemm_handle_t h, const ggemm_problem_t* p, int num);
 

@@ -465,6 +465,48 @@ int main() {
     teardown(d);
   }
 
+  // 7) prep split-K invariance: forced split factors must give bit-identical planes, workspace
+  //    and reconstructed C (ON mode) compared with S = 1.
+  {
+    std::vector<HostProb> hs(4);
+    make(hs[0], 16, 40, 3000, 1, 2.0, 1.0, 0.0); hs[0].N = 15;
+    make(hs[1], 37, 9, 1000, 3, 1.0, -1.5, 0.5); hs[1].N = 20;
+    make(hs[2], 70, 33, 129, 2, 4.0, 1.0, 0.0); hs[2].N = 9;
+    make(hs[3], 5, 64, 2048, 0, 0.5, 1.0, 1.0); hs[3].N = 16;
+    hs[3].A[2 + (size_t)100 * hs[3].lda] = NAN;
+    std::vector<std::vector<char>> ref;
+    long diffs = 0;
+    for (int S : {1, 2, 3, 7, 16, 64}) {
+      oz2_debug_force_prep_split(S);
+      Dev d; setup(d, hs); run(d);
+      std::vector<std::vector<char>> cur;
+      for (size_t g = 0; g < hs.size(); ++g) {
+        const oz2_problem& p = d.hp[g];
+        const int NP = oz2_num_planes(hs[g].N);
+        auto grab = [&](const void* ptr, size_t bytes) {
+          std::vector<char> v(bytes);
+          CK(cudaMemcpy(v.data(), ptr, bytes, cudaMemcpyDeviceToHost));
+          cur.push_back(std::move(v));
+        };
+        grab(p.A8, NP * p.a8_mod_stride);
+        grab(p.B8, NP * p.b8_mod_stride);
+        grab(p.row_shift, 4 * OZ2_ROW_WS_PER_ROW * (size_t)hs[g].m);
+        grab(p.col_shift, 4 * OZ2_ROW_WS_PER_ROW * (size_t)hs[g].n);
+        grab(d.dC[g], 8 * hs[g].C0.size());
+      }
+      if (S == 1) ref = cur;
+      else
+        for (size_t q = 0; q < cur.size(); ++q)
+          if (cur[q] != ref[q]) { ++diffs; printf("  split %d: buffer %zu differs\n", S, q); }
+      teardown(d);
+    }
+    oz2_debug_force_prep_split(0);
+    take_repairs();
+    bool ok = diffs == 0;
+    if (!ok) ++fails;
+    printf("\nprep split-K invariance (S=2,3,7,16,64 vs 1): %ld differing buffers  %s\n", diffs, ok ? "ok" : "FAIL");
+  }
+
   printf("\n%s (%d failures)\n", fails ? "FAILED" : "PASSED", fails);
   return fails ? 1 : 0;
 }

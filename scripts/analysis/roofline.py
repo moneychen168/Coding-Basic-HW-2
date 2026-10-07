@@ -73,7 +73,7 @@ def _safe_eval(expr, env):
 def bytes_for(path, shapes, N, model_expr):
     tot = 0.0
     for (m, n, k) in shapes:
-        if path.startswith("native"):
+        if path.startswith("native") or "fallback" in path:
             tot += 8.0 * (m * k + k * n + m * n)
         else:
             kp = (k + 31) // 32 * 32
@@ -99,20 +99,25 @@ def build(bench_csv, calib, shapes_given):
             ncfg = int(to_float(r.get("num_moduli_cfg", 0)) or 0)
             nmax = int(to_float(r.get("moduli_max", 0)) or 0)
             N = ncfg if ncfg > 0 else nmax
-            if not p.startswith("native") and N <= 0:
+            G = int(to_float(r.get("G", 0)) or 0)
+            nfb = int(to_float(r.get("num_fallback", 0)) or 0)
+            if not p.startswith("native") and G > 0 and nfb >= G:
+                p = p + " (all fallback)"   # planner sent every problem to native FP64 -> native model
+            if not p.startswith("native") and "fallback" not in p and N <= 0:
                 warn.append(f"{w}/{p}: moduli count unknown -> skipped")
                 continue
             by = bytes_for(p, sh, N, model)
             ai = flops / by if by > 0 else float("nan")
             bw = calib["bw_Bps"]
-            if p.startswith("native"):
+            native = p.startswith("native") or "fallback" in p
+            if native:
                 roof = min(calib["f64_peak_flops"], ai * bw)
             else:
                 roof = min(calib["i8_peak_ops"] / N, ai * bw)
-            pts.append({"workload": w, "path": p, "N": N if not p.startswith("native") else 0, "phi": r.get("phi", ""),
+            pts.append({"workload": w, "path": p, "N": 0 if native else N, "phi": r.get("phi", ""),
                         "flops": flops, "bytes": by, "ai": ai, "gflops": gfl, "roof_gflops": roof / 1e9,
                         "pct_roof": 100.0 * gfl * 1e9 / roof if roof > 0 else float("nan"),
-                        "bound": "memory" if ai * bw < (calib["f64_peak_flops"] if p.startswith("native")
+                        "bound": "memory" if ai * bw < (calib["f64_peak_flops"] if native
                                                         else calib["i8_peak_ops"] / N) else "compute"})
     return pts, sorted(set(warn))
 
@@ -140,7 +145,8 @@ def plot(pts, calib, out, label):
         sel = [p for p in pts if p["path"] == path]
         if not sel:
             continue
-        ax.scatter([p["ai"] for p in sel], [p["gflops"] for p in sel], s=42, color=PATH_COLOR.get(path, "#8a8983"),
+        ax.scatter([p["ai"] for p in sel], [p["gflops"] for p in sel], s=42, color=PATH_COLOR.get(path.split(" ")[0], "#8a8983"),
+                   marker="s" if path.startswith("native") else ("D" if "fallback" in path else "o"),
                    edgecolor="white", linewidth=1.5, zorder=3, label=path)
     ax.set_xscale("log")
     ax.set_yscale("log")

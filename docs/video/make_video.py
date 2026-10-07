@@ -30,13 +30,13 @@ def draw(s, idx, n, path):
     d.text((70, 75), s["title"], font=font(64), fill="white", anchor="lm")
     d.text((W-50, H-30), f"{idx}/{n}", font=font(30, "Regular"), fill=(120, 120, 120), anchor="rb")
     if "table" in s:
-        t = s["table"]; cw = [640, 400, 460, 280]; rh = 110; x0, y = 70, 210
+        t = s["table"]; nc = len(t[0]); cw = {4: [640, 400, 460, 280], 5: [700, 300, 260, 190, 330]}.get(nc, [1780 // nc] * nc); rh = 110; x0, y = 70, 210
         for r, row in enumerate(t):
             x = x0
             for c, cell in enumerate(row):
                 if r == 0: d.rectangle([x, y, x+cw[c], y+rh], fill=(20, 33, 61))
                 elif r % 2 == 0: d.rectangle([x, y, x+cw[c], y+rh], fill=(235, 240, 248))
-                d.text((x+20, y+rh//2), cell, font=font(40 if r else 38), anchor="lm",
+                d.text((x+20, y+rh//2), cell, font=font((40 if r else 38) if nc <= 4 else (34 if r else 32)), anchor="lm",
                        fill="white" if r == 0 else (20, 33, 61))
                 x += cw[c]
             y += rh

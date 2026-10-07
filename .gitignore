@@ -5,3 +5,7 @@ bench/calib/calib
 bench/calib/*.csv
 bench/calib/*.log
 build*/
+docs/video/.venv/
+docs/video/build/
+docs/video/render_*.out
+docs/video/audio/

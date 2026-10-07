@@ -111,8 +111,12 @@ static int dgemm_one(ggemm_handle_t h, const ggemm_problem_t& p) {
 // Native grouped baseline: problems with identical (m, n, k, lda, ldb, ldc, alpha, beta) form ONE
 // cuBLAS group (code review (3): one group per problem would handicap the baseline). Sorts
 // idx[0..cnt) in place so every group is contiguous (pointer arrays must follow that order),
-// fills h->nat_* per group and returns the number of groups. Host only; no allocation.
-static int group_native(ggemm_handle_t h, const ggemm_problem_t* probs, int* idx, int cnt) {
+// fills out.* per group and returns the number of groups. Host only; no allocation.
+// alpha / beta are compared by bit pattern: a strict weak ordering even with NaN (review M1);
+// -0.0 and +0.0 land in different groups, which is harmless.
+static inline uint64_t dbits(double x) { uint64_t u; std::memcpy(&u, &x, sizeof u); return u; }
+
+int ggemm_group_native(const ggemm_problem_t* probs, int* idx, int cnt, const ggemm_nat_groups& out) {
   auto key_less = [probs](int x, int y) {
     const ggemm_problem_t &a = probs[x], &b = probs[y];
     if (a.m != b.m) return a.m < b.m;
@@ -121,27 +125,35 @@ static int group_native(ggemm_handle_t h, const ggemm_problem_t* probs, int* idx
     if (a.lda != b.lda) return a.lda < b.lda;
     if (a.ldb != b.ldb) return a.ldb < b.ldb;
     if (a.ldc != b.ldc) return a.ldc < b.ldc;
-    if (a.alpha != b.alpha) return a.alpha < b.alpha;   // NaN alpha/beta: never equal ->
-    if (a.beta != b.beta) return a.beta < b.beta;       // ordered by index below, own group
-    return x < y;                                       // deterministic
+    const uint64_t aa = dbits(a.alpha), ba = dbits(b.alpha);
+    if (aa != ba) return aa < ba;
+    const uint64_t ab = dbits(a.beta), bb = dbits(b.beta);
+    if (ab != bb) return ab < bb;
+    return x < y;   // deterministic
   };
   auto same = [probs](int x, int y) {
     const ggemm_problem_t &a = probs[x], &b = probs[y];
     return a.m == b.m && a.n == b.n && a.k == b.k && a.lda == b.lda && a.ldb == b.ldb &&
-           a.ldc == b.ldc && a.alpha == b.alpha && a.beta == b.beta;
+           a.ldc == b.ldc && dbits(a.alpha) == dbits(b.alpha) && dbits(a.beta) == dbits(b.beta);
   };
   std::sort(idx, idx + cnt, key_less);
   int ng = 0;
   for (int i = 0; i < cnt; ++i) {
     const ggemm_problem_t& p = probs[idx[i]];
-    if (i > 0 && same(idx[i - 1], idx[i])) { ++h->nat_gsize[ng - 1]; continue; }
-    h->nat_ta[ng] = CUBLAS_OP_N; h->nat_tb[ng] = CUBLAS_OP_N;
-    h->nat_m[ng] = p.m; h->nat_n[ng] = p.n; h->nat_k[ng] = p.k;
-    h->nat_lda[ng] = p.lda; h->nat_ldb[ng] = p.ldb; h->nat_ldc[ng] = p.ldc;
-    h->nat_alpha[ng] = p.alpha; h->nat_beta[ng] = p.beta; h->nat_gsize[ng] = 1;
+    if (i > 0 && same(idx[i - 1], idx[i])) { ++out.gsize[ng - 1]; continue; }
+    out.ta[ng] = CUBLAS_OP_N; out.tb[ng] = CUBLAS_OP_N;
+    out.m[ng] = p.m; out.n[ng] = p.n; out.k[ng] = p.k;
+    out.lda[ng] = p.lda; out.ldb[ng] = p.ldb; out.ldc[ng] = p.ldc;
+    out.alpha[ng] = p.alpha; out.beta[ng] = p.beta; out.gsize[ng] = 1;
     ++ng;
   }
   return ng;
+}
+
+static int group_native(ggemm_handle_t h, const ggemm_problem_t* probs, int* idx, int cnt) {
+  const ggemm_nat_groups g = {h->nat_ta, h->nat_tb, h->nat_m, h->nat_n, h->nat_k, h->nat_lda,
+                              h->nat_ldb, h->nat_ldc, h->nat_gsize, h->nat_alpha, h->nat_beta};
+  return ggemm_group_native(probs, idx, cnt, g);
 }
 
 // Native FP64 for problems idx[0..cnt): cublasDgemmGroupedBatched over the ngroups groups built
@@ -255,7 +267,7 @@ extern "C" int ggemm_create_ex(ggemm_handle_t* out, int max_problems, size_t max
   // (min_k = 32 -> 64/33 < 2; k = 1 -> 32x); smaller k in a call returns GGEMM_ERR_WORKSPACE.
   // + per-problem 256 B alignment slack.
   h->min_k = min_k;
-  const double infl = kp_inflation(min_k);
+  const double infl = std::max(2.0, kp_inflation(min_k));   // keep the old 2x bound (review L2)
   h->A8_bytes  = M * ((size_t)std::ceil(infl * (double)max_A) + P * GGEMM_BUF_ALIGN);
   h->B8_bytes  = M * ((size_t)std::ceil(infl * (double)max_B) + P * GGEMM_BUF_ALIGN);
   h->C32_bytes = M * (max_C + P * (GGEMM_BUF_ALIGN / 4)) * sizeof(int32_t);
