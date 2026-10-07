@@ -66,9 +66,13 @@
 //       safety factors) the emulated value is certified to meet the gate; otherwise the entry is
 //       "repaired": recomputed in the same thread as a sequential FP64 FMA dot product, which
 //       satisfies the same gamma_n bound as native DGEMM (Higham, Sec. 3.5).
-//  Rows/columns with NaN/Inf are always repaired (IEEE propagation identical to a native dot),
-//  all-zero rows/columns give C = beta C0 exactly.  Repairs are counted (oz2_read_counters);
-//  the planner chooses N so that repairs are rare (oz2_choose_num_moduli_cw).
+//  Step (iii) is controlled by the caller's repair mode: OFF (no certificate), COUNT (count
+//  uncertified entries, keep the emulated value), ON (repair them).  Rows/columns with NaN/Inf
+//  always use the FP64 dot (safety fallback, IEEE propagation identical to a native dot);
+//  all-zero rows/columns give alpha*0 + beta*C0; alpha == 0 gives beta*C0 without touching A/B;
+//  non-finite C0 (beta != 0) propagates without repair; the certificate also requires finite
+//  E, lhs and v.  Counters: oz2_read_counters.  The planner picks N so that uncertified entries
+//  are rare (oz2_choose_num_moduli_cw).
 // ----------------------------------------------------------------------------------------------
 #include "ozaki2_numerics.h"
 #include "moduli.h"
@@ -612,8 +616,17 @@ int oz2_read_counters(oz2_counters* out, int reset, cudaStream_t s) {
 
 int oz2_nonfinite_count(int* count, int reset, cudaStream_t s) {
   if (!count) return 1;
-  oz2_counters c;
+  oz2_counters c{};
   int r = oz2_read_counters(&c, reset, s);
   *count = (int)c.nonfinite_vectors;
+  return r;
+}
+
+int oz2_read_counters(int* nonfinite, unsigned long long* repaired, int reset, cudaStream_t s) {
+  if (!nonfinite && !repaired) return oz2_read_counters((oz2_counters*)nullptr, reset, s);
+  oz2_counters c{};
+  int r = oz2_read_counters(&c, reset, s);
+  if (nonfinite) *nonfinite = (int)c.nonfinite_vectors;
+  if (repaired) *repaired = c.repaired;
   return r;
 }

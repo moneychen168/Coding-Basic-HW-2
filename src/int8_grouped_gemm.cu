@@ -46,6 +46,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 namespace {
@@ -239,7 +240,6 @@ __device__ __forceinline__ void run_tile(int8_t* smem, const i8_problem& P, int 
   }
 }
 
-#ifdef I8_CFG2_SPLITK
 // cfg2 (32x32, BK=256) with intra-CTA split-K. Touches ONLY the cfg2 path: it reuses
 // load_stage<Cfg2> (same smem layout / swizzle / zero-fill) and the same prologue/pipeline
 // structure as run_tile, but all 8 warps own the full 32x32 tile and warp w computes k32-step w
@@ -340,7 +340,6 @@ __device__ __forceinline__ void run_tile_cfg2_splitk(int8_t* smem, const i8_prob
     }
   }
 }
-#endif
 
 __global__ void __launch_bounds__(kThreads, 2)
     i8_grouped_persistent_kernel(const i8_problem* __restrict__ probs, int* __restrict__ ws,
@@ -376,11 +375,7 @@ __global__ void __launch_bounds__(kThreads, 2)
     switch (cfg) {
       case 0: run_tile<Cfg0>(smem, P, tm, tn); break;
       case 1: run_tile<Cfg1>(smem, P, tm, tn); break;
-#ifdef I8_CFG2_SPLITK
-      default: run_tile_cfg2_splitk(smem, P, tm, tn); break;
-#else
       default: run_tile<Cfg2>(smem, P, tm, tn); break;
-#endif
     }
     __syncthreads();   // makes s_tile[(it+1)&1] visible; run_tile already ended with a barrier
   }
@@ -395,8 +390,51 @@ __global__ void __launch_bounds__(kThreads, 2)
   }
 }
 
+// Second persistent kernel: only tile_cfg 3 (32x32 split-K) tiles, own schedule image.
+// A separate __global__ so that i8_grouped_persistent_kernel (cfg0/1/2) keeps exactly the
+// round-1 SASS (inlining split-K into the same kernel perturbed cfg0 codegen: job 511001,
+// cfg0/auto -3..-5%). Same scheduler logic as the main kernel.
+__global__ void __launch_bounds__(kThreads, 2)
+    i8_grouped_splitk_kernel(const i8_problem* __restrict__ probs, int* __restrict__ ws,
+                             int total_tiles) {
+  extern __shared__ __align__(128) int8_t smem[];
+  __shared__ int s_tile[2];
+  const int num_entries = ws[3];
+  int* counter = ws;
+  int* done = ws + 1;
+  const int* prefix = ws + kHdrInts;
+  const int* entry = prefix + num_entries + 1;
+
+  if (threadIdx.x == 0) s_tile[0] = atomicAdd(counter, 1);
+  __syncthreads();
+  for (int it = 0;; ++it) {
+    const int tile = s_tile[it & 1];
+    if (tile >= total_tiles) break;
+    if (threadIdx.x == 0) s_tile[(it + 1) & 1] = atomicAdd(counter, 1);
+    int lo = 0, hi = num_entries - 1;
+    while (lo < hi) {
+      int mid = (lo + hi + 1) >> 1;
+      if (__ldg(prefix + mid) <= tile) lo = mid; else hi = mid - 1;
+    }
+    const int e = __ldg(entry + lo);
+    const int local = tile - __ldg(prefix + lo);
+    const i8_problem P = probs[e >> 2];
+    const int tiles_m = (P.m + Cfg2::BM - 1) / Cfg2::BM;
+    run_tile_cfg2_splitk(smem, P, local % tiles_m, local / tiles_m);
+    __syncthreads();   // s_tile visibility + reduction buffer free before the next prologue
+  }
+  if (threadIdx.x == 0) {
+    __threadfence();
+    if (atomicAdd(done, 1) == (int)gridDim.x - 1) {
+      atomicExch(counter, 0);
+      atomicExch(done, 0);
+      __threadfence();
+    }
+  }
+}
+
 // ---------------------------------------------------------------- host side
-struct DevInfo { int sms = 0; int ctas_per_sm = 0; bool init = false; };
+struct DevInfo { int sms = 0; int ctas_per_sm = 0; int ctas_per_sm_sk = 0; bool init = false; };
 DevInfo g_dev[64];
 
 const DevInfo& dev_info() {
@@ -415,6 +453,14 @@ const DevInfo& dev_info() {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, i8_grouped_persistent_kernel, kThreads,
                                                   kSmemBytes);
     di.ctas_per_sm = occ > 0 ? occ : 1;
+    cudaFuncSetAttribute(i8_grouped_splitk_kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                         kSmemBytes);
+    cudaFuncSetAttribute(i8_grouped_splitk_kernel, cudaFuncAttributePreferredSharedMemoryCarveout,
+                         100);
+    occ = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, i8_grouped_splitk_kernel, kThreads,
+                                                  kSmemBytes);
+    di.ctas_per_sm_sk = occ > 0 ? occ : 1;
     di.init = true;
   }
   return di;
@@ -441,7 +487,11 @@ bool valid_problem(const i8_problem& p) {
   return true;
 }
 
+int g_auto_splitk_min_kp = 0x7fffffff;   // auto never picks cfg3 unless enabled
+
 }  // namespace
+
+void i8_set_auto_splitk_min_kp(int kp_min) { g_auto_splitk_min_kp = kp_min; }
 
 // Heuristic: estimated cost = tiles * BM*BN / relative_efficiency(cfg), per problem.
 // eff[1] = 0.63 from H200 job 510874 (cfg1/cfg0 TOPS: random64 0.66, ozaki-like 0.62, 8192^3 0.62);
@@ -463,26 +513,88 @@ int i8_choose_tile_cfg(int m, int n, int kp, int num_sms) {
   return best;
 }
 
+// Workspace = image 1 (main kernel: cfg 0/1/2) followed by image 2 (split-K kernel: cfg 3),
+// image 2 starting at an 8-int aligned offset. Each image: 8-int header {counter, done, total,
+// ne, ...} + prefix[ne+1] + entry[ne]. Image-1 header also stores {.., [4]=offset2, [5]=total2}.
 size_t i8_grouped_gemm_sched_ws_bytes(int max_problems, size_t /*max_tiles*/) {
   if (max_problems < 0) max_problems = 0;
-  return sizeof(int) * (size_t)(kHdrInts + 2 * (size_t)max_problems + 1);
+  return sizeof(int) * (size_t)(2 * (size_t)max_problems + 2 * kHdrInts + 2 + 8);
 }
 
-int i8_grouped_gemm_build_schedule(const i8_problem* h, int num, void* h_ws, size_t ws_bytes,
-                                   int* total_tiles) {
-  if (num < 0 || (num > 0 && !h) || !h_ws || !total_tiles) return 1;
+namespace {
+// Host scratch, sized once by i8_grouped_gemm_reserve() (call it at create time) so the timed
+// path never allocates: entry array + merge-sort buffer + staging image for the convenience
+// path. Process-wide and mutex-protected (std::mutex lock/unlock does not allocate). If a call
+// exceeds the reserved capacity it still works but grows the buffers (reported by
+// i8_grouped_gemm_host_allocs()).
+struct Ent { double cost; int tiles; int prob; int cfg; };
+std::mutex g_scratch_mu;
+std::vector<Ent> g_ents, g_tmp;
+std::vector<int> g_img;
+long long g_host_allocs = 0;
+
+void ensure_capacity(size_t n_probs) {
+  if (g_ents.capacity() < n_probs) { g_ents.reserve(n_probs); ++g_host_allocs; }
+  if (g_tmp.size() < n_probs) { g_tmp.resize(n_probs); ++g_host_allocs; }
+  size_t img_ints = i8_grouped_gemm_sched_ws_bytes((int)n_probs, 0) / sizeof(int);
+  if (g_img.size() < img_ints) { g_img.resize(img_ints); ++g_host_allocs; }
+}
+
+// LPT order: split-K entries after main-kernel entries; heavier tiles first; more tiles first;
+// ties keep input order. Stable bottom-up merge sort on the preallocated g_tmp (no allocation).
+bool ent_before(const Ent& a, const Ent& b) {
+  bool sa = a.cfg == I8_TILE_32x32_SPLITK, sb = b.cfg == I8_TILE_32x32_SPLITK;
+  if (sa != sb) return sb;
+  if (a.cost != b.cost) return a.cost > b.cost;
+  return a.tiles > b.tiles;
+}
+void stable_sort_prealloc(Ent* a, Ent* tmp, size_t n) {
+  Ent* src = a;
+  Ent* dst = tmp;
+  for (size_t w = 1; w < n; w *= 2) {
+    for (size_t lo = 0; lo < n; lo += 2 * w) {
+      size_t mid = std::min(lo + w, n), hi = std::min(lo + 2 * w, n);
+      size_t i = lo, j = mid, k = lo;
+      while (i < mid && j < hi) dst[k++] = ent_before(src[j], src[i]) ? src[j++] : src[i++];
+      while (i < mid) dst[k++] = src[i++];
+      while (j < hi) dst[k++] = src[j++];
+    }
+    std::swap(src, dst);
+  }
+  if (src != a) std::copy(src, src + n, a);
+}
+}  // namespace
+
+void i8_grouped_gemm_reserve(int max_problems, size_t /*max_tiles*/) {
+  std::lock_guard<std::mutex> lk(g_scratch_mu);
+  ensure_capacity(max_problems > 0 ? (size_t)max_problems : 1);
+  (void)dev_info();   // also do the one-time cudaFuncSetAttribute / occupancy query here
+}
+long long i8_grouped_gemm_host_allocs() { return g_host_allocs; }
+
+namespace {
+// allow_splitk = false (legacy int* API): cfg 3 is mapped to cfg 2, so the schedule only ever
+// needs the main kernel (exact round-1 behaviour, 1 launch).
+int build_schedule_impl(const i8_problem* h, int num, void* h_ws, size_t ws_bytes,
+                        i8_sched_info* info, bool allow_splitk) {
+  if (num < 0 || (num > 0 && !h) || !h_ws || !info) return 1;
   if (ws_bytes < i8_grouped_gemm_sched_ws_bytes(num, 0)) return 2;
-  struct Ent { double cost; int tiles; int prob; int cfg; };
-  thread_local std::vector<Ent> ents;   // host only; grows only when num grows
-  ents.clear();
-  ents.reserve(num);
+  std::lock_guard<std::mutex> lk(g_scratch_mu);
+  ensure_capacity((size_t)num);
+  std::vector<Ent>& ents = g_ents;
+  ents.clear();   // keeps capacity
   int sms = 0;
   for (int i = 0; i < num; ++i) {
     if (!valid_problem(h[i])) return 3;
     if (h[i].m == 0 || h[i].n == 0 || h[i].kp == 0) continue;   // skipped (C not written)
     int c = h[i].tile_cfg;
-    if (c < 0) { if (!sms) sms = dev_info().sms; c = i8_choose_tile_cfg(h[i].m, h[i].n, h[i].kp, sms); }
+    if (c < 0) {
+      if (!sms) sms = dev_info().sms;
+      c = i8_choose_tile_cfg(h[i].m, h[i].n, h[i].kp, sms);
+      if (c == I8_TILE_32x32 && h[i].kp >= g_auto_splitk_min_kp) c = I8_TILE_32x32_SPLITK;
+    }
     if (c >= I8_NUM_TILE_CFGS) return 4;
+    if (!allow_splitk && c == I8_TILE_32x32_SPLITK) c = I8_TILE_32x32;
     ents.push_back({tile_cost(c, h[i].kp), cfg_tiles(c, h[i].m, h[i].n), i, c});
   }
   // Group-level fill rule: if the whole group has fewer tiles than SMs, split auto-chosen
@@ -501,63 +613,144 @@ int i8_grouped_gemm_build_schedule(const i8_problem* h, int num, void* h_ws, siz
       }
     }
   }
-  // LPT: heaviest tiles first; ties -> more tiles first, then original order (deterministic).
-  std::stable_sort(ents.begin(), ents.end(), [](const Ent& a, const Ent& b) {
-    if (a.cost != b.cost) return a.cost > b.cost;
-    return a.tiles > b.tiles;
-  });
+  // LPT inside each kernel: heaviest tiles first; ties -> more tiles first, then original order.
+  // Partition: main-kernel entries (cfg 0/1/2) first, split-K entries (cfg 3) after.
+  stable_sort_prealloc(ents.data(), g_tmp.data(), ents.size());
+  size_t ne1 = 0;
+  while (ne1 < ents.size() && ents[ne1].cfg != I8_TILE_32x32_SPLITK) ++ne1;
+  const size_t ne2 = ents.size() - ne1;
   int* w = static_cast<int*>(h_ws);
-  const int ne = (int)ents.size();
-  long long tot = 0;
-  int* prefix = w + kHdrInts;
-  int* entry = prefix + ne + 1;
-  for (int j = 0; j < ne; ++j) {
-    prefix[j] = (int)tot;
-    tot += ents[j].tiles;
-    entry[j] = (ents[j].prob << 2) | ents[j].cfg;
-  }
-  prefix[ne] = (int)tot;
-  if (tot > 0x7fffffffLL - 1000000) return 5;
-  std::memset(w, 0, sizeof(int) * kHdrInts);
-  w[2] = (int)tot;
-  w[3] = ne;
-  *total_tiles = (int)tot;
+  auto write_image = [&](int* img, size_t first, size_t ne, long long* tot) {
+    int* prefix = img + kHdrInts;
+    int* entry = prefix + ne + 1;
+    long long t = 0;
+    for (size_t j = 0; j < ne; ++j) {
+      prefix[j] = (int)t;
+      t += ents[first + j].tiles;
+      entry[j] = (ents[first + j].prob << 2) | ents[first + j].cfg;
+    }
+    prefix[ne] = (int)t;
+    std::memset(img, 0, sizeof(int) * kHdrInts);
+    img[2] = (int)t;
+    img[3] = (int)ne;
+    *tot = t;
+  };
+  long long t1 = 0, t2 = 0;
+  write_image(w, 0, ne1, &t1);
+  const size_t off2 = (kHdrInts + 2 * ne1 + 1 + 7) / 8 * 8;
+  if (ne2) write_image(w + off2, ne1, ne2, &t2);
+  if (t1 > 0x7fffffffLL - 1000000 || t2 > 0x7fffffffLL - 1000000) return 5;
+  w[4] = (int)off2;
+  w[5] = (int)t2;
+  info->tiles_main = (int)t1;
+  info->tiles_splitk = (int)t2;
+  info->ws2_offset_ints = (int)off2;
+  info->num_launches = (t1 > 0) + (t2 > 0);
+  info->bytes_used = sizeof(int) * (ne2 ? off2 + kHdrInts + 2 * ne2 + 1 : kHdrInts + 2 * ne1 + 1);
   return 0;
+}
+}  // namespace
+
+int i8_grouped_gemm_build_schedule(const i8_problem* h, int num, void* h_ws, size_t ws_bytes,
+                                   i8_sched_info* info) {
+  return build_schedule_impl(h, num, h_ws, ws_bytes, info, true);
+}
+
+int i8_grouped_gemm_build_schedule(const i8_problem* h, int num, void* h_ws, size_t ws_bytes,
+                                   int* total_tiles) {
+  if (!total_tiles) return 1;
+  i8_sched_info info;
+  int rc = build_schedule_impl(h, num, h_ws, ws_bytes, &info, false);
+  if (rc) return rc;
+  *total_tiles = info.tiles_main;
+  return 0;
+}
+
+int i8_grouped_gemm_launch_count(const i8_sched_info* info) {
+  return info ? info->num_launches : 0;
+}
+
+int i8_grouped_gemm_launch_count(const i8_problem* h, int num) {
+  bool main_k = false, sk = false;
+  for (int i = 0; i < num; ++i) {
+    if (h[i].m <= 0 || h[i].n <= 0 || h[i].kp <= 0) continue;
+    int c = h[i].tile_cfg;
+    if (c < 0) {
+      c = i8_choose_tile_cfg(h[i].m, h[i].n, h[i].kp, 0);
+      if (c == I8_TILE_32x32 && h[i].kp >= g_auto_splitk_min_kp) c = I8_TILE_32x32_SPLITK;
+    }
+    if (c == I8_TILE_32x32_SPLITK) sk = true; else main_k = true;
+  }
+  return (int)main_k + (int)sk;
+}
+
+int i8_grouped_gemm_launch(const i8_problem* d_probs, int num, const void* d_sched_ws,
+                           const i8_sched_info* info, cudaStream_t s) {
+  (void)num;
+  if (!info) return 1;
+  if (info->num_launches == 0) return 0;
+  if (!d_probs || !d_sched_ws) return 1;
+  const DevInfo& di = dev_info();
+  int* ws = const_cast<int*>(static_cast<const int*>(d_sched_ws));
+  (void)cudaGetLastError();   // clear a stale (non-sticky) error so we only report our launches
+  // Split-K (cfg3, light small-problem tiles) first: its tail is short; the heavy main kernel
+  // follows on the same stream. Outputs and workspace images are disjoint.
+  if (info->tiles_splitk > 0) {
+    long long grid = (long long)di.sms * di.ctas_per_sm_sk;
+    if (grid > info->tiles_splitk) grid = info->tiles_splitk;
+    i8_grouped_splitk_kernel<<<(int)grid, kThreads, kSmemBytes, s>>>(
+        d_probs, ws + info->ws2_offset_ints, info->tiles_splitk);
+  }
+  if (info->tiles_main > 0) {
+    long long grid = (long long)di.sms * di.ctas_per_sm;
+    if (grid > info->tiles_main) grid = info->tiles_main;
+    i8_grouped_persistent_kernel<<<(int)grid, kThreads, kSmemBytes, s>>>(d_probs, ws,
+                                                                          info->tiles_main);
+  }
+  return cudaGetLastError() == cudaSuccess ? 0 : 6;
 }
 
 int i8_grouped_gemm_launch(const i8_problem* d_probs, int num, const void* d_sched_ws,
                            int total_tiles, cudaStream_t s) {
-  (void)num;
-  if (total_tiles <= 0) return 0;
-  if (!d_probs || !d_sched_ws) return 1;
-  const DevInfo& di = dev_info();
-  long long grid = (long long)di.sms * di.ctas_per_sm;
-  if (grid > total_tiles) grid = total_tiles;
-  (void)cudaGetLastError();   // clear a stale (non-sticky) error so we only report our launch
-  i8_grouped_persistent_kernel<<<(int)grid, kThreads, kSmemBytes, s>>>(
-      d_probs, const_cast<int*>(static_cast<const int*>(d_sched_ws)), total_tiles);
-  return cudaGetLastError() == cudaSuccess ? 0 : 6;
+  i8_sched_info info{};
+  info.tiles_main = total_tiles > 0 ? total_tiles : 0;
+  info.num_launches = info.tiles_main > 0;
+  return i8_grouped_gemm_launch(d_probs, num, d_sched_ws, &info, s);
 }
 
-int i8_grouped_gemm(const i8_problem* d_probs, int num, const i8_problem* h_probs_for_sched,
-                    void* d_sched_ws, size_t sched_ws_bytes, cudaStream_t s) {
+int i8_grouped_gemm_ex(const i8_problem* d_probs, int num, const i8_problem* h_probs_for_sched,
+                       void* d_sched_ws, size_t sched_ws_bytes, cudaStream_t s, int* num_launches) {
+  if (num_launches) *num_launches = 0;
   if (num == 0) return 0;
   if (!d_sched_ws) return 1;
   // Host staging image. Pageable cudaMemcpyAsync returns only after the source has been staged,
   // so reusing this buffer on the next call is safe. Host-side growth only (never device malloc);
   // callers wanting a fully async copy use build_schedule into their own pinned buffer.
-  thread_local std::vector<int> img;
   size_t need = i8_grouped_gemm_sched_ws_bytes(num, 0);
   if (need > sched_ws_bytes) return 2;
-  if (img.size() * sizeof(int) < need) img.resize(need / sizeof(int));
-  int total = 0;
-  int rc = i8_grouped_gemm_build_schedule(h_probs_for_sched, num, img.data(), need, &total);
+  std::vector<int>& img = g_img;   // reserved by i8_grouped_gemm_reserve
+  {
+    std::lock_guard<std::mutex> lk(g_scratch_mu);
+    ensure_capacity((size_t)num);
+  }
+  // NOTE: g_img is shared; concurrent convenience calls from several host threads are not
+  // supported (use build_schedule into caller-owned buffers for that).
+  i8_sched_info info;
+  int rc = i8_grouped_gemm_build_schedule(h_probs_for_sched, num, img.data(), need, &info);
   if (rc) return rc;
-  if (total == 0) return 0;
-  size_t used = sizeof(int) * (size_t)(kHdrInts + 2 * img[3] + 1);
-  if (cudaMemcpyAsync(d_sched_ws, img.data(), used, cudaMemcpyHostToDevice, s) != cudaSuccess)
+  if (info.num_launches == 0) return 0;
+  if (cudaMemcpyAsync(d_sched_ws, img.data(), info.bytes_used, cudaMemcpyHostToDevice, s) !=
+      cudaSuccess)
     return 7;
-  return i8_grouped_gemm_launch(d_probs, num, d_sched_ws, total, s);
+  rc = i8_grouped_gemm_launch(d_probs, num, d_sched_ws, &info, s);
+  if (!rc && num_launches) *num_launches = info.num_launches;
+  return rc;
+}
+
+int i8_grouped_gemm(const i8_problem* d_probs, int num, const i8_problem* h_probs_for_sched,
+                    void* d_sched_ws, size_t sched_ws_bytes, cudaStream_t s) {
+  return i8_grouped_gemm_ex(d_probs, num, h_probs_for_sched, d_sched_ws, sched_ws_bytes, s,
+                            nullptr);
 }
 
 // ---------------------------------------------------------------- cuBLASLt reference

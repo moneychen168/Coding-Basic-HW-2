@@ -1,0 +1,2 @@
+stage,kernel,launches,cc,duration_us,imma_pct,imma_metric,dram_pct,dram_GBps,sm_pct,occ_pct,occ_theo_pct,regs,smem_static_B,smem_dyn_B,stall_src,stall1,stall1_pct,stall2,stall2_pct,stall3,stall3_pct
+i8_gemm,"i8_grouped_gemm_kernel<128,128>",1,9.0,25.0,55.5,sm__pipe,40.0,1000,60.0,30.0,50.0,128,0,49152,metrics,long_scoreboard,35.00,wait,20.00,,

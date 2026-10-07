@@ -36,13 +36,19 @@ struct ggemm_nvtx_range {
 struct reuse_arena;   // src/operand_reuse.h (agent-O): host pass, shared A/B operand detection
 
 // Per-call descriptor blob layout (identical in the pinned slot and in the device blob):
-//   [oz2 recon x num_emu] [oz2 prep x num_prep] [i8_problem x num_i8] [LPT schedule image(s)]
-//   [A ptrs | B ptrs | C ptrs  x num_nat]
+//   [oz2 recon x num_emu] [oz2 prep x num_prep] [i8_problem x num_i8]
+//   [A ptrs | B ptrs | C ptrs  x num_nat] [LPT schedule image(s)]   (image last: partial H2D)
 // num_prep == 0 (no operand reuse): prep uses the recon descriptors (off_prep == off_oz).
 // num_prep  > 0 (operand reuse): UA A-only (n = 0) then UB B-only (m = 0) descriptors.
 struct ggemm_blob_layout { size_t off_oz, off_prep, off_i8, off_sched, off_ptr, total; };
 ggemm_blob_layout ggemm_layout_for(size_t num_emu, size_t num_prep, size_t num_i8,
                                    size_t sched_bytes, size_t num_nat);
+// cfg->repair_mode (GGEMM_REPAIR_*, 0 = path default) -> OZ2_REPAIR_*; -1 if out of range.
+int ggemm_oz2_repair_mode(ggemm_path_t path, const ggemm_config_t* cfg);
+// Stats counters (env GGEMM_STATS_REPAIR=1 only): reset is async (enqueued on s); read syncs s
+// and fills num_repaired / num_uncertified / num_safety_fallback (all -1 when disabled).
+int ggemm_counters_reset(ggemm_handle_t h, cudaStream_t s);
+int ggemm_counters_read(ggemm_handle_t h, cudaStream_t s, ggemm_stats_t* st);
 // Argument / element-budget check shared by ggemm_grouped_dgemm and the graph module.
 int ggemm_validate(ggemm_handle_t h, const ggemm_problem_t* p, int num);
 
@@ -102,7 +108,7 @@ struct ggemm_handle_s {
   // host scratch (allocated once; sized by max_problems)
   ggemm_plan_entry_t* plan;
   int* emu_idx; int* nat_idx;
-  int* loop_tiles;            // [max_problems * GGEMM_MAX_MODULI] total_tiles per EMU_LOOP image
+  i8_sched_info* loop_info;   // [max_problems * planes] agent-K schedule info per EMU_LOOP(_BATCHED) image
   cublasOperation_t* nat_ta; cublasOperation_t* nat_tb;
   int *nat_m, *nat_n, *nat_k, *nat_lda, *nat_ldb, *nat_ldc, *nat_gsize;
   double *nat_alpha, *nat_beta;
@@ -116,5 +122,7 @@ struct ggemm_handle_s {
   int* reuse_nmod;            // [max_problems] N_g input of build_operand_reuse (0 = not emulated)
   size_t *ua_off8, *ua_offs;  // [max_problems] unique A: A8 offset (bytes), row_shift offset (int32)
   size_t *ub_off8, *ub_offs;  // [max_problems] unique B: B8 offset (bytes), col_shift offset (int32)
+  int min_k;                  // ggemm_create_ex: residue workspace sized for k >= min_k
+  int ws_diag_printed;        // one-shot stderr diagnostic for GGEMM_ERR_WORKSPACE
   int stats_repair;           // env GGEMM_STATS_REPAIR=1: fill stats.num_repaired (synchronizes)
 };

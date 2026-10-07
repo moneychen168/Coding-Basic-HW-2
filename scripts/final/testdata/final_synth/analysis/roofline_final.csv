@@ -1,0 +1,4 @@
+workload,path,phi,N,flops,bytes,ai,gflops,roof_gflops,pct_roof,bound
+uni_G64_s32,emu_grouped,0.5,16,1000000000.0,100000000.0,10,4000,8000,50.0,memory
+moe_E8_prefill_z1.2_up,emu_grouped,0.5,16,1000000000.0,10000000.0,100,7000,10000,70.0,compute
+uni_G64_s32,native_grouped,0.5,,1000000000.0,100000000.0,10,1000,2000,50.0,compute

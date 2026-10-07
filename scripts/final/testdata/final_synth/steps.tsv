@@ -1,0 +1,10 @@
+step	status	rc	seconds	log
+cuda_preflight	PASS	0	0	logs/cuda_preflight.log
+build	PASS	0	120	logs/build.log
+test_grouped	FAIL	1	30	logs/test_grouped.log
+test_graph	PASS	0	10	logs/test_graph.log
+test_numerics_standalone	PASS	0	5	logs/test_numerics_standalone.log
+test_i8_grouped	PASS	0	40	logs/test_i8_grouped.log
+test_reuse_e2e	PASS	0	3	logs/test_reuse_e2e.log
+bench_grouped	PASS	0	900	logs/bench_grouped.log
+ncu_x_auto	FAIL(timeout 1800s)	124	1800	logs/ncu_x_auto.log

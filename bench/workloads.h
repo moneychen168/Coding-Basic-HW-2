@@ -31,6 +31,8 @@ static const double kPhis[] = {0.0, 0.5, 1.0, 2.0};
 //   "bench" : full performance sweep (all four families, sized for a 32 GB GPU)
 //   "test"  : smaller instances of every family, for correctness (dd reference is O(mnk))
 //   "quick" : a handful of workloads for smoke runs / profiling
+//   "repair": representative subset for the repair-mode / rho_budget sweep
+//   "tiny"  : smallest instance per irregularity class, for compute-sanitizer
 std::vector<Workload> make_workloads(const std::string& set);
 
 // Optional: real MoE routing counts (one integer per expert per line, '#' comments).
@@ -95,10 +97,17 @@ inline bool ggemm_path_is_emu(ggemm_path_t p) {
 //   COUNT: failing entries keep the emulated value and are counted in stats.num_uncertified
 //   ON   : failing entries are recomputed in FP64 and counted in stats.num_repaired
 // EMU_* default COUNT, AUTO default ON, native paths: no certificate (always exact FP64 contract).
-// TODO(agent-B): read the mode from ggemm_config_t once the field exists in include/ggemm.h.
-enum repair_mode_t { REPAIR_NONE = 0, REPAIR_COUNT = 1, REPAIR_ON = 2 };
-inline repair_mode_t ggemm_expected_repair_mode(ggemm_path_t p) {
+// An explicit cfg.repair_mode (GGEMM_REPAIR_OFF/COUNT/ON) overrides the path default.
+enum repair_mode_t { REPAIR_NONE = 0, REPAIR_COUNT = 1, REPAIR_ON = 2, REPAIR_OFF = 3 };
+inline repair_mode_t ggemm_expected_repair_mode(ggemm_path_t p, const ggemm_config_t* cfg = nullptr) {
   if (!ggemm_path_is_emu(p)) return REPAIR_NONE;
+#if defined(GGEMM_REPAIR_ON) && defined(GGEMM_REPAIR_COUNT) && defined(GGEMM_REPAIR_OFF)
+  if (cfg && cfg->repair_mode == GGEMM_REPAIR_ON) return REPAIR_ON;
+  if (cfg && cfg->repair_mode == GGEMM_REPAIR_COUNT) return REPAIR_COUNT;
+  if (cfg && cfg->repair_mode == GGEMM_REPAIR_OFF) return REPAIR_OFF;
+#else
+  (void)cfg;
+#endif
   return p == GGEMM_PATH_AUTO ? REPAIR_ON : REPAIR_COUNT;
 }
 // Stats fields that may not exist yet in include/ggemm.h: read via SFINAE, -1 = unavailable.
@@ -110,3 +119,8 @@ template <class T> long long repaired(const T&, long) { return -1; }
 }  // namespace ggemm_detail
 inline long long stats_num_uncertified(const ggemm_stats_t& s) { return ggemm_detail::uncert(s, 0); }
 inline long long stats_num_repaired(const ggemm_stats_t& s) { return ggemm_detail::repaired(s, 0); }
+namespace ggemm_detail {
+template <class T> auto safety(const T& s, int) -> decltype((long long)s.num_safety_fallback) { return (long long)s.num_safety_fallback; }
+template <class T> long long safety(const T&, long) { return -1; }
+}  // namespace ggemm_detail
+inline long long stats_num_safety_fallback(const ggemm_stats_t& s) { return ggemm_detail::safety(s, 0); }

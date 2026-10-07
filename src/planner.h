@@ -11,7 +11,8 @@ typedef enum {
   GGEMM_ROUTE_TINY = 4,         // m*n*k < tiny_mnk
   GGEMM_ROUTE_UNPROFITABLE = 5, // cost model: emulation slower than native
   GGEMM_ROUTE_PRECISION = 6,    // oz2_choose_num_moduli: no N <= GGEMM_MAX_MODULI meets target
-  GGEMM_ROUTE_SMALL_K = 7       // AUTO: k <= GGEMM_AUTO_NATIVE_MAX_K -> native FP64
+  GGEMM_ROUTE_SMALL_K = 7,      // AUTO: k <= GGEMM_AUTO_NATIVE_MAX_K -> native FP64
+  GGEMM_ROUTE_ALPHA_ZERO = 8    // alpha == 0: C = beta*C, done by cuBLAS (all emulation paths)
 } ggemm_route_t;
 
 // AUTO only (with allow_fallback): k at or below this goes straight to native FP64.
@@ -20,6 +21,12 @@ typedef enum {
 // GGEMM_RHO_BUDGET, else this default. PLACEHOLDER, NOT TUNED: tune it with
 // stats.num_repaired (GGEMM_STATS_REPAIR=1); it only moves the FP64-repair rate, never accuracy.
 #define GGEMM_RHO_BUDGET_DEFAULT 16.0
+
+// Native routes that are exact by construction (not "fallbacks" in ggemm_stats_t).
+static inline int ggemm_route_is_fallback(int route) {
+  return route != GGEMM_ROUTE_EMU && route != GGEMM_ROUTE_EMPTY && route != GGEMM_ROUTE_K_ZERO &&
+         route != GGEMM_ROUTE_ALPHA_ZERO;
+}
 
 typedef struct {
   int route;        // ggemm_route_t

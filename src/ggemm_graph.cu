@@ -34,7 +34,9 @@ struct ggemm_plan_s {
   ggemm_problem_t* probs;          // host copy (pointers patched by update_pointers)
   ggemm_plan_entry_t* entries;
   int *emu_idx, *nat_idx;
-  int ne, nn, max_m, max_n, grp_tiles;
+  int ne, nn, max_m, max_n;
+  i8_sched_info grp_info;
+  int repair;                      // OZ2_REPAIR_* frozen at make_plan (ggemm_oz2_repair_mode)
   size_t n_i8;
   ggemm_blob_layout L;
   char* h_blob;                    // pinned mirror of d_blob (also the source of update H2Ds)
@@ -76,10 +78,10 @@ static int enqueue(ggemm_plan_t p, cudaStream_t s, int* launches) {
   if (p->ne > 0) {
     if (oz2_prep_grouped(doz, p->ne, p->max_m, p->max_n, s)) return GGEMM_ERR_NUMERICS;
     ++*launches;
-    if (i8_grouped_gemm_launch(di8, (int)p->n_i8, p->d_blob + p->L.off_sched, p->grp_tiles, s))
+    if (i8_grouped_gemm_launch(di8, (int)p->n_i8, p->d_blob + p->L.off_sched, &p->grp_info, s))
       return GGEMM_ERR_I8GEMM;
-    if (p->grp_tiles > 0) ++*launches;
-    if (oz2_reconstruct_grouped(doz, p->ne, p->max_m, p->max_n, s)) return GGEMM_ERR_NUMERICS;
+    *launches += p->grp_info.num_launches;
+    if (oz2_reconstruct_grouped(doz, p->ne, p->max_m, p->max_n, s, p->repair)) return GGEMM_ERR_NUMERICS;
     ++*launches;
   }
   if (p->nn == 1) {
@@ -172,14 +174,14 @@ static int build(ggemm_plan_t p, ggemm_path_t path, const ggemm_config_t* cfg) {
   ggemm_stats_t& st = p->st;
   st.num_problems = num;
   st.num_fallback = 0;
-  for (int i = 0; i < p->nn; ++i) st.num_fallback += (p->entries[p->nat_idx[i]].route != GGEMM_ROUTE_K_ZERO);
+  for (int i = 0; i < p->nn; ++i) st.num_fallback += ggemm_route_is_fallback(p->entries[p->nat_idx[i]].route);
   st.moduli_min = p->ne ? GGEMM_MAX_MODULI : 0;
   st.moduli_max = nmax;
   for (int j = 0; j < p->ne; ++j) st.moduli_min = std::min(st.moduli_min, p->entries[p->emu_idx[j]].num_moduli);
   st.reuse_enabled = 0;                 // graph path: no operand reuse (see top of file)
   st.num_unique_A = st.num_unique_B = p->ne;
   st.num_promoted = 0;
-  st.num_repaired = -1;                 // never read here (would synchronize)
+  st.num_repaired = st.num_uncertified = st.num_safety_fallback = -1;   // filled per execute
 
   // ---- plan-owned blob (allocation is fine here: make_plan is setup, never timed)
   const size_t sched_bytes = p->ne == 0 ? 0 : i8_grouped_gemm_sched_ws_bytes((int)p->n_i8, 0);
@@ -220,9 +222,9 @@ static int build(ggemm_plan_t p, ggemm_path_t path, const ggemm_config_t* cfg) {
     ocol += ggemm_align_up((size_t)OZ2_ROW_WS_PER_ROW * q.n, 64);
     p->max_m = std::max(p->max_m, q.m); p->max_n = std::max(p->max_n, q.n);
   }
-  p->grp_tiles = 0;
+  p->grp_info = i8_sched_info{};
   if (p->ne > 0 && i8_grouped_gemm_build_schedule(hi8, (int)p->n_i8, hb + p->L.off_sched,
-                                                  sched_bytes, &p->grp_tiles))
+                                                  sched_bytes, &p->grp_info))
     return GGEMM_ERR_I8GEMM;
 
   // native metadata (plan-owned, so the captured cuBLAS call never references handle scratch)
@@ -236,7 +238,8 @@ static int build(ggemm_plan_t p, ggemm_path_t path, const ggemm_config_t* cfg) {
   write_ptrs(p);
 
   // ---- the one H2D, done here (not inside the graph). Synchronous: setup only.
-  if (p->L.total) CU(cudaMemcpyAsync(p->d_blob, hb, p->L.total, cudaMemcpyHostToDevice, h->stream));
+  const size_t h2d = p->ne > 0 ? p->L.off_sched + p->grp_info.bytes_used : p->L.total;
+  if (h2d) CU(cudaMemcpyAsync(p->d_blob, hb, h2d, cudaMemcpyHostToDevice, h->stream));
   CU(cudaEventRecord(p->ev_upd, h->stream));
   CU(cudaStreamSynchronize(h->stream));
 
@@ -261,13 +264,15 @@ extern "C" ggemm_plan_t ggemm_make_plan_ex(ggemm_handle_t h, ggemm_path_t path,
   if ((e = ggemm_validate(h, problems, num))) return nullptr;
   static const ggemm_config_t kDefault = {0, 1e-15, 1};   // == ggemm.cu default
   if (!cfg) cfg = &kDefault;
-  if (cfg->num_moduli < 0 || cfg->num_moduli == 1 || cfg->num_moduli > GGEMM_MAX_MODULI) {
+  if (cfg->num_moduli < 0 || cfg->num_moduli == 1 || cfg->num_moduli > GGEMM_MAX_MODULI ||
+      ggemm_oz2_repair_mode(path, cfg) < 0) {
     e = GGEMM_ERR_INVALID; return nullptr;
   }
 
   ggemm_plan_t p = new (std::nothrow) ggemm_plan_s();   // value-initialised (all null / 0)
   if (!p) { e = GGEMM_ERR_ALLOC; return nullptr; }
   p->h = h; p->num = num;
+  p->repair = ggemm_oz2_repair_mode(path, cfg);
   const size_t P = (size_t)std::max(num, 1);
   p->probs = new (std::nothrow) ggemm_problem_t[P];
   p->entries = new (std::nothrow) ggemm_plan_entry_t[P];
@@ -305,17 +310,24 @@ extern "C" int ggemm_execute_plan(ggemm_plan_t p, cudaStream_t stream) {
   GGEMM_NVTX_RANGE(nv_graph, "ggemm:graph");
   if (!p->exec) return GGEMM_OK;
   cudaStream_t hs = p->h->stream;
+  // env GGEMM_STATS_REPAIR=1: reset the numerics counters (async) right before the graph and
+  // read them (synchronizes `stream`) right after; results land in ggemm_plan_get_stats.
+  const bool counters = p->h->stats_repair && p->ne > 0;
+  int r;
   if (stream == hs) {                      // already ordered with every other handle user
+    if (counters && (r = ggemm_counters_reset(p->h, stream))) return r;
     CU(cudaGraphLaunch(p->exec, stream));
-    return GGEMM_OK;
+  } else {
+    // Join with the handle's stream on both sides: shared scratch (A8/B8/C32/shifts, cuBLAS ws)
+    // and the plan's self-resetting LPT counter are then never used by two launches at once.
+    CU(cudaEventRecord(p->ev_h, hs));
+    CU(cudaStreamWaitEvent(stream, p->ev_h, 0));
+    if (counters && (r = ggemm_counters_reset(p->h, stream))) return r;
+    CU(cudaGraphLaunch(p->exec, stream));
+    CU(cudaEventRecord(p->ev_p, stream));
+    CU(cudaStreamWaitEvent(hs, p->ev_p, 0));
   }
-  // Join with the handle's stream on both sides: shared scratch (A8/B8/C32/shifts, cuBLAS ws)
-  // and the plan's self-resetting LPT counter are then never used by two launches at once.
-  CU(cudaEventRecord(p->ev_h, hs));
-  CU(cudaStreamWaitEvent(stream, p->ev_h, 0));
-  CU(cudaGraphLaunch(p->exec, stream));
-  CU(cudaEventRecord(p->ev_p, stream));
-  CU(cudaStreamWaitEvent(hs, p->ev_p, 0));
+  if (counters) return ggemm_counters_read(p->h, stream, &p->st);
   return GGEMM_OK;
 }
 

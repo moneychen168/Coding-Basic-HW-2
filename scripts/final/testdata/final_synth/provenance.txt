@@ -1,0 +1,6 @@
+date: 2026-10-10T00:00:00+08:00
+host: synth-node
+job: 999
+git: deadbeef dirty=0
+Build cuda_13.0
+NVIDIA H200, 570.00, 143771 MiB, 1980 MHz, 700.00 W

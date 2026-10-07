@@ -8,7 +8,7 @@
 //       and the unique-operand counts in ggemm_stats_t. AUTO (never reuses) is reported for
 //       reference; EMU_LOOP_BATCHED (GEMMul8-like baseline) must also be bit-exact vs EMU_GROUPED.
 // Timing (reported, not gated): cudaEvent time per call over R back-to-back calls.
-// Env: GGEMM_REUSE_PROMOTE=1 (PROMOTE policy), GGEMM_STATS_REPAIR=1 (fills num_repaired).
+// Env: GGEMM_REUSE_PROMOTE=1 (PROMOTE policy), GGEMM_STATS_REPAIR=1 (fills repaired / uncertified / safety_fb).
 // Usage: test_reuse_e2e [--reps R]
 #include <algorithm>
 #include <cmath>
@@ -84,9 +84,10 @@ static const char* pname(ggemm_path_t p) {
 
 static void print_stats(const char* tag, const ggemm_stats_t& s) {
   printf("  %-18s stats: probs=%d fallback=%d launches=%d moduli=[%d,%d] reuse=%d uA=%d uB=%d "
-         "promoted=%d repaired=%lld\n", tag, s.num_problems, s.num_fallback, s.kernel_launches,
-         s.moduli_min, s.moduli_max, s.reuse_enabled, s.num_unique_A, s.num_unique_B,
-         s.num_promoted, s.num_repaired);
+         "promoted=%d repaired=%lld uncertified=%lld safety_fb=%lld\n", tag, s.num_problems,
+         s.num_fallback, s.kernel_launches, s.moduli_min, s.moduli_max, s.reuse_enabled,
+         s.num_unique_A, s.num_unique_B, s.num_promoted, s.num_repaired, s.num_uncertified,
+         s.num_safety_fallback);
 }
 
 // One correctness run from C0; returns rc and copies C to host.

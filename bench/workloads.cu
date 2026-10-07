@@ -214,6 +214,24 @@ std::vector<Workload> make_workloads(const std::string& set) {
     add_moe(v, 64, 6, 16, 512, 352, 1.2, "decode");   // many m_e = 0
     add_hetero(v, 32, 16, 512);
     add_lora(v, 8, 256, 1024, 0);
+  } else if (set == "repair") {
+    // Repair-mode / rho_budget sweep (scripts/repair_sweep.slurm): two uniform sizes (k=64 vs
+    // k=256 changes the CRT error bound), the skewed MoE up-projection (k=2048, long dot
+    // products) and the heterogeneous mix (k spread 16..2048 -> planner picks different N).
+    add_uniform(v, 1024, 64);
+    add_uniform(v, 256, 256);
+    {
+      std::vector<Workload> tmp;
+      add_moe(tmp, 64, 6, 1024, 2048, 1408, 1.2, "prefill");
+      v.push_back(tmp[0]);   // _up only
+    }
+    add_hetero(v, 256, 16, 2048);
+  } else if (set == "tiny") {
+    // Minimal instances for compute-sanitizer (racecheck/initcheck are 10-100x slower):
+    // one per irregularity class -- uniform, MoE decode with empty experts, heterogeneous.
+    add_uniform(v, 8, 16);
+    add_moe(v, 8, 2, 4, 64, 96, 1.2, "decode");     // 8 tokens-assignments over 8 experts -> m_e = 0
+    add_hetero(v, 6, 16, 80);
   } else {  // quick
     add_uniform(v, 1024, 32);
     add_moe(v, 64, 6, 1024, 2048, 1408, 1.2, "prefill");

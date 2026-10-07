@@ -20,6 +20,8 @@ typedef struct {
 typedef enum {
   GGEMM_PATH_NATIVE_LOOP = 0,    // baseline: cublasDgemm per problem (native FP64)
   GGEMM_PATH_NATIVE_GROUPED = 1, // baseline: cublasDgemmGroupedBatched (native FP64)
+  // Ablation note: every EMU_* path (2, 3, 5, 6) uses tile config 0 (128x128) for all problems
+  // and never reroutes on cost; per-problem tiles and cost-based fallback exist only in AUTO.
   GGEMM_PATH_EMU_LOOP = 2,       // starter-like: single-GEMM INT8 emulation called per problem
   GGEMM_PATH_EMU_GROUPED = 3,    // ours: fused grouped pipeline (O(1) launches)
   GGEMM_PATH_AUTO = 4,           // ours + planner (per-problem moduli count, tile config, fallback)
@@ -32,9 +34,16 @@ typedef struct {
   int num_moduli;        // 0 = auto (adaptive per problem); else fixed N in [2, GGEMM_MAX_MODULI]
   double target_rel_err; // used when num_moduli == 0, default 1e-15 (FP64-level)
   int allow_fallback;    // 1 = route unsafe/unprofitable problems to native FP64 (reported in stats)
+  int repair_mode;       // appended: GGEMM_REPAIR_* below; 0 (also when omitted in {..}) = path default
 } ggemm_config_t;
 
 #define GGEMM_MAX_MODULI 20
+
+// ggemm_config_t::repair_mode (componentwise FP64 certificate in reconstruct).
+#define GGEMM_REPAIR_DEFAULT 0   // EMU_LOOP / EMU_LOOP_BATCHED / EMU_GROUPED / _REUSE: COUNT; AUTO: ON
+#define GGEMM_REPAIR_OFF     1   // no certificate
+#define GGEMM_REPAIR_COUNT   2   // certificate evaluated, failures counted, emulated value kept
+#define GGEMM_REPAIR_ON      3   // failures recomputed as FP64 dot products
 
 typedef struct {
   int num_problems;
@@ -46,8 +55,10 @@ typedef struct {
   int num_unique_A;       // A operands prepped (== emulated problems when reuse is off)
   int num_unique_B;       // B operands prepped (== emulated problems when reuse is off)
   int num_promoted;       // problems run with more moduli than planned (REUSE_PROMOTE only)
-  long long num_repaired; // C entries recomputed in FP64 by the certificate (emulation paths);
+  long long num_repaired; // C entries recomputed in FP64 by the certificate (repair ON);
                           // -1 = not measured (needs env GGEMM_STATS_REPAIR=1: syncs the stream)
+  long long num_uncertified;      // repair COUNT: entries failing the certificate (-1 as above)
+  long long num_safety_fallback;  // entries computed in FP64 due to NaN/Inf input (-1 as above)
 } ggemm_stats_t;
 
 typedef struct ggemm_handle_s* ggemm_handle_t;
@@ -56,6 +67,14 @@ typedef struct ggemm_handle_s* ggemm_handle_t;
 // max_problems / max_total_elems bound what ggemm_grouped_dgemm may be called with.
 int  ggemm_create(ggemm_handle_t* h, int max_problems, size_t max_total_A_elems,
                   size_t max_total_B_elems, size_t max_total_C_elems, cudaStream_t stream);
+// Same as ggemm_create, plus min_k = smallest k of any EMULATED problem the handle will see
+// (ggemm_create uses 32). Residues are stored with Kp = round_up(k, 32), so for k < 32 the
+// residue workspace per element of A/B grows by up to 32/k; it is sized for
+// max_{k >= min_k} round_up(k,32)/k. A call violating this returns GGEMM_ERR_WORKSPACE (2) and
+// prints one diagnostic line on stderr.
+int  ggemm_create_ex(ggemm_handle_t* h, int max_problems, size_t max_total_A_elems,
+                     size_t max_total_B_elems, size_t max_total_C_elems, cudaStream_t stream,
+                     int min_k);
 void ggemm_destroy(ggemm_handle_t h);
 
 // problems: HOST array of descriptors (pointers inside are device pointers).

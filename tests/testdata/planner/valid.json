@@ -1,0 +1,9 @@
+{
+  "schema": "ggemm-calib-v1",
+  "gpu": "planner-unit-test",
+  "sm_count": 132,
+  "t_launch_s": 2.0e-06,
+  "bw_Bps": 3000000000000.0,
+  "f64_peak_flops": 50000000000000.0,
+  "i8_peak_ops": 1000000000000000.0
+}

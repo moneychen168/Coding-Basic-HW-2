@@ -47,7 +47,21 @@ int oz2_prep_grouped(const oz2_problem* d, int num, int max_m, int max_n, cudaSt
 // Every entry is certified against the componentwise FP64 bound (see .cu, step 6); entries that
 // cannot be certified (or touch NaN/Inf) are recomputed in-kernel as FP64 dot products.
 // beta == 0 does not read C.
-int oz2_reconstruct_grouped(const oz2_problem* d, int num, int max_m, int max_n, cudaStream_t s);
+// repair_mode (chosen by the caller):
+//   OZ2_REPAIR_OFF   : plain emulation, no certificate.
+//   OZ2_REPAIR_COUNT : certificate evaluated; uncertified entries keep the emulated value and are
+//                      counted in oz2_counters::uncertified (EMU_* paths).
+//   OZ2_REPAIR_ON    : uncertified entries recomputed as FP64 dot products, counted in
+//                      oz2_counters::repaired (AUTO path).
+// In every mode, entries whose A row / B column contain NaN/Inf are computed by the FP64 dot
+// (safety fallback, counted in oz2_counters::safety_fallback); alpha == 0 gives beta*C without
+// referencing A/B (prep also skips such problems: their planes are left unwritten);
+// non-finite C0 with beta != 0 propagates through fma(alpha, v, beta*C0) without repair.
+#define OZ2_REPAIR_OFF 0
+#define OZ2_REPAIR_COUNT 1
+#define OZ2_REPAIR_ON 2
+int oz2_reconstruct_grouped(const oz2_problem* d, int num, int max_m, int max_n, cudaStream_t s,
+                            int repair_mode = OZ2_REPAIR_ON);
 
 // Max k: kp * 128^2 < 2^31 for the INT32 accumulation (kp = round_up(k,32) <= 131040).
 #define OZ2_MAX_K 131040
@@ -72,8 +86,16 @@ double oz2_error_bound(int k, int num_moduli);
 // counter below.
 int oz2_choose_num_moduli_cw(int k, double rho_budget);
 
-// Host: sticky device counters since the last reset: rows/columns with NaN/Inf seen by prep,
-// and C entries recomputed in FP64 by reconstruct (certificate failed or non-finite input).
-// Synchronizes s -- call outside timed regions.  Either pointer may be null.
+// Host: sticky device counters since the last reset (call outside timed regions).
+struct oz2_counters {
+  unsigned long long nonfinite_vectors;  // A rows / B columns containing NaN/Inf (prep)
+  unsigned long long uncertified;        // COUNT mode: entries that failed the certificate
+  unsigned long long repaired;           // ON mode: entries recomputed in FP64
+  unsigned long long safety_fallback;    // entries computed in FP64 because of NaN/Inf input
+};
+// out may be null (reset only).  Copy and reset are both enqueued on s (reset is ordered after
+// all prior work on s); with out != null the call synchronizes s.
+int oz2_read_counters(oz2_counters* out, int reset, cudaStream_t s);
+int oz2_nonfinite_count(int* count, int reset, cudaStream_t s);  // nonfinite_vectors only
+// Legacy form (kept for ggemm.cu): nonfinite <- nonfinite_vectors, repaired <- repaired (ON mode).
 int oz2_read_counters(int* nonfinite, unsigned long long* repaired, int reset, cudaStream_t s);
-int oz2_nonfinite_count(int* count, int reset, cudaStream_t s);  // = oz2_read_counters(count, null, ...)

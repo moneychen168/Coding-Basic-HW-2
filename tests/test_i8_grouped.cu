@@ -72,6 +72,12 @@ static void upload_probs(Group& g, int cfg) {
   CK(cudaMemcpy(g.dp, g.hp.data(), sizeof(i8_problem) * g.hp.size(), cudaMemcpyHostToDevice));
 }
 
+// Per-problem config i % 4 -> both kernels (main + split-K) run in one call.
+static void upload_probs_mixed(Group& g) {
+  for (size_t i = 0; i < g.hp.size(); ++i) g.hp[i].tile_cfg = (int)(i % 4);
+  CK(cudaMemcpy(g.dp, g.hp.data(), sizeof(i8_problem) * g.hp.size(), cudaMemcpyHostToDevice));
+}
+
 static void free_group(Group& g) {
   cudaFree(g.dA); cudaFree(g.dB); cudaFree(g.dC); cudaFree(g.dRef); cudaFree(g.dp);
 }
@@ -175,6 +181,8 @@ int main(int argc, char** argv) {
   void* d_sched;
   CK(cudaMalloc(&d_sched, sched_b));
   CK(cudaMemset(d_sched, 0, sched_b));
+  i8_grouped_gemm_reserve(max_probs, 0);   // create-time host scratch (no allocs when timed)
+  const long long allocs0 = i8_grouped_gemm_host_allocs();
   void* h_sched;
   CK(cudaMallocHost(&h_sched, sched_b));
 
@@ -187,26 +195,38 @@ int main(int argc, char** argv) {
         {65, 63, 8192},  {129, 1, 131040}, {2, 2, 224},   {9, 7, 0}};
     Group g;
     build_group(g, shapes, 1234u, 0);
-    const char* names[4] = {"cfg0 128x128", "cfg1 64x64", "cfg2 32x32", "auto"};
-    for (int c = 0; c < 4; ++c) {
-      int cfg = c < 3 ? c : -1;
-      upload_probs(g, cfg);
+    const char* names[7] = {"cfg0 128x128", "cfg1 64x64", "cfg2 32x32", "cfg3 32x32 splitK",
+                            "auto", "auto+splitK(kp>=0)", "mixed cfg i%4"};
+    const int expect_launches[7] = {1, 1, 1, 1, 1, -1, 2};
+    for (int c = 0; c < 7; ++c) {
+      if (c == 6) upload_probs_mixed(g);
+      else upload_probs(g, c < 4 ? c : -1);
+      i8_set_auto_splitk_min_kp(c == 5 ? 0 : 0x7fffffff);
       CK(cudaMemset(g.dC, 0x7f, g.totC * 4));
-      int rc = i8_grouped_gemm(g.dp, (int)g.hp.size(), g.hp.data(), d_sched, sched_b, st);
+      int launches = -1;
+      int rc = i8_grouped_gemm_ex(g.dp, (int)g.hp.size(), g.hp.data(), d_sched, sched_b, st, &launches);
       CK(cudaStreamSynchronize(st));
       CK(cudaGetLastError());
       if (rc) { std::printf("i8_grouped_gemm rc=%d\n", rc); g_fail = 1; }
-      std::string t = std::string("hetero 19 probs, full CPU bit-exact, ") + names[c];
+      if (expect_launches[c] >= 0 && launches != expect_launches[c]) {
+        std::printf("  launches=%d expected %d\n", launches, expect_launches[c]);
+        g_fail = 1;
+      }
+      std::string t = std::string("hetero 19 probs, bit-exact, ") + names[c] + " [launches=" +
+                      std::to_string(launches) + "]";
       report(t.c_str(), check_cpu(g, true, 0, names[c]));
     }
-    // Relaunch via split path twice (tests counter self-reset), auto cfg.
+    i8_set_auto_splitk_min_kp(0x7fffffff);
+    // Relaunch via split path twice (tests both kernels' counter self-reset), mixed cfgs.
     {
-      int total = 0;
-      int rc = i8_grouped_gemm_build_schedule(g.hp.data(), (int)g.hp.size(), h_sched, sched_b, &total);
-      CK(cudaMemcpyAsync(d_sched, h_sched, sched_b, cudaMemcpyHostToDevice, st));
+      upload_probs_mixed(g);
+      i8_sched_info info;
+      int rc = i8_grouped_gemm_build_schedule(g.hp.data(), (int)g.hp.size(), h_sched, sched_b, &info);
+      if (info.num_launches != 2) { std::printf("  split path launches=%d\n", info.num_launches); g_fail = 1; }
+      CK(cudaMemcpyAsync(d_sched, h_sched, info.bytes_used, cudaMemcpyHostToDevice, st));
       for (int r = 0; r < 2; ++r) {
         CK(cudaMemsetAsync(g.dC, 0, g.totC * 4, st));
-        rc |= i8_grouped_gemm_launch(g.dp, (int)g.hp.size(), d_sched, total, st);
+        rc |= i8_grouped_gemm_launch(g.dp, (int)g.hp.size(), d_sched, &info, st);
       }
       CK(cudaStreamSynchronize(st));
       if (rc) { std::printf("split path rc=%d\n", rc); g_fail = 1; }
@@ -216,11 +236,16 @@ int main(int argc, char** argv) {
     {
       Group e;
       build_group(e, {{3, 5, 131040}, {17, 9, 131040}, {1, 1, 32}}, 1u, 1);
-      upload_probs(e, -1);
-      int rc = i8_grouped_gemm(e.dp, (int)e.hp.size(), e.hp.data(), d_sched, sched_b, st);
-      CK(cudaStreamSynchronize(st));
-      if (rc) g_fail = 1;
-      report("all -128 inputs, kp=131040 (int32 edge)", check_cpu(e, true, 0, "edge"));
+      for (int cfg : {-1, 3}) {
+        upload_probs(e, cfg);
+        CK(cudaMemset(e.dC, 0x7f, e.totC * 4));
+        int rc = i8_grouped_gemm(e.dp, (int)e.hp.size(), e.hp.data(), d_sched, sched_b, st);
+        CK(cudaStreamSynchronize(st));
+        if (rc) g_fail = 1;
+        report(cfg < 0 ? "all -128 inputs, kp=131040 (int32 edge), auto"
+                       : "all -128 inputs, kp=131040 (int32 edge), cfg3 splitK",
+               check_cpu(e, true, 0, "edge"));
+      }
       free_group(e);
     }
     std::vector<char> ok;
@@ -265,6 +290,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 256; ++i) v.push_back({1 + (i * 37) % 200, 1 + (i * 53) % 200, 32 * (1 + i % 16)});
     sets.push_back({"small256 (m,n<=200, kp<=512)", v});
   }
+  {
+    // Mixed: big tiles + skinny problems that auto maps to 32x32 -> auto-sk needs 2 launches.
+    std::vector<Shape> v(8, {2048, 2048, 2048});
+    for (int i = 0; i < 64; ++i) v.push_back({1 + (i * 7) % 24, 64 + (i * 97) % 1500, 4096});
+    sets.push_back({"mix 8x2048^3 + 64 skinny kp4096", v});
+  }
   sets.push_back({"single 8192^3", {{8192, 8192, 8192}}});
   sets.push_back({"single 4096x4096x16384", {{4096, 4096, 16384}}});
 
@@ -275,31 +306,40 @@ int main(int argc, char** argv) {
     std::vector<char> ok;
     run_lt(lt, g, lt_ws, lt_wsb, st, &ok);   // reference into dRef
     CK(cudaStreamSynchronize(st));
-    const int ncfg = 4;
-    const char* names[ncfg] = {"auto", "cfg0", "cfg1", "cfg2"};
+    const int ncfg = 6;
+    const char* names[ncfg] = {"auto", "cfg0", "cfg1", "cfg2", "cfg3", "auto-sk"};
     for (int c = 0; c < ncfg; ++c) {
-      int cfg = c == 0 ? -1 : c - 1;
+      int cfg = (c == 0 || c == 5) ? -1 : c - 1;
       upload_probs(g, cfg);
+      i8_set_auto_splitk_min_kp(c == 5 ? 0 : 0x7fffffff);   // auto-sk: auto's 32x32 -> split-K
       int np = (int)g.hp.size();
-      double ms = time_ms([&] { i8_grouped_gemm(g.dp, np, g.hp.data(), d_sched, sched_b, st); });
+      int launches = 0;
+      double ms = time_ms([&] { i8_grouped_gemm_ex(g.dp, np, g.hp.data(), d_sched, sched_b, st, &launches); });
       long long bad = check_cpu(g, false, 256, names[c]) + check_vs_lt(g, ok);
       if (bad) g_fail = 1;
       std::printf("%-34s %-12s %10.4f %10.2f %9s\n", S.name, names[c], ms, g.ops / ms / 1e9,
                   bad ? "FAIL" : "ok");
+      std::printf("  (launches %s [%s]: %d)\n", names[c], S.name, launches);
       if (c == 0) {   // launch-only (schedule pre-uploaded from pinned buffer)
-        int total = 0;
-        i8_grouped_gemm_build_schedule(g.hp.data(), np, h_sched, sched_b, &total);
-        CK(cudaMemcpyAsync(d_sched, h_sched, sched_b, cudaMemcpyHostToDevice, st));
-        double ms2 = time_ms([&] { i8_grouped_gemm_launch(g.dp, np, d_sched, total, st); });
+        i8_sched_info info;
+        i8_grouped_gemm_build_schedule(g.hp.data(), np, h_sched, sched_b, &info);
+        CK(cudaMemcpyAsync(d_sched, h_sched, info.bytes_used, cudaMemcpyHostToDevice, st));
+        double ms2 = time_ms([&] { i8_grouped_gemm_launch(g.dp, np, d_sched, &info, st); });
         std::printf("%-34s %-12s %10.4f %10.2f %9s\n", S.name, "auto-launch", ms2,
                     g.ops / ms2 / 1e9, "-");
       }
     }
+    i8_set_auto_splitk_min_kp(0x7fffffff);
     int refused = 0;
     double msl = time_ms([&] { refused = run_lt(lt, g, lt_ws, lt_wsb, st, nullptr); });
     std::printf("%-34s %-12s %10.4f %10.2f %9s\n", S.name, "cuBLASLt-loop", msl, g.ops / msl / 1e9,
                 refused ? "refused" : "-");
     free_group(g);
+  }
+  {
+    long long grown = i8_grouped_gemm_host_allocs() - allocs0;
+    std::printf("host scratch growths after reserve: %lld %s\n", grown, grown ? "FAIL" : "(ok)");
+    if (grown) g_fail = 1;
   }
   std::printf("TOPS = 2*m*n*kp / time. RTX 5090 dense INT8 peak = 838 TOPS (see src comment).\n");
   std::printf(g_fail ? "SOME TESTS FAILED\n" : "ALL PASS\n");

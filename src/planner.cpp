@@ -17,6 +17,29 @@ static double env_or(const char* name, double dflt) {
   return (end != s && v > 0) ? v : dflt;
 }
 
+// Plausible ranges of the throughput model; values outside are rejected (warning on stderr).
+struct calib_range { const char* key; double lo, hi; };
+static const calib_range kRangeFP64 = {"fp64_flops", 1e11, 1e16};
+static const calib_range kRangeI8   = {"int8_ops",   1e12, 1e17};
+static const calib_range kRangeBW   = {"mem_bw",     1e10, 1e14};
+
+static bool in_range(const calib_range& r, double v, const char* src) {
+  if (v >= r.lo && v <= r.hi) return true;
+  std::fprintf(stderr, "[ggemm] WARNING: %s %s=%g outside [%g, %g], ignored\n", src, r.key, v,
+               r.lo, r.hi);
+  return false;
+}
+
+// env override with range check (keeps dflt if unset / unparsable / out of range).
+static double env_range(const char* name, const calib_range& r, double dflt) {
+  const char* s = std::getenv(name);
+  if (!s || !*s) return dflt;
+  char* end = nullptr;
+  double v = std::strtod(s, &end);
+  if (end == s) return dflt;
+  return in_range(r, v, name) ? v : dflt;
+}
+
 // Minimal reader for the scalar fields of bench/calib params JSON ("key": number).
 static bool json_num(const char* txt, const char* key, double* v) {
   char pat[96]; std::snprintf(pat, sizeof pat, "\"%s\"", key);
@@ -32,7 +55,9 @@ static bool json_num(const char* txt, const char* key, double* v) {
 // params file: env GGEMM_CALIB_JSON, else <GGEMM_CALIB_DIR>/params_<slug>.json where slug
 // follows bench/calib/fit.py: non-alnum runs -> '_', trimmed, lowercased ("NVIDIA H200" ->
 // "nvidia_h200"). Missing file -> nominal defaults stay.
-static void load_calib_json(const char* gpu_name, double* fp64, double* i8, double* bw) {
+// used: receives the path actually read (left untouched when no file was read).
+static void load_calib_json(const char* gpu_name, double* fp64, double* i8, double* bw,
+                            char* used, size_t used_sz) {
   char path[1024];
   const char* env = std::getenv("GGEMM_CALIB_JSON");
   if (env && *env) {
@@ -56,9 +81,11 @@ static void load_calib_json(const char* gpu_name, double* fp64, double* i8, doub
   if (!f) return;
   static char buf[1 << 16];           // scalars sit at the top of the file
   size_t n = std::fread(buf, 1, sizeof buf - 1, f); buf[n] = 0; std::fclose(f);
-  json_num(buf, "f64_peak_flops", fp64);
-  json_num(buf, "i8_peak_ops", i8);
-  json_num(buf, "bw_Bps", bw);
+  double v;
+  if (json_num(buf, "f64_peak_flops", &v) && in_range(kRangeFP64, v, path)) *fp64 = v;
+  if (json_num(buf, "i8_peak_ops", &v) && in_range(kRangeI8, v, path)) *i8 = v;
+  if (json_num(buf, "bw_Bps", &v) && in_range(kRangeBW, v, path)) *bw = v;
+  if (used) std::snprintf(used, used_sz, "%s", path);
 }
 
 // Fallback defaults = nominal datasheet peak x an efficiency factor (NOT measured).
@@ -73,12 +100,20 @@ void ggemm_device_model_init(ggemm_device_model_t* dm, const char* gpu_name, int
   } else {                      // unknown arch: conservative guess, calibrate via env
     fp64 = 10e12;  i8 = 200e12;  bw = 1e12;
   }
-  load_calib_json(gpu_name, &fp64, &i8, &bw);
+  char used[1024] = "nominal";
+  load_calib_json(gpu_name, &fp64, &i8, &bw, used, sizeof used);
+  static bool printed = false;          // one line per process
+  if (!printed) { printed = true; std::fprintf(stderr, "[ggemm] calib=%s\n", used); }
   dm->num_sms = num_sms > 0 ? num_sms : 1;
-  dm->fp64_flops = env_or("GGEMM_FP64_FLOPS", fp64);
-  dm->int8_ops   = env_or("GGEMM_INT8_OPS", i8);
-  dm->mem_bw     = env_or("GGEMM_MEM_BW", bw);
-  dm->tiny_mnk   = env_or("GGEMM_TINY_MNK", 32.0 * 32.0 * 32.0);
+  dm->fp64_flops = env_range("GGEMM_FP64_FLOPS", kRangeFP64, fp64);
+  dm->int8_ops   = env_range("GGEMM_INT8_OPS", kRangeI8, i8);
+  dm->mem_bw     = env_range("GGEMM_MEM_BW", kRangeBW, bw);
+  // GGEMM_TINY_MNK=0 disables the tiny route (env_or would reject 0).
+  dm->tiny_mnk   = 32.0 * 32.0 * 32.0;
+  if (const char* s = std::getenv("GGEMM_TINY_MNK")) {
+    char* end = nullptr; double v = std::strtod(s, &end);
+    if (end != s && v >= 0) dm->tiny_mnk = v;
+  }
 }
 
 // Accuracy target definition used here: target_rel_err is a NORMWISE bound
@@ -120,6 +155,11 @@ static double tiles_of(int m, int n, int cfg) {
   return std::ceil(m / t) * std::ceil(n / t);
 }
 
+#define GGEMM_PREP_PASSES 2.0
+static const double kTileEff[GGEMM_NUM_TILE_CFG] = {1.0, 0.63, 0.30};   // code review (2)
+// Resident CTAs per SM of agent-K's persistent kernel (not queried; constant per review (2)).
+#define GGEMM_I8_CTAS_PER_SM 2
+
 static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_model_t* dm,
                  double* t_emu, double* t_nat) {
   double m = p.m, n = p.n, k = p.k, kp = (double)kp_of(p.k), t = ggemm_tile_dim(cfg);
@@ -129,8 +169,14 @@ static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_m
   // emulation launches / 1 native launch are shared by the whole group, not per problem.
   // INT8 work / residue + C32 traffic scale with the plane count N + OZ2_EXTRA_PLANES (abs plane).
   const double np = oz2_num_planes(nm);
-  double prep  = ((m * k + k * n) * 8 + np * (m + n) * kp) / dm->mem_bw;
-  double gemm  = np * 2.0 * rup(m, t) * rup(n, t) * kp / dm->int8_ops + np * m * n * 4 / dm->mem_bw;
+  // prep reads FP64 A and B GGEMM_PREP_PASSES times (norm pass + residue pass; a third pass only
+  // for rows/columns needing rescale, which the host cannot know -> not modelled), then writes
+  // np residue planes + OZ2_ROW_WS_PER_ROW int32 per row/column.
+  double prep  = (GGEMM_PREP_PASSES * (m * k + k * n) * 8 + np * (m + n) * kp +
+                  4.0 * OZ2_ROW_WS_PER_ROW * (m + n)) / dm->mem_bw;
+  // effective INT8 rate per tile config (smaller tiles: lower MMA efficiency)
+  double gemm  = np * 2.0 * rup(m, t) * rup(n, t) * kp / (dm->int8_ops * kTileEff[cfg]) +
+                 np * m * n * 4 / dm->mem_bw;
   double recon = (np * m * n * 4 + c_rw * m * n * 8) / dm->mem_bw;
   *t_emu = prep + gemm + recon;
   double nat_c = 2.0 * m * n * k / dm->fp64_flops;
@@ -138,13 +184,12 @@ static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_m
   *t_nat = std::max(nat_c, nat_m);
 }
 
-// Wave quantization: a persistent grid holds ~num_sms tiles at once (assumes 1 CTA/SM;
-// adjust if agent-K reports higher occupancy). Makespan >= max(W/slots, largest tile).
+// Wave quantization: a persistent grid holds ~num_sms * GGEMM_I8_CTAS_PER_SM tiles at once. Makespan >= max(W/slots, largest tile).
 // If one problem's tile is heavier than the per-slot average, its tiles are too few to
 // fill the machine -> shrink its tile (more, smaller tiles). Repeat until stable.
 static void tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device_model_t* dm,
                        ggemm_plan_entry_t* out) {
-  const double slots = dm->num_sms;
+  const double slots = (double)dm->num_sms * GGEMM_I8_CTAS_PER_SM;
   for (int pass = 0; pass < GGEMM_NUM_TILE_CFG; ++pass) {
     double W = 0;
     for (int g = 0; g < num; ++g) {
@@ -175,6 +220,8 @@ int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
     e.route = GGEMM_ROUTE_EMU; e.num_moduli = 0; e.tile_cfg = 0; e.t_emu_s = e.t_native_s = 0;
     if (p.m == 0 || p.n == 0) { e.route = GGEMM_ROUTE_EMPTY; continue; }
     if (p.k == 0) { e.route = GGEMM_ROUTE_K_ZERO; continue; }
+    // alpha == 0: C = beta*C exactly; never emulate (prep would leave planes unwritten).
+    if (p.alpha == 0.0) { e.route = GGEMM_ROUTE_ALPHA_ZERO; continue; }
     if (p.k > GGEMM_MAX_K_EXACT) {
       if (!allow_fb) return GGEMM_ERR_UNSAFE;
       e.route = GGEMM_ROUTE_K_TOO_LARGE; continue;
@@ -200,6 +247,15 @@ int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
       else if (e.t_emu_s > e.t_native_s) e.route = GGEMM_ROUTE_UNPROFITABLE;
     }
   }
-  if (autop) tune_tiles(probs, num, dm, out);
+  if (autop) {
+    tune_tiles(probs, num, dm, out);
+    // tile changes move t_emu: re-evaluate cost and the profitability route once.
+    for (int g = 0; g < num; ++g) {
+      ggemm_plan_entry_t& e = out[g];
+      if (e.route != GGEMM_ROUTE_EMU) continue;
+      cost(probs[g], e.num_moduli, e.tile_cfg, dm, &e.t_emu_s, &e.t_native_s);
+      if (allow_fb && e.t_emu_s > e.t_native_s) e.route = GGEMM_ROUTE_UNPROFITABLE;
+    }
+  }
   return GGEMM_OK;
 }

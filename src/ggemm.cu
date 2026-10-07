@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <new>
@@ -28,9 +29,10 @@ ggemm_blob_layout ggemm_layout_for(size_t num_emu, size_t num_prep, size_t num_i
   L.off_i8    = ggemm_align_up((num_prep ? L.off_prep + num_prep * sizeof(oz2_problem)
                                          : L.off_oz + num_emu * sizeof(oz2_problem)),
                                GGEMM_BUF_ALIGN);
-  L.off_sched = ggemm_align_up(L.off_i8 + num_i8 * sizeof(i8_problem), GGEMM_BUF_ALIGN);
-  L.off_ptr   = ggemm_align_up(L.off_sched + sched_bytes, GGEMM_BUF_ALIGN);
-  L.total     = L.off_ptr + 3 * num_nat * sizeof(void*);
+  L.off_ptr   = ggemm_align_up(L.off_i8 + num_i8 * sizeof(i8_problem), GGEMM_BUF_ALIGN);
+  // schedule image(s) last: the H2D can stop at off_sched + i8_sched_info::bytes_used
+  L.off_sched = ggemm_align_up(L.off_ptr + 3 * num_nat * sizeof(void*), GGEMM_BUF_ALIGN);
+  L.total     = L.off_sched + sched_bytes;
   return L;
 }
 
@@ -48,6 +50,33 @@ static int acquire_slot(ggemm_handle_t h, int* slot) {
 
 static int release_slot(ggemm_handle_t h, int slot) {
   CU(cudaEventRecord(h->desc_done[slot], h->stream));
+  return GGEMM_OK;
+}
+
+int ggemm_oz2_repair_mode(ggemm_path_t path, const ggemm_config_t* cfg) {
+  const int m = cfg ? cfg->repair_mode : GGEMM_REPAIR_DEFAULT;
+  switch (m) {
+    case GGEMM_REPAIR_DEFAULT: return path == GGEMM_PATH_AUTO ? OZ2_REPAIR_ON : OZ2_REPAIR_COUNT;
+    case GGEMM_REPAIR_OFF:     return OZ2_REPAIR_OFF;     // public values are OZ2_* + 1
+    case GGEMM_REPAIR_COUNT:   return OZ2_REPAIR_COUNT;
+    case GGEMM_REPAIR_ON:      return OZ2_REPAIR_ON;
+    default:                   return -1;
+  }
+}
+
+int ggemm_counters_reset(ggemm_handle_t h, cudaStream_t s) {
+  if (!h->stats_repair) return GGEMM_OK;
+  return oz2_read_counters(static_cast<oz2_counters*>(nullptr), 1, s) ? GGEMM_ERR_NUMERICS : GGEMM_OK;
+}
+
+int ggemm_counters_read(ggemm_handle_t h, cudaStream_t s, ggemm_stats_t* st) {
+  st->num_repaired = st->num_uncertified = st->num_safety_fallback = -1;
+  if (!h->stats_repair) return GGEMM_OK;
+  oz2_counters c{};
+  if (oz2_read_counters(&c, 1, s)) return GGEMM_ERR_NUMERICS;
+  st->num_repaired = (long long)c.repaired;
+  st->num_uncertified = (long long)c.uncertified;
+  st->num_safety_fallback = (long long)c.safety_fallback;
   return GGEMM_OK;
 }
 
@@ -79,8 +108,47 @@ static int dgemm_one(ggemm_handle_t h, const ggemm_problem_t& p) {
 // Native FP64 for problems idx[0..cnt): cublasDgemmGroupedBatched (one group per problem,
 // group_size = 1) when cnt >= 2 and `grouped`, else one cublasDgemm each.
 // d_ptrs: device array [A x cnt | B x cnt | C x cnt], already uploaded.
+// Native grouped baseline: problems with identical (m, n, k, lda, ldb, ldc, alpha, beta) form ONE
+// cuBLAS group (code review (3): one group per problem would handicap the baseline). Sorts
+// idx[0..cnt) in place so every group is contiguous (pointer arrays must follow that order),
+// fills h->nat_* per group and returns the number of groups. Host only; no allocation.
+static int group_native(ggemm_handle_t h, const ggemm_problem_t* probs, int* idx, int cnt) {
+  auto key_less = [probs](int x, int y) {
+    const ggemm_problem_t &a = probs[x], &b = probs[y];
+    if (a.m != b.m) return a.m < b.m;
+    if (a.n != b.n) return a.n < b.n;
+    if (a.k != b.k) return a.k < b.k;
+    if (a.lda != b.lda) return a.lda < b.lda;
+    if (a.ldb != b.ldb) return a.ldb < b.ldb;
+    if (a.ldc != b.ldc) return a.ldc < b.ldc;
+    if (a.alpha != b.alpha) return a.alpha < b.alpha;   // NaN alpha/beta: never equal ->
+    if (a.beta != b.beta) return a.beta < b.beta;       // ordered by index below, own group
+    return x < y;                                       // deterministic
+  };
+  auto same = [probs](int x, int y) {
+    const ggemm_problem_t &a = probs[x], &b = probs[y];
+    return a.m == b.m && a.n == b.n && a.k == b.k && a.lda == b.lda && a.ldb == b.ldb &&
+           a.ldc == b.ldc && a.alpha == b.alpha && a.beta == b.beta;
+  };
+  std::sort(idx, idx + cnt, key_less);
+  int ng = 0;
+  for (int i = 0; i < cnt; ++i) {
+    const ggemm_problem_t& p = probs[idx[i]];
+    if (i > 0 && same(idx[i - 1], idx[i])) { ++h->nat_gsize[ng - 1]; continue; }
+    h->nat_ta[ng] = CUBLAS_OP_N; h->nat_tb[ng] = CUBLAS_OP_N;
+    h->nat_m[ng] = p.m; h->nat_n[ng] = p.n; h->nat_k[ng] = p.k;
+    h->nat_lda[ng] = p.lda; h->nat_ldb[ng] = p.ldb; h->nat_ldc[ng] = p.ldc;
+    h->nat_alpha[ng] = p.alpha; h->nat_beta[ng] = p.beta; h->nat_gsize[ng] = 1;
+    ++ng;
+  }
+  return ng;
+}
+
+// Native FP64 for problems idx[0..cnt): cublasDgemmGroupedBatched over the ngroups groups built
+// by group_native (when `grouped` and cnt >= 2), else one cublasDgemm each.
+// d_ptrs: device array [A x cnt | B x cnt | C x cnt] in idx order, already uploaded.
 static int run_native(ggemm_handle_t h, const ggemm_problem_t* probs, const int* idx, int cnt,
-                      bool grouped, void* d_ptrs, int* launches) {
+                      bool grouped, int ngroups, void* d_ptrs, int* launches) {
   if (cnt == 0) return GGEMM_OK;
   if (!grouped || cnt == 1) {
     for (int i = 0; i < cnt; ++i) {
@@ -90,13 +158,6 @@ static int run_native(ggemm_handle_t h, const ggemm_problem_t* probs, const int*
     }
     return GGEMM_OK;
   }
-  for (int i = 0; i < cnt; ++i) {
-    const ggemm_problem_t& p = probs[idx[i]];
-    h->nat_ta[i] = CUBLAS_OP_N; h->nat_tb[i] = CUBLAS_OP_N;
-    h->nat_m[i] = p.m; h->nat_n[i] = p.n; h->nat_k[i] = p.k;
-    h->nat_lda[i] = p.lda; h->nat_ldb[i] = p.ldb; h->nat_ldc[i] = p.ldc;
-    h->nat_alpha[i] = p.alpha; h->nat_beta[i] = p.beta; h->nat_gsize[i] = 1;
-  }
   void* const* base = static_cast<void* const*>(d_ptrs);
   const double* const* dA = reinterpret_cast<const double* const*>(base);
   const double* const* dB = reinterpret_cast<const double* const*>(base + cnt);
@@ -105,7 +166,7 @@ static int run_native(ggemm_handle_t h, const ggemm_problem_t* probs, const int*
   // Aarray/Barray/Carray in DEVICE memory, every other array in HOST memory.
   CB(cublasDgemmGroupedBatched(h->cublas, h->nat_ta, h->nat_tb, h->nat_m, h->nat_n, h->nat_k,
                                h->nat_alpha, dA, h->nat_lda, dB, h->nat_ldb, h->nat_beta,
-                               dC, h->nat_ldc, cnt, h->nat_gsize));
+                               dC, h->nat_ldc, ngroups, h->nat_gsize));
   ++*launches;
   return GGEMM_OK;
 }
@@ -129,7 +190,7 @@ extern "C" void ggemm_destroy(ggemm_handle_t h) {
   cudaFree(h->cublas_ws); cudaFree(h->A8); cudaFree(h->B8); cudaFree(h->C32);
   cudaFree(h->row_shift); cudaFree(h->col_shift); cudaFree(h->d_desc);
   if (h->h_desc) cudaFreeHost(h->h_desc);
-  delete[] h->plan; delete[] h->emu_idx; delete[] h->nat_idx; delete[] h->loop_tiles;
+  delete[] h->plan; delete[] h->emu_idx; delete[] h->nat_idx; delete[] h->loop_info;
   delete[] h->nat_ta; delete[] h->nat_tb;
   delete[] h->nat_m; delete[] h->nat_n; delete[] h->nat_k;
   delete[] h->nat_lda; delete[] h->nat_ldb; delete[] h->nat_ldc; delete[] h->nat_gsize;
@@ -141,7 +202,20 @@ extern "C" void ggemm_destroy(ggemm_handle_t h) {
 
 extern "C" int ggemm_create(ggemm_handle_t* out, int max_problems, size_t max_A, size_t max_B,
                             size_t max_C, cudaStream_t stream) {
-  if (!out || max_problems <= 0) return GGEMM_ERR_INVALID;
+  return ggemm_create_ex(out, max_problems, max_A, max_B, max_C, stream, GGEMM_KP_ALIGN);
+}
+
+// max over k >= min_k of round_up(k, 32) / k (attained within [min_k, min_k + 32)).
+static double kp_inflation(int min_k) {
+  double f = 1.0;
+  for (int k = min_k; k < min_k + GGEMM_KP_ALIGN; ++k)
+    f = std::max(f, (double)ggemm_align_up((size_t)k, GGEMM_KP_ALIGN) / k);
+  return f;
+}
+
+extern "C" int ggemm_create_ex(ggemm_handle_t* out, int max_problems, size_t max_A, size_t max_B,
+                               size_t max_C, cudaStream_t stream, int min_k) {
+  if (!out || max_problems <= 0 || min_k < 1) return GGEMM_ERR_INVALID;
   *out = nullptr;
   void* mem = ::operator new(sizeof(ggemm_handle_s), std::nothrow);
   if (!mem) return GGEMM_ERR_ALLOC;
@@ -177,10 +251,13 @@ extern "C" int ggemm_create(ggemm_handle_t* out, int max_problems, size_t max_A,
       cublasSetMathMode(h->cublas, CUBLAS_DEFAULT_MATH) != CUBLAS_STATUS_SUCCESS)
     FAIL(GGEMM_ERR_CUBLAS);
 
-  // Residues: Kp = round_up(k,32) inflates m*k by <= 2x when k >= 32 (k < 32 can exceed it
-  // and then the call returns GGEMM_ERR_WORKSPACE); + per-problem 256 B alignment slack.
-  h->A8_bytes  = M * (2 * max_A + P * GGEMM_BUF_ALIGN);
-  h->B8_bytes  = M * (2 * max_B + P * GGEMM_BUF_ALIGN);
+  // Residues: Kp = round_up(k,32) inflates m*k by kp_inflation(min_k) at most for k >= min_k
+  // (min_k = 32 -> 64/33 < 2; k = 1 -> 32x); smaller k in a call returns GGEMM_ERR_WORKSPACE.
+  // + per-problem 256 B alignment slack.
+  h->min_k = min_k;
+  const double infl = kp_inflation(min_k);
+  h->A8_bytes  = M * ((size_t)std::ceil(infl * (double)max_A) + P * GGEMM_BUF_ALIGN);
+  h->B8_bytes  = M * ((size_t)std::ceil(infl * (double)max_B) + P * GGEMM_BUF_ALIGN);
   h->C32_bytes = M * (max_C + P * (GGEMM_BUF_ALIGN / 4)) * sizeof(int32_t);
   // sum(m) <= sum(m*k) for k >= 1 (same for n); + 64-int alignment per problem
   h->row_shift_elems = OZ2_ROW_WS_PER_ROW * max_A + P * 64;
@@ -193,6 +270,9 @@ extern "C" int ggemm_create(ggemm_handle_t* out, int max_problems, size_t max_A,
 
   // Descriptors: worst case = all problems emulated with MAX moduli (+ schedule image(s):
   // one grouped image, or one image per (prob, mod) for EMU_LOOP), plus any native pointers.
+  // agent-K: one-time cudaFuncSetAttribute / occupancy query + host scratch, so the first timed
+  // call does not pay for it (code review (4)).
+  i8_grouped_gemm_reserve((int)(P * M), 0);
   h->sched_img_bytes_1 = ggemm_align_up(i8_grouped_gemm_sched_ws_bytes(1, 0), GGEMM_BUF_ALIGN);
   h->sched_img_bytes_P = ggemm_align_up(i8_grouped_gemm_sched_ws_bytes((int)M, 0), GGEMM_BUF_ALIGN);
   const size_t sched_max = std::max({i8_grouped_gemm_sched_ws_bytes((int)(P * M), 0),
@@ -210,7 +290,7 @@ extern "C" int ggemm_create(ggemm_handle_t* out, int max_problems, size_t max_A,
   h->plan = new (std::nothrow) ggemm_plan_entry_t[P];
   h->emu_idx = new (std::nothrow) int[P];
   h->nat_idx = new (std::nothrow) int[P];
-  h->loop_tiles = new (std::nothrow) int[P * M];
+  h->loop_info = new (std::nothrow) i8_sched_info[P * M];
   h->nat_ta = new (std::nothrow) cublasOperation_t[P];
   h->nat_tb = new (std::nothrow) cublasOperation_t[P];
   h->nat_m = new (std::nothrow) int[P]; h->nat_n = new (std::nothrow) int[P];
@@ -218,7 +298,7 @@ extern "C" int ggemm_create(ggemm_handle_t* out, int max_problems, size_t max_A,
   h->nat_ldb = new (std::nothrow) int[P]; h->nat_ldc = new (std::nothrow) int[P];
   h->nat_gsize = new (std::nothrow) int[P];
   h->nat_alpha = new (std::nothrow) double[P]; h->nat_beta = new (std::nothrow) double[P];
-  if (!h->plan || !h->loop_tiles || !h->emu_idx || !h->nat_idx || !h->nat_ta || !h->nat_tb || !h->nat_m ||
+  if (!h->plan || !h->loop_info || !h->emu_idx || !h->nat_idx || !h->nat_ta || !h->nat_tb || !h->nat_m ||
       !h->nat_n || !h->nat_k || !h->nat_lda || !h->nat_ldb || !h->nat_ldc || !h->nat_gsize ||
       !h->nat_alpha || !h->nat_beta) FAIL(GGEMM_ERR_ALLOC);
 
@@ -256,19 +336,20 @@ static int path_native(ggemm_handle_t h, bool grouped, const ggemm_problem_t* pr
     if (probs[g].m > 0 && probs[g].n > 0) h->nat_idx[cnt++] = g;
   if (!grouped || cnt < 2) {
     GGEMM_NVTX_RANGE(nv_cublas, "cublas");
-    return run_native(h, probs, h->nat_idx, cnt, false, nullptr, &st->kernel_launches);
+    return run_native(h, probs, h->nat_idx, cnt, false, 0, nullptr, &st->kernel_launches);
   }
   int slot, r;
   if ((r = acquire_slot(h, &slot))) return r;
   char* hb = static_cast<char*>(host_slot(h, slot));
   ggemm_blob_layout L = ggemm_layout_for(0, 0, 0, 0, cnt);
+  const int ngroups = group_native(h, probs, h->nat_idx, cnt);
   write_ptrs(hb, L, probs, h->nat_idx, cnt);
   {
     GGEMM_NVTX_RANGE(nv_h2d, "h2d");
     CU(cudaMemcpyAsync(h->d_desc, hb, L.total, cudaMemcpyHostToDevice, h->stream));
   }
   GGEMM_NVTX_RANGE(nv_cublas, "cublas");
-  r = run_native(h, probs, h->nat_idx, cnt, true, static_cast<char*>(h->d_desc) + L.off_ptr,
+  r = run_native(h, probs, h->nat_idx, cnt, true, ngroups, static_cast<char*>(h->d_desc) + L.off_ptr,
                  &st->kernel_launches);
   int r2 = release_slot(h, slot);
   return r ? r : r2;
@@ -278,7 +359,7 @@ static int path_native(ggemm_handle_t h, bool grouped, const ggemm_problem_t* pr
 // emulation paths (EMU_LOOP, EMU_GROUPED, AUTO)
 // --------------------------------------------------------------------------------------
 static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* cfg,
-                    const ggemm_problem_t* probs, int num, ggemm_stats_t* st) {
+                    const ggemm_problem_t* probs, int num, ggemm_stats_t* st, int repair) {
   const bool loop = (path == GGEMM_PATH_EMU_LOOP);
   const bool lbat = (path == GGEMM_PATH_EMU_LOOP_BATCHED);   // per problem, planes batched
   // Operand reuse only on its own path (clean ablation: EMU_GROUPED -> +reuse = path 5).
@@ -352,8 +433,21 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   }
   if ((size_t)pmax * SA > h->A8_bytes || (size_t)pmax * SB > h->B8_bytes ||
       (size_t)pmax * SC * sizeof(int32_t) > h->C32_bytes || rows > h->row_shift_elems ||
-      cols > h->col_shift_elems)
+      cols > h->col_shift_elems) {
+    if (!h->ws_diag_printed) {
+      h->ws_diag_printed = 1;
+      int kmin = 0;
+      for (int j = 0; j < ne; ++j) {
+        const int k = probs[h->emu_idx[j]].k;
+        kmin = j ? std::min(kmin, k) : k;
+      }
+      std::fprintf(stderr, "[ggemm] GGEMM_ERR_WORKSPACE: residue/shift workspace exceeded "
+                   "(smallest emulated k = %d, handle min_k = %d; Kp = round_up(k,32) inflates "
+                   "residues for k < 32 -> create with ggemm_create_ex(..., min_k <= %d))\n",
+                   kmin, h->min_k, kmin);
+    }
     return GGEMM_ERR_WORKSPACE;
+  }
   if (ne > 65535) return GGEMM_ERR_INVALID;   // agent-N prep/reconstruct grid limit
   const int nprep = reuse ? rp.num_ua + rp.num_ub : 0;
   if (nprep > 65535) return GGEMM_ERR_INVALID;
@@ -362,7 +456,7 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   // unreachable, tiny, unprofitable). k==0 problems (C = beta*C, exact) also run on cuBLAS
   // but are not a "fallback": nothing was emulated-or-not. They do count in kernel_launches.
   st->num_fallback = 0;
-  for (int i = 0; i < nn; ++i) st->num_fallback += (h->plan[h->nat_idx[i]].route != GGEMM_ROUTE_K_ZERO);
+  for (int i = 0; i < nn; ++i) st->num_fallback += ggemm_route_is_fallback(h->plan[h->nat_idx[i]].route);
   st->moduli_min = ne ? GGEMM_MAX_MODULI : 0;
   st->moduli_max = nmax;
   for (int j = 0; j < ne; ++j) st->moduli_min = std::min(st->moduli_min, h->plan[h->emu_idx[j]].num_moduli);
@@ -460,16 +554,17 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   } else {
     pmax_m = max_m; pmax_n = max_n;
   }
+  const int nat_ngroups = nat_grouped ? group_native(h, probs, h->nat_idx, nn) : 0;
   if (nat_grouped) write_ptrs(hb, L, probs, h->nat_idx, nn);
 
   // ---- agent-K LPT schedule image(s), built on host straight into the pinned slot so they
   // ride along with the descriptors in the single H2D (avoids K's pageable-memcpy wrapper).
-  int grp_tiles = 0;
+  i8_sched_info grp_info{};
   if (ne > 0) {
     if (loop) {
       for (size_t i = 0; i < n_i8; ++i)
         if (i8_grouped_gemm_build_schedule(hi8 + i, 1, hb + L.off_sched + i * h->sched_img_bytes_1,
-                                           h->sched_img_bytes_1, &h->loop_tiles[i])) {
+                                           h->sched_img_bytes_1, &h->loop_info[i])) {
           release_slot(h, slot); return GGEMM_ERR_I8GEMM;
         }
     } else if (lbat) {
@@ -477,13 +572,13 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
       for (int j = 0; j < ne; ++j) {
         const int planes = oz2_num_planes(hoz[j].num_moduli);
         if (i8_grouped_gemm_build_schedule(hi8 + qq, planes, hb + L.off_sched + j * h->sched_img_bytes_P,
-                                           h->sched_img_bytes_P, &h->loop_tiles[j])) {
+                                           h->sched_img_bytes_P, &h->loop_info[j])) {
           release_slot(h, slot); return GGEMM_ERR_I8GEMM;
         }
         qq += planes;
       }
     } else if (i8_grouped_gemm_build_schedule(hi8, (int)n_i8, hb + L.off_sched, sched_bytes,
-                                              &grp_tiles)) {
+                                              &grp_info)) {
       release_slot(h, slot); return GGEMM_ERR_I8GEMM;
     }
   }
@@ -493,7 +588,9 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   GGEMM_NVTX_END(nv_plan);
   {
     GGEMM_NVTX_RANGE(nv_h2d, "h2d");
-    if (L.total) CU(cudaMemcpyAsync(db, hb, L.total, cudaMemcpyHostToDevice, h->stream));
+    // grouped: only the used part of agent-K's image (bytes_used); loop paths: whole blob.
+    const size_t h2d = (ne > 0 && !loop && !lbat) ? L.off_sched + grp_info.bytes_used : L.total;
+    if (h2d) CU(cudaMemcpyAsync(db, hb, h2d, cudaMemcpyHostToDevice, h->stream));
   }
 
   int& nl = st->kernel_launches;
@@ -515,14 +612,14 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
         for (int i = 0; i < planes; ++i, ++qq) {
           GGEMM_NVTX_RANGE(nv_i8, "i8_gemm");
           if (i8_grouped_gemm_launch(di8 + qq, 1, db + L.off_sched + qq * h->sched_img_bytes_1,
-                                     h->loop_tiles[qq], h->stream)) {
+                                     &h->loop_info[qq], h->stream)) {
             r = GGEMM_ERR_I8GEMM; break;
           }
-          if (h->loop_tiles[qq] > 0) ++nl;   // K launches nothing when total_tiles == 0
+          nl += h->loop_info[qq].num_launches;   // agent-K: 0, 1 or 2 kernels (main + split-K)
         }
         if (r) break;
         GGEMM_NVTX_RANGE(nv_rec, "reconstruct");
-        if (oz2_reconstruct_grouped(doz + j, 1, p.m, p.n, h->stream)) { r = GGEMM_ERR_NUMERICS; break; }
+        if (oz2_reconstruct_grouped(doz + j, 1, p.m, p.n, h->stream, repair)) { r = GGEMM_ERR_NUMERICS; break; }
         ++nl;
       }
     } else if (lbat) {
@@ -540,12 +637,12 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
         {
           GGEMM_NVTX_RANGE(nv_i8, "i8_gemm");
           if (i8_grouped_gemm_launch(di8 + qq, planes, db + L.off_sched + j * h->sched_img_bytes_P,
-                                     h->loop_tiles[j], h->stream)) { r = GGEMM_ERR_I8GEMM; break; }
-          if (h->loop_tiles[j] > 0) ++nl;
+                                     &h->loop_info[j], h->stream)) { r = GGEMM_ERR_I8GEMM; break; }
+          nl += h->loop_info[j].num_launches;
         }
         qq += planes;
         GGEMM_NVTX_RANGE(nv_rec, "reconstruct");
-        if (oz2_reconstruct_grouped(doz + j, 1, p.m, p.n, h->stream)) { r = GGEMM_ERR_NUMERICS; break; }
+        if (oz2_reconstruct_grouped(doz + j, 1, p.m, p.n, h->stream, repair)) { r = GGEMM_ERR_NUMERICS; break; }
         ++nl;
       }
     } else {
@@ -559,14 +656,14 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
       else {
         ++nl;
         GGEMM_NVTX_RANGE(nv_i8, "i8_gemm");
-        const int r_i8 = i8_grouped_gemm_launch(di8, (int)n_i8, db + L.off_sched, grp_tiles, h->stream);
+        const int r_i8 = i8_grouped_gemm_launch(di8, (int)n_i8, db + L.off_sched, &grp_info, h->stream);
         GGEMM_NVTX_END(nv_i8);
         if (r_i8)
           r = GGEMM_ERR_I8GEMM;
         else {
-          if (grp_tiles > 0) ++nl;
+          nl += grp_info.num_launches;
           GGEMM_NVTX_RANGE(nv_rec, "reconstruct");
-          if (oz2_reconstruct_grouped(doz, ne, max_m, max_n, h->stream)) r = GGEMM_ERR_NUMERICS;
+          if (oz2_reconstruct_grouped(doz, ne, max_m, max_n, h->stream, repair)) r = GGEMM_ERR_NUMERICS;
           else ++nl;
         }
       }
@@ -575,7 +672,8 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   // Native FP64 for k==0 / K too large / tiny / unprofitable (one grouped call if >= 2).
   if (!r && nn > 0) {
     GGEMM_NVTX_RANGE(nv_cublas, "cublas");
-    r = run_native(h, probs, h->nat_idx, nn, nat_grouped, nat_grouped ? db + L.off_ptr : nullptr, &nl);
+    r = run_native(h, probs, h->nat_idx, nn, nat_grouped, nat_ngroups,
+                   nat_grouped ? db + L.off_ptr : nullptr, &nl);
   }
   int r2 = release_slot(h, slot);
   return r ? r : r2;
@@ -589,7 +687,7 @@ extern "C" int ggemm_grouped_dgemm(ggemm_handle_t h, ggemm_path_t path, const gg
   ggemm_stats_t* st = stats ? stats : &local;
   std::memset(st, 0, sizeof(*st));
   st->num_problems = num_problems;
-  st->num_repaired = -1;
+  st->num_repaired = st->num_uncertified = st->num_safety_fallback = -1;
   if (!h) return GGEMM_ERR_INVALID;
   int r = ggemm_validate(h, problems, num_problems);
   if (r) return r;
@@ -605,6 +703,8 @@ extern "C" int ggemm_grouped_dgemm(ggemm_handle_t h, ggemm_path_t path, const gg
   if (!cfg) cfg = &kDefault;
   if (cfg->num_moduli < 0 || cfg->num_moduli == 1 || cfg->num_moduli > GGEMM_MAX_MODULI)
     return GGEMM_ERR_INVALID;
+  const int repair = ggemm_oz2_repair_mode(path, cfg);
+  if (repair < 0) return GGEMM_ERR_INVALID;
 
   switch (path) {
     case GGEMM_PATH_NATIVE_LOOP:    return path_native(h, false, problems, num_problems, st);
@@ -616,13 +716,9 @@ extern "C" int ggemm_grouped_dgemm(ggemm_handle_t h, ggemm_path_t path, const gg
     case GGEMM_PATH_EMU_LOOP_BATCHED: {
       // Repair counter: agent-N's counters are sticky and reading them synchronizes the
       // stream, so only on explicit request (never in timed runs): reset before, read after.
-      if (h->stats_repair && oz2_read_counters(nullptr, nullptr, 1, h->stream)) return GGEMM_ERR_NUMERICS;
-      r = path_emu(h, path, cfg, problems, num_problems, st);
-      if (!r && h->stats_repair) {
-        unsigned long long rep = 0;
-        if (oz2_read_counters(nullptr, &rep, 1, h->stream)) return GGEMM_ERR_NUMERICS;
-        st->num_repaired = (long long)rep;
-      }
+      if ((r = ggemm_counters_reset(h, h->stream))) return r;   // async (out = null)
+      r = path_emu(h, path, cfg, problems, num_problems, st, repair);
+      if (!r) r = ggemm_counters_read(h, h->stream, st);         // syncs only if enabled
       return r;
     }
     default:                        return GGEMM_ERR_INVALID;

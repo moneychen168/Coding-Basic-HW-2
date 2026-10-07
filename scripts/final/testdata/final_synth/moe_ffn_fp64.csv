@@ -1,0 +1,8 @@
+app,path,T,E,topk,d_model,d_ff,zipf,phi,act,seed,num_moduli_cfg,experts_active,load_max,load_min,gemm_flops,total_ms_median,total_ms_mean,wall_ms_median,route_ms,gather_ms,up_ms,act_ms,down_ms,scatter_ms,route_pct,gather_pct,up_pct,act_pct,down_pct,scatter_pct,gemm_pct,eff_GFLOPS,launches_up,launches_down,fallback_up,fallback_down,moduli_min,moduli_max,err_up_cw,err_up_over_bound,err_y_cw,err_y_over_bound,rel_fro_y,nonfinite,reps,gpu,status
+moe_ffn_fp64,native_loop,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,20.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,64,64,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,native_grouped,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,10.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,1,1,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,emu_loop,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,40.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,1920,1920,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,emu_loop_batched,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,5.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,192,192,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,emu_grouped,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,2.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,3,3,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,emu_grouped_reuse,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,2.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,3,3,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok
+moe_ffn_fp64,auto,4096,16,2,1024,2048,1.0,0.5,tanh,0,0,0,0,0,0,1.25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80.0,0,4,4,0,0,0,0,0,0,0,0.01,0,0,10,NVIDIA H200,ok

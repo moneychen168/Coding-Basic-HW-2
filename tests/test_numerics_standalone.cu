@@ -55,6 +55,7 @@ struct HostProb {
 };
 
 static std::mt19937_64 rng(12345);
+static int g_mode = OZ2_REPAIR_ON;
 
 // GEMMul8-style generator: (U - 0.5) * exp(phi * Z)
 static double gen(double phi) {
@@ -158,7 +159,7 @@ static void run(Dev& d) {
   int gx = (int)std::min<size_t>(((size_t)d.max_m * d.max_n + 255) / 256, 4096);
   naive_i8_gemm<<<dim3(gx, oz2_num_planes(d.max_N), num), 256>>>(d.dprobs);
   CK(cudaGetLastError());
-  if (oz2_reconstruct_grouped(d.dprobs, num, d.max_m, d.max_n, 0)) { fprintf(stderr, "recon failed\n"); exit(2); }
+  if (oz2_reconstruct_grouped(d.dprobs, num, d.max_m, d.max_n, 0, g_mode)) { fprintf(stderr, "recon failed\n"); exit(2); }
   CK(cudaDeviceSynchronize());
 }
 
@@ -170,10 +171,10 @@ static double gamma_n(const HostProb& h) {
   const double u = std::ldexp(1.0, -53);
   return n * u / (1.0 - n * u);
 }
-static unsigned long long take_repairs() {
-  unsigned long long r = 0;
-  oz2_read_counters(nullptr, &r, 1, 0);
-  return r;
+static unsigned long long take_repairs() {  // repaired (ON) + uncertified (COUNT) since last call
+  oz2_counters c{};
+  oz2_read_counters(&c, 1, 0);
+  return c.repaired + c.uncertified;
 }
 
 static Err check(const Dev& d, int idx, const HostProb& h) {
@@ -393,6 +394,74 @@ int main() {
     if (!ok) ++fails;
     printf("\nnon-finite: counter=%d (expect 2), finite entries in poisoned row/col=%ld, gate(rest)=%.3e %s\n",
            cnt, badnan, gate, ok ? "ok" : "FAIL");
+    teardown(d);
+  }
+
+  // 5) repair modes on the 0926 failing class (k=16, phi=2, N=15, 256 problems):
+  //    COUNT must leave the emulated values (gate may exceed 1, reported only) and count;
+  //    ON must meet the gate; OFF must equal COUNT bit-for-bit.
+  {
+    std::vector<HostProb> hs(64);
+    for (auto& h : hs) { make(h, 16, 16, 16, 0, 2.0, 1.0, 0.0); h.N = 15; reference(h); }
+    double gmax[3] = {0, 0, 0};
+    unsigned long long cnt[3] = {0, 0, 0};
+    std::vector<std::vector<double>> outs(3);
+    const int modes[3] = {OZ2_REPAIR_OFF, OZ2_REPAIR_COUNT, OZ2_REPAIR_ON};
+    for (int mi = 0; mi < 3; ++mi) {
+      g_mode = modes[mi];
+      take_repairs();
+      Dev d; setup(d, hs); run(d);
+      oz2_counters c{};
+      oz2_read_counters(&c, 1, 0);
+      cnt[mi] = mi == 1 ? c.uncertified : c.repaired;
+      for (size_t g = 0; g < hs.size(); ++g) {
+        Err e = check(d, (int)g, hs[g]);
+        gmax[mi] = std::max(gmax[mi], e.gate);
+        std::vector<double> C(hs[g].C0.size());
+        CK(cudaMemcpy(C.data(), d.dC[g], 8 * C.size(), cudaMemcpyDeviceToHost));
+        outs[mi].insert(outs[mi].end(), C.begin(), C.end());
+      }
+      teardown(d);
+    }
+    g_mode = OZ2_REPAIR_ON;
+    bool same = memcmp(outs[0].data(), outs[1].data(), 8 * outs[0].size()) == 0;
+    bool ok = same && gmax[2] <= 1.0 && (gmax[1] <= 1.0 || cnt[1] > 0);
+    if (!ok) ++fails;
+    printf("\nrepair modes (64 x 16^3, phi=2, N=15): OFF gate=%.3e | COUNT gate=%.3e uncertified=%llu | "
+           "ON gate=%.3e repaired=%llu | OFF==COUNT bitwise:%d  %s\n",
+           gmax[0], gmax[1], cnt[1], gmax[2], cnt[2], (int)same, ok ? "ok" : "FAIL");
+  }
+
+  // 6) BLAS edge semantics: alpha=0 with NaN in A -> beta*C0; NaN alpha with a zero row -> NaN;
+  //    Inf in C0 with beta != 0 -> non-finite, no repair counted
+  {
+    std::vector<HostProb> hs(3);
+    make(hs[0], 20, 10, 50, 0, 1.0, 0.0, 0.5);
+    hs[0].A[3] = NAN;
+    make(hs[1], 20, 10, 50, 0, 1.0, NAN, 0.0);
+    for (int q = 0; q < hs[1].k; ++q) hs[1].A[4 + (size_t)q * hs[1].lda] = 0.0;
+    make(hs[2], 20, 10, 50, 0, 1.0, 1.0, 1.0);
+    hs[2].C0[7] = INFINITY;
+    for (auto& h : hs) h.N = 15;
+    take_repairs();
+    Dev d; setup(d, hs); run(d);
+    oz2_counters c{};
+    oz2_read_counters(&c, 1, 0);
+    long bad = 0;
+    std::vector<double> C0v(hs[0].C0.size()), C1v(hs[1].C0.size()), C2v(hs[2].C0.size());
+    CK(cudaMemcpy(C0v.data(), d.dC[0], 8 * C0v.size(), cudaMemcpyDeviceToHost));
+    CK(cudaMemcpy(C1v.data(), d.dC[1], 8 * C1v.size(), cudaMemcpyDeviceToHost));
+    CK(cudaMemcpy(C2v.data(), d.dC[2], 8 * C2v.size(), cudaMemcpyDeviceToHost));
+    for (int j = 0; j < hs[0].n; ++j)
+      for (int i = 0; i < hs[0].m; ++i)
+        if (C0v[i + (size_t)j * hs[0].ldc] != 0.5 * hs[0].C0[i + (size_t)j * hs[0].ldc]) ++bad;
+    for (int j = 0; j < hs[1].n; ++j)
+      for (int i = 0; i < hs[1].m; ++i)
+        if (!std::isnan(C1v[i + (size_t)j * hs[1].ldc])) ++bad;
+    if (std::isfinite(C2v[7])) ++bad;
+    bool ok = bad == 0 && c.safety_fallback == 0;
+    if (!ok) ++fails;
+    printf("\nBLAS edge cases: mismatches=%ld, safety=%llu (expect 0)  %s\n", bad, c.safety_fallback, ok ? "ok" : "FAIL");
     teardown(d);
   }
 

@@ -1,0 +1,7 @@
+app,mode,path,atoms,basis,N,nrhs,blocks,G,nnz,max_K,cutoff,density,phi,seed,num_moduli_cfg,flops,total_ms_median,total_ms_mean,wall_ms_median,pre_ms,gemm_ms,post_ms,pre_pct,gemm_pct,post_pct,eff_GFLOPS,launches,num_fallback,moduli_min,moduli_max,err_cw,err_over_bound,rel_fro,nonfinite,reps,gpu,status
+block_sparse_fp64,block,native_grouped,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,3.0,0,0,0,2.0,0,0,0,0,0,1,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok
+block_sparse_fp64,block,emu_loop_batched,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,1.5,0,0,0,1.0,0,0,0,0,0,192,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok
+block_sparse_fp64,block,auto,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,0.375,0,0,0,0.25,0,0,0,0,0,4,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok
+block_sparse_fp64,row,native_grouped,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,3.0,0,0,0,2.0,0,0,0,0,0,1,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok
+block_sparse_fp64,row,emu_loop_batched,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,1.5,0,0,0,1.0,0,0,0,0,0,192,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok
+block_sparse_fp64,row,auto,1024,dz,0,128,0,500,0,0,0,0,0,0,0,0,0.375,0,0,0,0.25,0,0,0,0,0,4,0,0,0,0,0.02,0,0,5,NVIDIA H200,ok

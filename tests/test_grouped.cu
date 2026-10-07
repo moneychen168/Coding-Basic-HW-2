@@ -12,7 +12,7 @@
 //
 // Paths ("all"): native_loop, native_grouped, emu_loop, emu_grouped, auto, emu_grouped_reuse,
 //   emu_loop_batched.
-// Usage: test_grouped [--set test|quick] [--paths all|a,b] [--phis 0,0.5,1,2] [--csv out.csv]
+// Usage: test_grouped [--set test|quick|tiny] [--small] [--paths all|a,b] [--phis 0,0.5,1,2] [--csv out.csv]
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -25,12 +25,13 @@
 
 static int g_pass = 0, g_fail = 0;
 static FILE* g_csv = nullptr;
+static bool g_small = false;   // --small: shrink the edge-case sizes (sanitizer runs)
 
 #define CHECK(cond, ...) do { if (cond) { ++g_pass; } else { ++g_fail; \
   printf("  FAIL %s:%d: %s -- ", __FILE__, __LINE__, #cond); printf(__VA_ARGS__); printf("\n"); } } while (0)
 
 static ggemm_config_t cfg_for(ggemm_path_t p) {
-  ggemm_config_t c;
+  ggemm_config_t c; memset(&c, 0, sizeof c);   // appended fields (repair_mode) -> 0 = path default
   c.num_moduli = 0;              // adaptive
   c.target_rel_err = 1e-15;      // FP64 level
   c.allow_fallback = (p == GGEMM_PATH_AUTO) ? 1 : 0;
@@ -44,9 +45,10 @@ static bool is_emu(ggemm_path_t p) {
 //   strict (native, REPAIR_ON, or certificate count unavailable): every entry err_ij <= gamma_n den_ij
 //   REPAIR_COUNT: #entries with err_ij > gamma_n den_ij (non-finite included) <= stats.num_uncertified,
 //                 i.e. the certificate may over-report but must never miss a violating entry.
-static bool gate_ok(ggemm_path_t path, const ErrStats& e, const ggemm_stats_t& st, const char** kind) {
+static bool gate_ok(ggemm_path_t path, const ggemm_config_t& cfg, const ErrStats& e, const ggemm_stats_t& st,
+                    const char** kind) {
   long long unc = stats_num_uncertified(st);
-  if (ggemm_expected_repair_mode(path) == REPAIR_COUNT && unc >= 0) {
+  if (ggemm_expected_repair_mode(path, &cfg) == REPAIR_COUNT && unc >= 0) {
     *kind = "cert";
     return e.n_over_gamma <= (unsigned long long)unc;
   }
@@ -73,7 +75,7 @@ static void run_and_check(const char* tag, ggemm_path_t path, const ggemm_config
     ErrStats e; ref_compare(b, &ref, &e);
     double vs_native = native_cw > 0 ? e.err_cw / native_cw : (e.err_cw == 0 ? 1.0 : INFINITY);
     const char* kind = "";
-    bool ok = gate_ok(path, e, st, &kind);
+    bool ok = gate_ok(path, cfg, e, st, &kind);
     long long unc = stats_num_uncertified(st), rep = stats_num_repaired(st);
     printf("  %-5s %-17s %-14s err_cw=%.3e  err/gamma=%.3e  over_gamma=%llu uncert=%lld repaired=%lld "
            "gate=%s  vs_native=%8.3g  rel_max=%.3e  fallback=%d launches=%d moduli=[%d,%d]\n",
@@ -82,7 +84,7 @@ static void run_and_check(const char* tag, ggemm_path_t path, const ggemm_config
            st.moduli_min, st.moduli_max);
     if (gate) CHECK(ok, "%s %s [%s]: over_gamma=%llu uncertified=%lld; worst problem %d (m=%d n=%d k=%d), "
                     "nonfinite=%llu", tag, ggemm_path_name(path), kind, e.n_over_gamma, unc,
-                    ggemm_path_name(path), e.worst_problem,
+                    e.worst_problem,
                     e.worst_problem >= 0 ? b.probs[e.worst_problem].m : -1,
                     e.worst_problem >= 0 ? b.probs[e.worst_problem].n : -1,
                     e.worst_problem >= 0 ? b.probs[e.worst_problem].k : -1, e.nonfinite);
@@ -92,10 +94,11 @@ static void run_and_check(const char* tag, ggemm_path_t path, const ggemm_config
     if (is_emu(path) && !cfg.allow_fallback)
       CHECK(st.num_fallback == 0, "%s %s: allow_fallback=0 but num_fallback=%d", tag, ggemm_path_name(path),
             st.num_fallback);
-    int nonempty = 0;
-    for (auto& q : b.probs) nonempty += (q.m > 0 && q.n > 0);
-    // moduli range is only meaningful if >= 1 non-empty problem was actually emulated
-    if (is_emu(path) && nonempty - st.num_fallback >= 1)
+    // emulated = (m>0, n>0, k>0) problems - fallbacks; k=0 problems are neither fallback nor emulated.
+    // The moduli range is only meaningful if >= 1 problem was actually emulated.
+    int computable = 0;
+    for (auto& q : b.probs) computable += (q.m > 0 && q.n > 0 && q.k > 0);
+    if (is_emu(path) && computable - st.num_fallback >= 1)
       CHECK(st.moduli_min >= 2 && st.moduli_max <= GGEMM_MAX_MODULI && st.moduli_min <= st.moduli_max,
             "%s %s: moduli range [%d,%d]", tag, ggemm_path_name(path), st.moduli_min, st.moduli_max);
     if (g_csv)
@@ -199,7 +202,7 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
         CHECK(st.num_fallback >= 1, "AUTO k=140000 must fall back, num_fallback=%d", st.num_fallback);
         ErrStats e; ref_compare(b, &ref, &e);
         const char* kind;
-        CHECK(rc != 0 || gate_ok(GGEMM_PATH_AUTO, e, st, &kind), "AUTO bigk err/gamma=%.3e", e.ratio_gamma);
+        CHECK(rc != 0 || gate_ok(GGEMM_PATH_AUTO, c, e, st, &kind), "AUTO bigk err/gamma=%.3e", e.ratio_gamma);
         printf("  bigk AUTO fallback=%d err/gamma=%.3e\n", st.num_fallback, e.ratio_gamma);
         ggemm_destroy(h);
       }
@@ -214,7 +217,7 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
         if (rc == 0) {
           ErrStats e; ref_compare(b, &ref, &e);
           const char* kind;
-          CHECK(st.num_fallback == 0 && gate_ok(p, e, st, &kind), "%s bigk no-fallback [%s]: fb=%d err/gamma=%.3e "
+          CHECK(st.num_fallback == 0 && gate_ok(p, c, e, st, &kind), "%s bigk no-fallback [%s]: fb=%d err/gamma=%.3e "
                 "over_gamma=%llu uncert=%lld", ggemm_path_name(p), kind, st.num_fallback, e.ratio_gamma,
                 e.n_over_gamma, stats_num_uncertified(st));
         } else {
@@ -256,7 +259,7 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
   }
   // 7. O(1) launches for EMU_GROUPED: launch count must not grow with G (DESIGN: 3 kernels).
   {
-    int launches[2] = {-1, -1}; int Gs[2] = {16, 1024};
+    int launches[2] = {-1, -1}; int Gs[2] = {16, g_small ? 64 : 1024};
     for (int t = 0; t < 2; ++t) {
       Workload w = custom("launch", std::vector<Shape>(Gs[t], Shape{32, 32, 32}));
       WorkloadBuffers b; alloc_workload(w, 0.5, 1.0, 0.0, 0, &b);
@@ -272,8 +275,8 @@ static void test_edges(const std::vector<ggemm_path_t>& paths, cublasHandle_t cu
   }
   // 8. bitwise reproducibility: two calls on identical input give identical bytes.
   {
-    auto tw = make_workloads("test");
-    Workload w = tw.size() > 5 ? tw[5] : tw[0];   // MoE prefill (skewed, unequal m_e)
+    auto tw = make_workloads(g_small ? "tiny" : "test");
+    Workload w = g_small ? tw[1] : (tw.size() > 5 ? tw[5] : tw[0]);   // MoE (skewed, unequal m_e)
     WorkloadBuffers b; alloc_workload(w, 1.0, 1.0, 0.0, 0, &b);
     for (auto p : paths) {
       ggemm_handle_t h; ggemm_create(&h, (int)b.probs.size(), b.nA, b.nB, b.nC, 0);
@@ -303,6 +306,7 @@ int main(int argc, char** argv) {
     else if (a == "--phis") phis_s = nxt();
     else if (a == "--csv") csv = nxt();
     else if (a == "--no-edges") edges = false;
+    else if (a == "--small") g_small = true;
     else { fprintf(stderr, "unknown arg %s\n", a.c_str()); return 2; }
   }
   // num_repaired is only measured when GGEMM_STATS_REPAIR=1 (syncs the stream; fine outside timing)
