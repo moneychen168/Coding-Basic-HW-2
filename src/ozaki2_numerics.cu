@@ -77,8 +77,11 @@
 #include "ozaki2_numerics.h"
 #include "moduli.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+
+#define OZ2_PREP_MAX_SPLIT 16
 
 namespace {
 
@@ -107,6 +110,7 @@ constexpr int NPLANES = GGEMM_MAX_MODULI + OZ2_EXTRA_PLANES;
 
 // x * 2^e, exact unless the result is subnormal; |e| <= 3000.
 __device__ __forceinline__ double mul_pow2(double x, int e) {
+  if (e >= -1000 && e <= 1000) return x * __longlong_as_double((long long)(e + 1023) << 52);
 #pragma unroll
   for (int r = 0; r < 3; ++r) {
     int ee = max(-1000, min(1000, e));
@@ -202,7 +206,7 @@ struct Elem {
   Dec d;
   int8_t absv;
 };
-__device__ __forceinline__ Elem prep_elem(double a, int sh, int sig, double& da2, double& na2) {
+__device__ __forceinline__ Elem prep_elem(double a, int sh, int sig, double& da2, double& na2, bool acc = true) {
   Elem e;
   if (sh == OZ2_SHIFT_NONFINITE) {
     e.d = decompose(0.0);
@@ -212,8 +216,10 @@ __device__ __forceinline__ Elem prep_elem(double a, int sh, int sig, double& da2
   const double xs = mul_pow2(a, sh);
   const double xt = trunc(xs);  // round toward zero (never rint)
   const double fr = xs - xt;    // exact
-  da2 = fma(fr, fr, da2);
-  na2 = fma(xt, xt, na2);
+  if (acc) {
+    da2 = fma(fr, fr, da2);
+    na2 = fma(xt, xt, na2);
+  }
   e.d = decompose(xt);
   e.absv = (sig == OZ2_SHIFT_ZERO) ? (int8_t)0 : (int8_t)(int)fmin(127.0, trunc(mul_pow2(fabs(a), sig)));
   return e;
@@ -227,6 +233,12 @@ __device__ __forceinline__ int32_t norm_ub_bits(double x) {
 // ------------------------------------------------------------------------------- prep kernel
 // Workspace per problem: row_shift[4m] = {s_i | sig_i | da_i (float bits) | na_i (float bits)},
 // col_shift[4n] likewise.  Planes 0..N-1: residues, plane N: abs plane.
+// Split-K (gridDim.z = S > 1, chosen by the launcher when there are too few blocks): every
+// split block recomputes the row/column norm with exactly the same per-thread chains and
+// reduction order as S == 1 (redundant, L2-resident reads), so s_i/sig_i are bit-identical;
+// each block then writes residues for its own range of k tiles; split 0 additionally
+// recomputes ||dA||, ||A'|| over the full row in the S == 1 order and writes the workspace.
+// Residues are elementwise, so the output is bit-identical to S == 1 for every S.
 __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __restrict__ probs, int a_blocks) {
   __shared__ uint8_t s_pow[GGEMM_MAX_MODULI][OZ2_POW2_TABLE];
   __shared__ __align__(16) int32_t s_tile[NPLANES][A_ROWS * A_KT / 4];
@@ -245,6 +257,8 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
   if (N < 1 || N > GGEMM_MAX_MODULI) return;
   if (pr.alpha == 0.0) return;  // BLAS: alpha == 0 never references A, B (reconstruct outputs beta*C)
   const double T = c_tab.T[N];
+  const int S = gridDim.z, split = blockIdx.z;
+  const bool lead = (split == 0);
 
   if ((int)blockIdx.x < a_blocks) {
     // ------------------------------------------------ A: 32 rows, transpose to row-major
@@ -287,31 +301,34 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
     s_ssq[ty][tx] = ss;
     __syncthreads();
     if (ty == 0) {
-      double S = 0.0;
-      for (int r = 0; r < THREADS / 32; ++r) S += s_ssq[r][tx];
-      const int sh = valid ? shift_from_norm(rowmax, S, resc, T) : 0;
+      double Ssq = 0.0;
+      for (int r = 0; r < THREADS / 32; ++r) Ssq += s_ssq[r][tx];
+      const int sh = valid ? shift_from_norm(rowmax, Ssq, resc, T) : 0;
       const int sg = valid ? abs_shift(rowmax, sh) : OZ2_SHIFT_ZERO;
       s_shift[tx] = sh;
       s_sig[tx] = sg;
-      if (valid) {
+      if (valid && lead) {
         pr.row_shift[i] = sh;
         pr.row_shift[m + i] = sg;
       }
-      if (sh == OZ2_SHIFT_NONFINITE) atomicAdd(&g_cnt[0], 1ull);
+      if (lead && sh == OZ2_SHIFT_NONFINITE) atomicAdd(&g_cnt[0], 1ull);
     }
     __syncthreads();
     const int sh = s_shift[tx], sg = s_sig[tx];
 
     double da2 = 0.0, na2 = 0.0;
+    const bool fuse = (S == 1);  // S == 1: norms fused into the residue loop
     const int orow = tid >> 3, ow = tid & 7;  // write-out mapping: 32 rows x 8 words
     const bool ovalid = row0 + orow < m;
-    for (int k0 = 0; k0 < Kp; k0 += A_KT) {
+    const int ntile = Kp / A_KT, per = (ntile + S - 1) / S;
+    const int t0 = min(ntile, split * per), t1 = min(ntile, t0 + per);
+    for (int k0 = t0 * A_KT; k0 < t1 * A_KT; k0 += A_KT) {
 #pragma unroll
       for (int r = 0; r < A_KT / (THREADS / 32); ++r) {
         const int kk = ty + r * (THREADS / 32);
         const int k = k0 + kk;
         const double a = (valid && k < K) ? A[i + k * lda] : 0.0;
-        const Elem el = prep_elem(a, sh, sg, da2, na2);
+        const Elem el = prep_elem(a, sh, sg, da2, na2, fuse);
         const int boff = 4 * tile_word(tx, kk >> 2) + (kk & 3);
         for (int l = 0; l < N; ++l) reinterpret_cast<int8_t*>(s_tile[l])[boff] = residue_sym(el.d, l, s_pow);
         reinterpret_cast<int8_t*>(s_tile[N])[boff] = el.absv;
@@ -324,6 +341,14 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
               s_tile[l][tile_word(orow, ow)];
       }
       __syncthreads();
+    }
+    if (S > 1) {
+      if (!lead) return;  // block-uniform
+      // same chains (k = ty + 8t ascending over [0, Kp)) as the fused S == 1 loop
+      for (int k = ty; k < Kp; k += THREADS / 32) {
+        const double a = (valid && k < K) ? A[i + k * lda] : 0.0;
+        (void)prep_elem(a, sh, sg, da2, na2);
+      }
     }
     // ||dA(i,:)||, ||A'(i,:)|| upper bounds
     s_max[ty][tx] = da2;
@@ -364,20 +389,23 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
     for (int o = 16; o; o >>= 1) ss += __shfl_xor_sync(0xffffffffu, ss, o);  // butterfly: identical in all lanes
     const int sh = shift_from_norm(mx, ss, resc, T);
     const int sg = abs_shift(mx, sh);
-    if (lane == 0) {
+    if (lane == 0 && lead) {
       pr.col_shift[j] = sh;
       pr.col_shift[n + j] = sg;
       if (sh == OZ2_SHIFT_NONFINITE) atomicAdd(&g_cnt[0], 1ull);
     }
 
     double da2 = 0.0, na2 = 0.0;
+    const bool fuse = (S == 1);
     int8_t* base = pr.B8 + (size_t)j * Kp;
-    for (int k0 = 4 * lane; k0 < Kp; k0 += 128) {
+    const int nchunk = (Kp + 127) / 128, per = (nchunk + S - 1) / S;
+    const int c0 = min(nchunk, split * per), c1 = min(nchunk, c0 + per);
+    for (int k0 = 4 * lane + 128 * c0; k0 < Kp && k0 < 128 * c1; k0 += 128) {
       Elem el[4];
 #pragma unroll
       for (int e = 0; e < 4; ++e) {
         const int k = k0 + e;
-        el[e] = prep_elem(k < K ? b[k] : 0.0, sh, sg, da2, na2);
+        el[e] = prep_elem(k < K ? b[k] : 0.0, sh, sg, da2, na2, fuse);
       }
       for (int l = 0; l < N; ++l) {
         uint32_t packed = 0;
@@ -389,6 +417,15 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
 #pragma unroll
       for (int e = 0; e < 4; ++e) packed |= (uint32_t)(uint8_t)el[e].absv << (8 * e);
       *reinterpret_cast<uint32_t*>(base + N * pr.b8_mod_stride + k0) = packed;
+    }
+    if (S > 1) {
+      if (!lead) return;  // warp-uniform; no __syncthreads in the B path
+      for (int k0 = 4 * lane; k0 < Kp; k0 += 128)  // same order as the fused S == 1 loop
+#pragma unroll
+        for (int e = 0; e < 4; ++e) {
+          const int k = k0 + e;
+          (void)prep_elem(k < K ? b[k] : 0.0, sh, sg, da2, na2);
+        }
     }
 #pragma unroll
     for (int o = 16; o; o >>= 1) {
@@ -418,6 +455,7 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
   if (N < 1 || N > GGEMM_MAX_MODULI) return;
   const int m = pr.m, n = pr.n, K = pr.k;
   const size_t total = (size_t)m * (size_t)n;
+  if (total == 0) return;
   const int32_t* __restrict__ C32 = pr.C32;
   const size_t cst = pr.c32_mod_stride;
   const double alpha = pr.alpha, beta = pr.beta;
@@ -433,17 +471,23 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
   const double gam = (nt * u / (1.0 - nt * u) - 2.0 * u) * (1.0 - 0x1p-40);
   const int32_t* rs = pr.row_shift;
   const int32_t* cs = pr.col_shift;
-  unsigned long long n_uncert = 0, n_repair = 0, n_safety = 0;
+  unsigned n_uncert = 0, n_repair = 0, n_safety = 0;
+  // Element walk without per-element 64-bit div/mod: start (i, j) once, then advance by the
+  // grid stride G = di*m + dr with a single carry.
+  const size_t G = (size_t)gridDim.x * THREADS;
+  const size_t idx0 = (size_t)blockIdx.x * THREADS + threadIdx.x;
+  const int di = (int)(G / (size_t)m), dr = (int)(G % (size_t)m);
+  int i = (int)(idx0 % (size_t)m);
+  int j = (int)(idx0 / (size_t)m);
 
-  for (size_t idx = (size_t)blockIdx.x * THREADS + threadIdx.x; idx < total; idx += (size_t)gridDim.x * THREADS) {
-    const int i = (int)(idx % (size_t)m);
-    const int j = (int)(idx / (size_t)m);
+  for (size_t idx = idx0; idx < total; idx += G) {
+    do {  // body; 'break' = done with this entry
     double* cp = pr.C + i + (size_t)j * pr.ldc;
     const double c0 = (beta == 0.0) ? 0.0 : *cp;
     double out;
     if (alpha == 0.0) {  // BLAS semantics: A, B (and workspace) not referenced
       *cp = (beta == 0.0) ? 0.0 : beta * c0;
-      continue;
+      break;
     }
     const int rsh = rs[i], csh = cs[j];
     if (rsh == OZ2_SHIFT_NONFINITE || csh == OZ2_SHIFT_NONFINITE) {  // safety fallback, all modes
@@ -451,12 +495,12 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
       out = (beta == 0.0) ? alpha * d : fma(alpha, d, beta * c0);
       ++n_safety;
       *cp = out;
-      continue;
+      break;
     }
     const int sig = rs[m + i], tau = cs[n + j];
     if (sig == OZ2_SHIFT_ZERO || tau == OZ2_SHIFT_ZERO) {  // A(i,:) or B(:,j) all zero: AB_ij = 0 exactly
       *cp = (beta == 0.0) ? alpha * 0.0 : fma(alpha, 0.0, beta * c0);  // NaN/Inf alpha propagates
-      continue;
+      break;
     }
     uint64_t S1 = 0;
     uint32_t S2 = 0;
@@ -482,7 +526,7 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
       // OFF: plain emulation.  Non-finite C0 with beta != 0: result is non-finite whatever AB is;
       // propagate it exactly like BLAS instead of repairing.
       *cp = emu;
-      continue;
+      break;
     }
     // (i) rigorous error bound, u1 units, then output units
     const double da = __int_as_float(rs[2 * m + i]), na = __int_as_float(rs[3 * m + i]);
@@ -510,13 +554,19 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
       ++n_repair;
     }
     *cp = out;
+    } while (0);
+    i += dr;
+    j += di;
+    if (i >= m) { i -= m; ++j; }
   }
-  if (n_uncert) atomicAdd(&g_cnt[1], n_uncert);
-  if (n_repair) atomicAdd(&g_cnt[2], n_repair);
-  if (n_safety) atomicAdd(&g_cnt[3], n_safety);
+  if (n_uncert) atomicAdd(&g_cnt[1], (unsigned long long)n_uncert);
+  if (n_repair) atomicAdd(&g_cnt[2], (unsigned long long)n_repair);
+  if (n_safety) atomicAdd(&g_cnt[3], (unsigned long long)n_safety);
 }
 
 int g_uploaded_dev = -1;
+int g_num_sms = 132;
+int g_force_split = 0;  // testing hook (oz2_debug_force_prep_split)
 
 }  // namespace
 
@@ -529,6 +579,8 @@ int oz2_init_constants() {
   if (cudaGetDevice(&dev) != cudaSuccess) return 1;
   if (dev == g_uploaded_dev) return 0;
   if (cudaMemcpyToSymbol(c_tab, &t, sizeof(t)) != cudaSuccess) return 2;
+  int sms = 0;
+  if (cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, dev) == cudaSuccess && sms > 0) g_num_sms = sms;
   g_uploaded_dev = dev;
   return 0;
 }
@@ -540,7 +592,12 @@ int oz2_prep_grouped(const oz2_problem* d, int num, int max_m, int max_n, cudaSt
   const int a_blocks = (max_m + A_ROWS - 1) / A_ROWS;
   const int b_blocks = (max_n + B_COLS - 1) / B_COLS;
   if (a_blocks + b_blocks == 0) return 0;
-  oz2_prep_kernel<<<dim3(a_blocks + b_blocks, num), THREADS, 0, s>>>(d, a_blocks);
+  // Split-K only when the grid is too small to fill the GPU (bit-identical results for any S).
+  const long long blocks = (long long)(a_blocks + b_blocks) * num;
+  const long long target = 4LL * g_num_sms;
+  int S = (int)std::min<long long>(OZ2_PREP_MAX_SPLIT, std::max<long long>(1, (target + blocks - 1) / blocks));
+  if (g_force_split > 0) S = g_force_split;
+  oz2_prep_kernel<<<dim3(a_blocks + b_blocks, num, S), THREADS, 0, s>>>(d, a_blocks);
   return cudaGetLastError() == cudaSuccess ? 0 : 3;
 }
 
@@ -630,3 +687,5 @@ int oz2_read_counters(int* nonfinite, unsigned long long* repaired, int reset, c
   if (repaired) *repaired = c.repaired;
   return r;
 }
+
+void oz2_debug_force_prep_split(int S) { g_force_split = (S >= 1 && S <= 64) ? S : 0; }

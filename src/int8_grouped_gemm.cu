@@ -24,6 +24,22 @@
 //    (Round 2 tried thread-0 decode overlap, cross-tile prologue overlap, no zero-fill and an
 //    intra-CTA split-K cfg2; H200 ablation job 510965 showed a structural ~10% cfg0 regression,
 //    so this file is round 1 + the safe fixes. Round-2 source: build/abl/round2_int8_grouped_gemm.cu.)
+//    Split-K 32x32 (tile_cfg 3) lives in a SEPARATE kernel (main-kernel SASS == round 1, verified
+//    with cuobjdump). Decision (H200 job 511054, 2 passes, ms): auto-sk stays OFF by default
+//    (g_auto_splitk_min_kp = INT_MAX), no kp_min threshold is set:
+//      workload (auto-sk launches)   auto            auto-sk          net
+//      small256 (2)                  0.0236/0.0236   0.0310/0.0313    -31% (slower)
+//      mix 8x2048^3+64 skinny (2)    0.3373/0.3373   0.3481/0.3476    -3%  (stable across passes)
+//      random64, ozaki (1)           identical within 0.3% (auto never picks 32x32 there)
+//    cfg3 alone beats cfg2 (forced, 1 launch): small256 0.0432 vs 0.0455 ms, mix 190 vs 135
+//    TOPS, 8192^3 211 vs 162 TOPS -- but in auto the 32x32 tiles are a minority, and moving them
+//    to a 2nd serialized kernel loses the tail filling they do inside the main kernel and adds a
+//    launch, which outweighs the faster tile at both kp<=512 and kp=4096. cfg3 remains available
+//    by explicit tile_cfg = 3 (or i8_set_auto_splitk_min_kp). Possible future rule (unmeasured in
+//    auto mode): use cfg3 only when ALL tiles of a call are 32x32 (still 1 launch).
+//    Noise reference from the same job: cfg0 vs round-1 binary (identical SASS) differs <=0.2% on
+//    grouped sets and up to 2.1% on single-GEMM sets; auto vs auto-sk on single 4096 (identical
+//    schedule) differs up to 5%, so single-GEMM rows need >5% to be meaningful.
 //    k32-steps beyond kp inside a BK tile are skipped (CTA-uniform branch), so the deep BK of
 //    small configs does not waste MMAs when kp is small.
 //    48 KB smem + <=128 regs -> 2 CTAs/SM on both sm_90 (228 KB smem) and sm_120 (~100 KB smem).

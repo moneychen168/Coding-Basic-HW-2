@@ -99,3 +99,7 @@ int oz2_read_counters(oz2_counters* out, int reset, cudaStream_t s);
 int oz2_nonfinite_count(int* count, int reset, cudaStream_t s);  // nonfinite_vectors only
 // Legacy form (kept for ggemm.cu): nonfinite <- nonfinite_vectors, repaired <- repaired (ON mode).
 int oz2_read_counters(int* nonfinite, unsigned long long* repaired, int reset, cudaStream_t s);
+
+// Testing hook: force the prep split-K factor (1..64; 0 = automatic).  Results are bit-identical
+// for every split factor; used by tests to verify exactly that.
+void oz2_debug_force_prep_split(int S);

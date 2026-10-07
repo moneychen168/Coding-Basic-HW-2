@@ -32,7 +32,7 @@ static inline double app_gamma(long long n) {   // n u / (1 - n u), u = 2^-53
 // Same per-path config convention as bench/bench_grouped.cu: adaptive moduli, FP64-level
 // target, fallback only for the planner path.
 static inline ggemm_config_t app_cfg(ggemm_path_t p, int num_moduli) {
-  ggemm_config_t c; c.num_moduli = num_moduli; c.target_rel_err = 1e-15;
+  ggemm_config_t c; memset(&c, 0, sizeof c); c.num_moduli = num_moduli; c.target_rel_err = 1e-15;
   c.allow_fallback = (p == GGEMM_PATH_AUTO) ? 1 : 0; return c;
 }
 static inline std::string app_gpu_name() {

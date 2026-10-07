@@ -77,11 +77,22 @@ ggemm_destroy(h);
 Config: `num_moduli` = 0 for adaptive N per problem, otherwise fixed N in
 [2, GGEMM_MAX_MODULI = 20]. `target_rel_err` is used when `num_moduli == 0`
 (default 1e-15). `allow_fallback = 1` routes unsafe or unprofitable problems to native FP64
-and reports the count in `stats.num_fallback`.
+and reports the count in `stats.num_fallback`. `repair_mode` selects the certificate behavior
+(see Repair mode); 0 / omitted = path default.
+
+`ggemm_create_ex(..., min_k)` is `ggemm_create` plus the smallest k of any emulated problem the
+handle will see (`ggemm_create` assumes 32). Residues are stored with `Kp = round_up(k, 32)`, so
+for k < 32 the residue workspace inflates; size the handle with the right `min_k`, otherwise a
+call returns `GGEMM_ERR_WORKSPACE` and prints one diagnostic line on stderr.
+
+Problems with `alpha == 0` (planner route `GGEMM_ROUTE_ALPHA_ZERO`) are always sent to cuBLAS to
+compute `beta*C`, on every emulation path. `GGEMM_PATH_NATIVE_GROUPED` merges problems of
+identical shape into one group.
 
 Stats (`ggemm_stats_t`): `num_problems`, `num_fallback`, `kernel_launches`,
 `moduli_min/max`, and the operand-reuse fields `reuse_enabled`, `num_unique_A`,
-`num_unique_B`, `num_promoted`, plus `num_repaired` (see Repair mode).
+`num_unique_B`, `num_promoted`, plus `num_repaired`, `num_uncertified`, `num_safety_fallback` (see Repair mode;
+each is -1 unless `GGEMM_STATS_REPAIR=1`).
 
 Error codes (internal, `GGEMM_ERR_*`, returned as nonzero ints): INVALID (bad args, null handle,
 `num_problems > max_problems`), WORKSPACE (call exceeds what `ggemm_create` sized), UNSAFE
@@ -134,27 +145,37 @@ Read at `ggemm_create` (planner / handle) unless noted.
 
 | Variable | Meaning |
 |---|---|
-| `GGEMM_CALIB_JSON` | path to a calibration JSON (`f64_peak_flops`, `i8_peak_ops`, `mem_bw_*` scalars, written by `bench/calib/fit.py`). If unset, the planner loads `bench/calib/params_<gpu_slug>.json` (slug = non-alphanumeric runs to `_`, lower-case, e.g. `nvidia_h200`); if that is missing, nominal built-in defaults. `scripts/env.sh: select_calib` logs the choice into `<out>/calib.txt`. |
+| `GGEMM_CALIB_JSON` | path to a calibration JSON (`f64_peak_flops`, `i8_peak_ops`, `mem_bw_*` scalars, written by `bench/calib/fit.py`). If unset, the planner loads `bench/calib/params_<gpu_slug>.json` (slug = non-alphanumeric runs to `_`, lower-case, e.g. `nvidia_h200`); if that is missing, nominal built-in defaults. `scripts/env.sh: select_calib` logs the choice into `<out>/calib.txt`. The chosen source is also printed once on stderr as `[ggemm] calib=...`, and the loaded values are range-checked. |
 | `GGEMM_FP64_FLOPS`, `GGEMM_INT8_OPS`, `GGEMM_MEM_BW` | override the cost-model peaks (FP64 flop/s, INT8 op/s, memory bytes/s) for the planner; take precedence over the JSON. Positive numbers only. |
-| `GGEMM_TINY_MNK` | m*n*k threshold under which a problem is treated as tiny by the planner (default 32^3). |
+| `GGEMM_TINY_MNK` | m*n*k threshold under which a problem is treated as tiny by the planner (default 32^3); `0` disables the tiny route. |
+| `GGEMM_RHO_BUDGET` | planner budget for the cost-based decisions; the built-in default (16) is a placeholder and has **not been tuned**. |
 | `GGEMM_REUSE_PROMOTE` | `1` = path 5 shares operands regardless of N and promotes every problem to the max N of its connected component (more sharing, more moduli for some problems; counted in `stats.num_promoted`). Default `0` = share only between problems with equal N. |
-| `GGEMM_STATS_REPAIR` | `1` = fill `stats.num_repaired` (reads a device counter, **synchronizes the stream**; keep off in timed regions). Otherwise `num_repaired = -1`. |
+| `GGEMM_STATS_REPAIR` | `1` = fill `stats.num_repaired`, `num_uncertified`, `num_safety_fallback` (reads device counters, **synchronizes the stream**; keep off in timed regions). Otherwise they are -1. |
 | `GGEMM_NVTX` | **compile-time macro**, not an env var: `-DGGEMM_NVTX=0` compiles NVTX ranges out. Default on. |
 
 Job-script knobs (not library variables): `SKIP_BUILD`, `TEST_SET`, `BENCH_SET`, `PATHS`, `PHIS`,
 `REPS`, `WARMUP`, `ONLY`, `ACC`, `SANITIZE`, `ARCHS`, `BUILD_DIR`; see the header of each script.
 
-## Repair mode (in progress)
+## Repair mode
 
-The reconstruct kernel always certifies entries and recomputes uncertified ones in FP64
-(this is what makes the emulated result safe for wide dynamic range). Today
-`ggemm_stats_t.num_repaired` reports how many entries were repaired, only when
-`GGEMM_STATS_REPAIR=1`.
+`ggemm_config_t.repair_mode` controls the componentwise FP64 certificate in the reconstruct
+kernel (values in `include/ggemm.h`):
 
-A selectable repair mode **OFF / COUNT / ON** is being implemented (agent-N); it is not in
-`include/ggemm.h` yet. Intended meaning: OFF = skip the repair pass, COUNT = only count entries
-that would need repair, ON = repair (current behavior). Fields, names and defaults will follow the
-header once it lands; until then rely on the header, not on this paragraph.
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `GGEMM_REPAIR_DEFAULT` | path default: `AUTO` uses ON; the other EMU paths (LOOP, LOOP_BATCHED, GROUPED, GROUPED_REUSE) use COUNT |
+| 1 | `GGEMM_REPAIR_OFF` | no certificate |
+| 2 | `GGEMM_REPAIR_COUNT` | certificate is evaluated and failures are counted (`num_uncertified`); the emulated value is kept |
+| 3 | `GGEMM_REPAIR_ON` | entries failing the certificate are recomputed as FP64 dot products (`num_repaired`) |
+
+In every mode, entries whose inputs contain NaN/Inf take the safety fallback (computed in FP64;
+counted in `num_safety_fallback`).
+
+Relation to the assignment rules: native FP64 is forbidden in the timed path, but a safety
+fallback is required. The design therefore keeps the safety fallback unconditional (NaN/Inf), while
+the certificate-driven FP64 repair is a mode: the EMU paths default to COUNT (pure emulation in the
+timed region, with uncertified entries reported rather than silently hidden), and only `AUTO`
+repairs by default. Use `GGEMM_STATS_REPAIR=1` to read the counters (synchronizes the stream).
 
 ## Known limitations (v1)
 
@@ -163,7 +184,8 @@ header once it lands; until then rely on the header, not on this paragraph.
   `OZ2_MAX_K`); larger K falls back to native FP64 (`allow_fallback = 1`) or returns an error.
 - `oz2_prep_grouped` handles at most 65535 emulated problems per call (`num <= 65535`); the
   graph path rejects more with `GGEMM_ERR_INVALID`.
-- Plan/execute (CUDA Graph) does not do operand reuse; plan only for paths 3 and 4; destroy
+- Plan/execute (CUDA Graph) does not merge same-shape problems in its native fallback (the eager
+  `NATIVE_GROUPED` path does); it also does not do operand reuse; plan only for paths 3 and 4; destroy
   plans before the handle.
 - Multi-GPU: the CRT constant tables are uploaded (`oz2_init_constants`) only to the device that
   is current when the handle is created; a handle must be created and used on that one device.
@@ -171,9 +193,12 @@ header once it lands; until then rely on the header, not on this paragraph.
   A/B/C element bounds return a nonzero error code; there is no allocation fallback.
 - Descriptor array must be on the host; data pointers must be device pointers.
 - Accuracy is controlled by N (moduli count, at most 20) and the input dynamic range;
-  uncertified entries are repaired in FP64, so very wide dynamic range costs speed, not
+  with repair ON, uncertified entries are repaired in FP64, so very wide dynamic range costs speed, not
   correctness (quantification: see docs/report.md, TODO).
 - Small or unprofitable problems may be routed to native FP64 by the planner.
+- INT8 split-K (tile config 3) is off by default; enable it with `i8_set_auto_splitk_min_kp`.
+  When enabled, `EMU_GROUPED` can issue 4 launches instead of the usual count.
+- `GGEMM_RHO_BUDGET` default is untuned.
 - Single stream per handle; handles and plans are not thread-safe.
 - Only FP64 real GEMM; no FP32 / complex types.
 
@@ -186,12 +211,15 @@ outputs land in `results/<kind>_<jobid>/` with provenance and calibration logs.
 sbatch scripts/run_tests.slurm      # correctness vs high-precision reference, edge cases, compute-sanitizer
 sbatch scripts/run_bench.slurm      # timing of all paths on the workload families + accuracy sweep + plots
 sbatch scripts/profile.slurm        # nsys / ncu profiling
-sbatch scripts/i8_ablation.slurm    # INT8 grouped GEMM kernel ablation (also i8_cfg2.slurm, run_i8_unit.slurm)
+sbatch scripts/sanitize.slurm       # compute-sanitizer runs
+sbatch scripts/repair_sweep.slurm   # repair-mode sweep (plot with scripts/plot_repair.py)
+sbatch scripts/final/run_final.slurm  # final benchmark run; aggregate with scripts/final/aggregate.py
+sbatch scripts/i8_ablation.slurm    # INT8 grouped GEMM kernel ablation (also i8_cfg2.slurm, i8_cfg2sep.slurm, run_i8_unit.slurm)
 sbatch bench/app/run_app.slurm      # application benchmarks: MoE FFN, block-sparse (FP64)
 ```
 
 Binaries: `test_grouped`, `bench_grouped` (and `test_graph`, `test_i8_grouped`,
-`test_operand_reuse`, `test_reuse_e2e`, `test_numerics_standalone`).
+`test_operand_reuse` (renamed source: `tests/test_operand_reuse.cu`), `test_reuse_e2e`, `test_numerics_standalone`).
 Workload families: uniform small, MoE (shared n,k; varying m), random hetero, LoRA (low rank).
 
 Post-processing (CPU only, `scripts/analysis/`, run inside a job like everything else):

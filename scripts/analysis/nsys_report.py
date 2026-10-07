@@ -37,6 +37,7 @@ Per-call metrics (median over the timed calls of each path)
 Outputs (in -o): nsys_summary_<label>.md / .csv, nsys_timeline_<label>.png (if matplotlib).
 """
 import argparse
+import bisect
 import csv
 import glob
 import os
@@ -175,16 +176,44 @@ def windows_from_nvtx(nvtx):
     return calls
 
 
-def nvtx_stage(nvtx, tid, t):
-    best, bestlen = None, None
+def _stage_of_range(name):
+    if _RE_PATH_RANGE.search(name):
+        return None
+    for rx, st in _NVTX_STAGE:
+        if rx.search(name):
+            return st
+    return None
+
+
+def nvtx_stage_sweep(nvtx, launches):
+    """Innermost NVTX stage range enclosing each launch time. launches: [(t, tid, op)] sorted by t.
+    Push/pop ranges are nested per thread, so a per-thread stack sweep is exact and O(n log n)."""
+    out = {}
+    by_tid = {}
     for r in nvtx:
-        if r["tid"] == tid and r["start"] <= t <= r["end"]:
-            for rx, st in _NVTX_STAGE:
-                if rx.search(r["name"]) and not _RE_PATH_RANGE.search(r["name"]):
-                    ln = r["end"] - r["start"]
-                    if bestlen is None or ln < bestlen:
-                        best, bestlen = st, ln
-    return best
+        st = _stage_of_range(r["name"])
+        if st:
+            by_tid.setdefault(r["tid"], []).append((r["start"], r["end"], st))
+    for tid in by_tid:
+        by_tid[tid].sort()
+    idx = {tid: 0 for tid in by_tid}
+    stack = {tid: [] for tid in by_tid}
+    for (t, tid, o) in launches:
+        rs = by_tid.get(tid)
+        if not rs:
+            continue
+        i, stk = idx[tid], stack[tid]
+        while i < len(rs) and rs[i][0] <= t:
+            stk.append(rs[i])
+            i += 1
+        idx[tid] = i
+        while stk and stk[-1][1] < t:      # innermost first; ranges are nested
+            stk.pop()
+        live = [r for r in stk if r[1] >= t]
+        stack[tid] = live
+        if live:
+            out[id(o)] = live[-1][2]
+    return out
 
 
 # ---------------------------------------------------------------- analysis
@@ -199,18 +228,35 @@ def analyze(ops, apis, nvtx, paths):
             continue
         ops_launch.append((a["start"], a["tid"], o))
     ops_launch.sort(key=lambda x: x[0])
+    if use_nvtx:
+        st_map = nvtx_stage_sweep(nvtx, ops_launch)
+        for (_, _, o) in ops_launch:
+            st = st_map.get(id(o))
+            if st and o["stage"] in ("other", "memops", st):
+                o["stage"] = st
+    by_tid_ops, by_tid_api = {}, {}
+    for x in ops_launch:
+        by_tid_ops.setdefault(x[1], []).append(x)
+    for a in apis:
+        by_tid_api.setdefault(a["tid"], []).append(a)
+    t_ops = {k: [x[0] for x in v] for k, v in by_tid_ops.items()}
+    t_api = {k: [a["start"] for a in v] for k, v in by_tid_api.items()}
+    # host time inside NVTX "plan" ranges (CPU-only planning / descriptor packing)
+    plan_r = sorted((r["start"], r["end"], r["tid"]) for r in nvtx if r["name"].split(":")[-1].strip() == "plan")
+    plan_t = [r[0] for r in plan_r]
     for c in calls:
-        mine = [o for (t, tid, o) in ops_launch if tid == c["tid"] and c["t0"] <= t <= c["t1"]]
-        if use_nvtx:
-            for (t, tid, o) in ops_launch:
-                if tid == c["tid"] and c["t0"] <= t <= c["t1"]:
-                    st = nvtx_stage(nvtx, tid, t)
-                    if st and o["stage"] in ("other", "memops", st):
-                        o["stage"] = st
+        tid = c["tid"]
+        lo = bisect.bisect_left(t_ops.get(tid, []), c["t0"])
+        hi = bisect.bisect_right(t_ops.get(tid, []), c["t1"])
+        mine = [x[2] for x in by_tid_ops.get(tid, [])[lo:hi]]
         c["ops"] = mine
-        c["host_api_ns"] = sum(a["end"] - a["start"] for a in apis
-                               if a["tid"] == c["tid"] and c["t0"] <= a["start"] and a["end"] <= c["t1"])
+        lo = bisect.bisect_left(t_api.get(tid, []), c["t0"])
+        hi = bisect.bisect_right(t_api.get(tid, []), c["t1"])
+        c["host_api_ns"] = sum(a["end"] - a["start"] for a in by_tid_api.get(tid, [])[lo:hi] if a["end"] <= c["t1"])
         c["host_ns"] = c["t1"] - c["t0"]
+        lo = bisect.bisect_left(plan_t, c["t0"])
+        hi = bisect.bisect_right(plan_t, c["t1"])
+        c["plan_ns"] = sum(e - s for (s, e, t) in plan_r[lo:hi] if t == tid and e <= c["t1"])
         if mine:
             s0, s1 = min(o["start"] for o in mine), max(o["end"] for o in mine)
             c["span_ns"] = s1 - s0
@@ -231,7 +277,7 @@ def summarize(calls):
     for p in order:
         cs = [c for c in calls if c["path"] == p]
         r = {"path": p, "calls": len(cs)}
-        for k in ("kernels", "memops", "span_ns", "busy_ns", "gap_ns", "host_api_ns", "host_ns"):
+        for k in ("kernels", "memops", "span_ns", "busy_ns", "gap_ns", "host_api_ns", "host_ns", "plan_ns"):
             r[k] = median([c[k] for c in cs])
         for s in STAGE_ORDER:
             r[s + "_ns"] = median([c["stage_ns"][s] for c in cs])
@@ -253,12 +299,12 @@ def summarize(calls):
 def write_outputs(rows, warn, use_nvtx, api_sum, out, label):
     us = lambda ns: ns / 1e3  # noqa: E731
     hdr = ["path", "timed calls", "kernels/call", "memops/call", "GPU span (us)", "GPU busy (us)", "launch gaps (us)",
-           "gap % of span", "host API (us)", "host total (us)"] + [STAGE_LABEL[s] + " %" for s in STAGE_ORDER]
+           "gap % of span", "host API (us)", "host plan (us)", "host total (us)"] + [STAGE_LABEL[s] + " %" for s in STAGE_ORDER]
     tab = []
     for r in rows:
         gp = 100.0 * r["gap_ns"] / r["span_ns"] if r["span_ns"] > 0 else float("nan")
         tab.append([r["path"], r["calls"], fmt(r["kernels"], 0), fmt(r["memops"], 0), fmt(us(r["span_ns"]), 1),
-                    fmt(us(r["busy_ns"]), 1), fmt(us(r["gap_ns"]), 1), fmt(gp, 1), fmt(us(r["host_api_ns"]), 1),
+                    fmt(us(r["busy_ns"]), 1), fmt(us(r["gap_ns"]), 1), fmt(gp, 1), fmt(us(r["host_api_ns"]), 1), fmt(us(r["plan_ns"]), 1),
                     fmt(us(r["host_ns"]), 1)] + [fmt(r[s + "_pct"], 1) for s in STAGE_ORDER])
     md = [f"# nsys summary: {label}\n",
           f"Call detection: {'NVTX ranges ggemm:<path>' if use_nvtx else 'bench e0/e1 event brackets (no NVTX)'}; "
@@ -278,7 +324,7 @@ def write_outputs(rows, warn, use_nvtx, api_sum, out, label):
     with open(p_md, "w") as f:
         f.write("".join(md))
     p_csv = os.path.join(out, f"nsys_summary_{label}.csv")
-    keys = ["path", "calls", "kernels", "memops", "span_ns", "busy_ns", "gap_ns", "host_api_ns", "host_ns"] + \
+    keys = ["path", "calls", "kernels", "memops", "span_ns", "busy_ns", "gap_ns", "host_api_ns", "plan_ns", "host_ns"] + \
            [s + "_ns" for s in STAGE_ORDER] + [s + "_pct" for s in STAGE_ORDER]
     with open(p_csv, "w", newline="") as f:
         w = csv.writer(f)
@@ -306,7 +352,8 @@ def plot_timeline(rows, out, label):
         for s in STAGE_ORDER:
             bars = [((o["start"] - t0) / 1e3, max((o["end"] - o["start"]) / 1e3, 1e-3)) for o in ops if o["stage"] == s]
             if bars:
-                ax.broken_barh(bars, (0, 1), facecolors=STAGE_COLOR[s], edgecolor="white", linewidth=0.3)
+                ax.broken_barh(bars, (0, 1), facecolors=STAGE_COLOR[s],   # no white edge when dense
+                              edgecolor="white" if len(ops) <= 200 else "none", linewidth=0.3 if len(ops) <= 200 else 0)
         span = (max(o["end"] for o in ops) - t0) / 1e3
         ax.set_xlim(0, span * 1.01 if span > 0 else 1)
         ax.set_yticks([0.5])

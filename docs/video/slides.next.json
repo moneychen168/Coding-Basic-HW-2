@@ -52,22 +52,22 @@
     "未通過的 entry：FP64 repair",
     "phi=2 N=15：COUNT 未認證 899；ON 修復 899，gate 5.919→0.287",
     "OFF 與 COUNT bitwise 相同；numerics 全數 PASSED",
-    "規則爭議：EMU 預設 COUNT，只有 AUTO 用 ON；實作中"
+    "規則處理：EMU 系列預設 COUNT（計時路徑無 FP64 dot），只有 AUTO 用 ON"
    ],
    "foot": "job 511009（numerics log）",
-   "narr": "正確性方面，我們改用 certify-and-repair。先用 abs plane 下界，加上逐 entry 的嚴格誤差界做認證，沒通過的 entry 用 FP64 repair。以 phi 等於 2、N 等於 15 的案例為例，OFF 與 COUNT 的 gate 都是 5.919，COUNT 找出 899 個未認證 entry，ON 修復這 899 個後 gate 降到 0.287，且 OFF 與 COUNT 逐位元相同。規則爭議的處理是：EMU 系列預設 COUNT，只有 AUTO 用 ON。這部分仍在實作中，我們照實報告。"
+   "narr": "正確性方面，我們改用 certify-and-repair。先用 abs plane 下界，加上逐 entry 的嚴格誤差界做認證，沒通過的 entry 用 FP64 repair。以 phi 等於 2、N 等於 15 的案例為例，OFF 與 COUNT 的 gate 都是 5.919，COUNT 找出 899 個未認證 entry，ON 修復這 899 個後 gate 降到 0.287，且 OFF 與 COUNT 逐位元相同。規則爭議的處理是：EMU 系列預設 COUNT，只有 AUTO 用 ON。這個切換已經實作完成，計時中的 emulation 路徑不做任何 FP64 dot。"
   },
   {
-   "title": "測試結果",
+   "title": "測試結果（commit da18425）",
    "bullets": [
-    "2487 項通過、1 項失敗",
-    "唯一失敗：測試端檢查 bug（零維度案例 auto 模數範圍 [0,0]）",
-    "phi=2 資料全部通過（目前 repair 預設 ON）",
-    "CUDA Graph plan/execute：63/63 通過",
-    "graph 與 direct 執行 bit-exact"
+    "完整正確性測試：2955 項通過、0 項失敗",
+    "EMU 系列用 COUNT：certificate 不可漏報；AUTO 用 ON：全部過 γ_n 門檻",
+    "CUDA Graph plan/execute：63/63，與直接呼叫 bit-exact",
+    "operand reuse：30/30（EXACT_N 與 PROMOTE）",
+    "planner 單元測試 1607/1607；數值單元測試 PASSED"
    ],
-   "foot": "job 510997（tests.log）；job 510998（test_graph）",
-   "narr": "完整測試是 2487 項通過、1 項失敗。唯一的失敗是測試端的檢查有 bug：它要求零維度混合案例的 auto 路徑模數範圍至少為 2，但 auto 在此情況本來就 fallback，範圍是 0 到 0。phi 等於 2 的資料全部通過，不過要說明，這是在目前 repair 預設開啟的情況下。CUDA Graph 的 plan 與 execute 測試 63 項全部通過，每項都是 bit-exact。"
+   "foot": "job 511059（tests）、511060（graph/reuse/numerics）、511063（planner）",
+   "narr": "整合完的版本，在 commit da18425 上重新跑了全部測試。完整正確性測試 2955 項全部通過，零失敗。這一版的門檻分兩種：純 emulation 路徑用 COUNT 模式，要求誤差超標的元素一定被 certificate 抓到，不能漏報；AUTO 用 ON 模式，所有元素都必須落在 FP64 的誤差界內。CUDA Graph 的六十三項、operand reuse 的三十項、planner 單元測試一千六百零七項，以及數值單元測試，也都全部通過。"
   },
   {
    "title": "效能：EMU_LOOP_BATCHED → EMU_GROUPED",
@@ -130,10 +130,10 @@
     "結構性擾動，改回 r1 kernel",
     "r1：random 443、ozaki 544、8k 592、k16k 608 TOPS",
     "auto 439 TOPS；small256 auto 0.0237 ms",
-    "split-K：cfg2 +37–53%、cfg0 −3–5%，預設關閉"
+    "split-K：同 kernel 時 cfg0 −3–5%；拆成第二個 kernel 時 small256 慢 31%、mix 慢 3% → 預設關閉"
    ],
-   "foot": "job 510965（i8abl）；510989（i8unit）；511001（i8cfg2）",
-   "narr": "第三項是 INT8 kernel 的 ablation，結果是負面的。第二輪修改後整體退步約百分之十，連 revert all 都回不到第一輪 r1，代表是結構性擾動，所以改回 r1。r1 的實測：random 443、ozaki 544、8192 立方 592、k 等於 16384 是 608 TOPS；auto 為 439 TOPS，小問題 auto 只要 0.0237 毫秒。另外 split-K 讓 cfg2 提升 37 到 53 百分比，但 cfg0 下降 3 到 5 百分比，所以預設關閉。作業接受負面結果，我們如實記錄。"
+   "foot": "job 510965（i8abl）；510989（i8unit）；511001、511054（split-K）",
+   "narr": "第三項是 INT8 kernel 的 ablation，結果是負面的。第二輪修改後整體退步約百分之十，連 revert all 都回不到第一輪 r1，代表是結構性擾動，所以改回 r1。r1 的實測：random 443、ozaki 544、8192 立方 592、k 等於 16384 是 608 TOPS；auto 為 439 TOPS，小問題 auto 只要 0.0237 毫秒。另外 split-K 讓 cfg2 提升 37 到 53 百分比，但 cfg0 下降 3 到 5 百分比，所以預設關閉。作業接受負面結果，我們如實記錄。 我們也試過把 split-K 拆成獨立的第二個 kernel，雖然單看小 tile 會變快，但多一次 launch 加上 tail 效應，讓小問題整體慢了 31%，所以維持預設關閉。"
   },
   {
    "title": "對 native 的誠實結論",
@@ -150,7 +150,7 @@
   {
    "title": "後續計畫與 AI 使用聲明",
    "bullets": [
-    "完成 COUNT/ON 規則處理",
+    "量測 repair 比例與成本、調 rho_budget",
     "新 quick bench、端到端應用：結果待補",
     "profiling 證據：nsys launch gap、ncu tensor pipe",
     "補完報告與 README，10/14 交件",
@@ -158,5 +158,6 @@
    ],
    "narr": "後續計畫：第一，完成 COUNT 與 ON 規則處理的實作。第二，補上新的 quick bench 與端到端應用結果。第三，補 nsys 與 ncu 的 profiling 證據，完成報告與 README，十月十四日交件。AI 使用聲明：本專案使用 Claude Code 多 agent 輔助實作，報告中所有數字都來自實測 job。謝謝。"
   }
- ]
+ ],
+ "rate": "+10%"
 }
