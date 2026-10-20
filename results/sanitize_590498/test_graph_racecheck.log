@@ -1,0 +1,32 @@
+========= COMPUTE-SANITIZER
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200 (sm_90)  reps=1  (small: no timing)
+
+workload                         path         variant launch | host_issue_us    wall_us     gpu_us     lat_us | make_plan_ms
+[tiny8x(32,32,64) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+[tiny8x(32,32,64) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=8, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+[moe4(m~U[16,96],n=64,k=128) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+[moe4(m~U[16,96],n=64,k=128) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=4, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+[mixed6(+empty,+k0) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=4 graph=4, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+[mixed6(+empty,+k0) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=4, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+
+test_graph: 45 passed, 0 failed
+========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)

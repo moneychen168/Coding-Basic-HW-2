@@ -17,7 +17,7 @@
    - planner 的 per-call shape memo 修掉了 AUTO 全部 fallback 時的開銷 regression。例如 uni_G4096_s32 從 0.738 ms（590147）降到 0.2944 ms（590258），同列 native_grouped 是 0.2697 ms。
    - reconstruct 的計數器改成 warp + block 聚合後，repair sweep 的計數結果完全不變，時間 geomean 變成原來的 0.959 倍。
 5. **計時區沒有 host 配置**：590258 的 `bench.csv` 中 308 列的 `host_allocs_timed` 全部是 0。
-6. **正確性**：`test_grouped` 2955 passed / 0 failed（job 590256、590258，commit 1c39e40）；compute-sanitizer 在 job 590161 全部 0 errors。
+6. **正確性**：`test_grouped` 2955 passed / 0 failed（job 590256、590258，commit 1c39e40）；compute-sanitizer 在最終程式碼上（job 590498，commit a6b337d，`src/` 與 1c39e40 相同）四種工具全部 0 errors。
 
 §10 列出全部的負面結果。
 
@@ -253,7 +253,7 @@ job 590258 的 `bench` set 共 44 個 workload（`shapes.csv`：uniform 14、MoE
 | 測試 | 結果 | 來源 |
 |---|---|---|
 | test_grouped（7 條路徑 × test set × 4 種 φ × α/β 組合 + edge + big-K） | **2955 passed / 0 failed** | **job 590256 與 590258（commit 1c39e40）**；較早的 511249（b56631d）、590147、590162 也都是 2955/0 |
-| test_grouped 在 memcheck 下（縮小版） | 312 passed / 0 failed，`ERROR SUMMARY: 0 errors`，leak 0 bytes | job 511249 `test_511249/memcheck.log`；四種 sanitizer 工具的全面重跑見 §10.3（job 590161） |
+| test_grouped 在 memcheck 下（縮小版） | 312 passed / 0 failed，`ERROR SUMMARY: 0 errors`，leak 0 bytes | job 511249 `test_511249/memcheck.log`；四種 sanitizer 工具的全面重跑見 §10.3（job 590161、590498） |
 | test_graph（plan 和 direct bit-exact、換 stream、update_pointers） | **63 / 0** | job 590258（早先的 510998、511060、590147 也是 63/63） |
 | test_reuse_e2e（REUSE 和 GROUPED bit-exact） | **54 / 0** | job 590258；舊版（590147）是 30/0；job 511060 另含 PROMOTE |
 | test_planner（含 memo 與非 memo 的逐 entry 比對） | **1655 / 0** | job 590223（a48eb3e）；舊版 511063 是 1607/0 |
@@ -775,7 +775,7 @@ job 511062 回報的問題都出在測試程式或摘要腳本，不是 library 
 | test_i8_grouped | 0 | 0 | 0 | 0 | — |
 | test_operand_reuse | n/a（host-only） | n/a | n/a | n/a | 0 |
 
-四個 GPU 測試程式在四種 sanitizer 工具下都是 0 errors。這次 sanitizer 跑的是 b56631d 的 `src/`；之後 a48eb3e 與 1c39e40 改過 src，**正式版本 1c39e40 沒有重跑 sanitizer**，只重跑了正確性測試（590256、590258，2955/0）。
+四個 GPU 測試程式在四種 sanitizer 工具下都是 0 errors。590161 跑的是 b56631d 的 `src/`；之後 a48eb3e 與 1c39e40 改過 src，因此在最終程式碼上再跑一次：job 590498（commit a6b337d，`src/` 與 1c39e40 相同，dirty=4 只有文件），結果相同——四個 GPU 測試在 memcheck／racecheck／initcheck／synccheck 全部 0 errors，test_operand_reuse 為 host-only（n/a），直接執行 0 錯（`results/sanitize_590498/summary.md`）。
 
 ### 10.4 Operand reuse 的增益沒有被證明
 - 正式版 bench（590258）中有 27/44 列 reuse 比 emu_grouped 慢，geomean 慢 4.2%（§7.4）。例如 uni_G4096_s64 是 8.031 對 7.041 ms，lora_G64_rmix_expand 是 3.089 對 2.385 ms。
@@ -892,7 +892,7 @@ sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i
 - **正式版本是 commit 1c39e40，job 590258**（`results/final_590258/`，35 步全部 PASS），以 `sbatch scripts/final/run_final.slurm` 產生。
 - 修正前後的對照用：job 590147（b56631d，修正前）、590224（a48eb3e，只加 shape memo）（§9.6）。
 - repair sweep 是 590257（1c39e40），對照 590148（b56631d）。
-- 測試是 590256（1c39e40），planner 單元測試是 590223（a48eb3e），sanitizer 是 590161（b56631d，dirty=8，只修改了 tests／scripts）。**注意**：sanitizer 跑的是 b56631d 的 `src/`；a48eb3e（planner）與 1c39e40（計數器聚合）的 src 修改之後**沒有重跑 sanitizer**（§10.3）。
+- 測試是 590256（1c39e40），planner 單元測試是 590223（a48eb3e），sanitizer 是 590161（b56631d，dirty=8，只修改了 tests／scripts）。之後在最終程式碼上重跑 sanitizer：job 590498（commit a6b337d，`src/` 與 1c39e40 相同），四個 GPU 測試在 memcheck／racecheck／initcheck／synccheck 全部 0，test_operand_reuse 為 host-only（n/a），直接執行 0 錯（§10.3）。
 
 ---
 
@@ -909,6 +909,7 @@ sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i
 | 590148 | repair sweep（修正前，對照用） | b56631d (0) | §5.3、§9.6 | `results/repair_590148/` |
 | 590162 | test_grouped 重跑 | b56631d (8，只動 tests／scripts) | §5.2 | `results/test_590162/` |
 | 590161 | sanitizer 重跑 | b56631d (8，只動 tests／scripts) | §10.3 | `results/sanitize_590161/summary.md` |
+| 590498 | sanitizer（最終程式碼） | a6b337d (4，只有文件) | §10.3 | `results/sanitize_590498/summary.md` |
 | 511249 | test_grouped + memcheck | b56631d (0) | §2.2、§5.2、§5.3 | `results/slurm-ggemm-test-511249.out`、`test_511249/` |
 | 511101 | numerics perf | 檔中未記錄 | §5.3 | `results/numerics_perf_511101.log` |
 | 511065 | quick bench | da18425 (1) | §10.1、§10.4 | `results/bench_511065/bench.csv` |

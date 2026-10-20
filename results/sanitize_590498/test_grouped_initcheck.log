@@ -1,0 +1,89 @@
+========= COMPUTE-SANITIZER
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200 (sm_90)
+[edge cases]
+  ok    native_loop       edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=2.076e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    native_grouped    edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=2.076e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=18 moduli=[15,15]
+  ok    emu_grouped       edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=2.076e-13  fallback=1 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    emu_loop_batched  edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    native_loop       edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=1 moduli=[0,0]
+  ok    native_grouped    edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=1 repaired=0 gate=cert  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=17 moduli=[14,14]
+  ok    emu_grouped       edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=1 repaired=0 gate=cert  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=3 moduli=[14,14]
+  ok    auto              edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=4.659e-17  fallback=1 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=1 repaired=0 gate=cert  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=3 moduli=[14,14]
+  ok    emu_loop_batched  edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  over_gamma=0 uncert=1 repaired=0 gate=cert  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=3 moduli=[14,14]
+  ok    native_loop       edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=1.113e-13  fallback=0 launches=2 moduli=[0,0]
+  ok    native_grouped    edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=1.113e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=19 moduli=[15,15]
+  ok    emu_grouped       edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=4 moduli=[15,15]
+  ok    auto              edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.113e-13  fallback=1 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=4 moduli=[15,15]
+  ok    emu_loop_batched  edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=4 moduli=[15,15]
+  ok    native_loop       edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    native_grouped    edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_loop          edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_grouped       edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    auto              edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_grouped_reuse edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_loop_batched  edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    native_loop       edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=1.147e-13  fallback=0 launches=2 moduli=[0,0]
+  ok    native_grouped    edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=1.147e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          edge/beta0_nanC err_cw=2.291e-15  err/gamma=4.127e+00  over_gamma=6 uncert=419 repaired=0 gate=cert  vs_native=    3.86  rel_max=2.498e-14  fallback=0 launches=35 moduli=[14,15]
+  ok    emu_grouped       edge/beta0_nanC err_cw=2.291e-15  err/gamma=4.127e+00  over_gamma=6 uncert=419 repaired=0 gate=cert  vs_native=    3.86  rel_max=2.498e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.147e-13  fallback=2 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/beta0_nanC err_cw=2.291e-15  err/gamma=4.127e+00  over_gamma=6 uncert=419 repaired=0 gate=cert  vs_native=    3.86  rel_max=2.498e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    emu_loop_batched  edge/beta0_nanC err_cw=2.291e-15  err/gamma=4.127e+00  over_gamma=6 uncert=419 repaired=0 gate=cert  vs_native=    3.86  rel_max=2.498e-14  fallback=0 launches=6 moduli=[14,15]
+  ok    native_loop       edge/k_not_mult32 err_cw=4.703e-16  err/gamma=3.159e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=6.893e-13  fallback=0 launches=3 moduli=[0,0]
+  ok    native_grouped    edge/k_not_mult32 err_cw=4.703e-16  err/gamma=5.536e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=6.893e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          edge/k_not_mult32 err_cw=2.034e-16  err/gamma=6.106e-01  over_gamma=0 uncert=551 repaired=0 gate=cert  vs_native=   0.432  rel_max=4.080e-14  fallback=0 launches=53 moduli=[14,15]
+  ok    emu_grouped       edge/k_not_mult32 err_cw=2.034e-16  err/gamma=6.106e-01  over_gamma=0 uncert=551 repaired=0 gate=cert  vs_native=   0.432  rel_max=4.080e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              edge/k_not_mult32 err_cw=4.703e-16  err/gamma=5.536e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=6.893e-13  fallback=3 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/k_not_mult32 err_cw=2.034e-16  err/gamma=6.106e-01  over_gamma=0 uncert=551 repaired=0 gate=cert  vs_native=   0.432  rel_max=4.080e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    emu_loop_batched  edge/k_not_mult32 err_cw=2.034e-16  err/gamma=6.106e-01  over_gamma=0 uncert=551 repaired=0 gate=cert  vs_native=   0.432  rel_max=4.080e-14  fallback=0 launches=9 moduli=[14,15]
+  bigk AUTO fallback=3 err/gamma=1.885e-01
+  bigk emu_grouped allow_fallback=0 -> refused (rc=3), accepted
+  bigk auto allow_fallback=0 -> refused (rc=3), accepted
+  emu_grouped launches: G=16 -> 3, G=1024 -> 3
+[uni_G8_s16/phi0.5/a1_b0] G=8 max_k=16 flops=6.554e+04
+  ok    cublas_dgemm                   err_cw=2.802e-16  err/gamma=1.578e-01
+  ok    native_loop       uni_G8_s16/phi0.5/a1_b0 err_cw=2.802e-16  err/gamma=1.578e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=2.484e-14  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped    uni_G8_s16/phi0.5/a1_b0 err_cw=2.802e-16  err/gamma=1.578e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=2.484e-14  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          uni_G8_s16/phi0.5/a1_b0 err_cw=3.062e-16  err/gamma=1.724e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.09  rel_max=1.364e-13  fallback=0 launches=136 moduli=[14,14]
+  ok    emu_grouped       uni_G8_s16/phi0.5/a1_b0 err_cw=3.062e-16  err/gamma=1.724e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.09  rel_max=1.364e-13  fallback=0 launches=3 moduli=[14,14]
+  ok    auto              uni_G8_s16/phi0.5/a1_b0 err_cw=2.802e-16  err/gamma=1.578e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=2.484e-14  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G8_s16/phi0.5/a1_b0 err_cw=3.062e-16  err/gamma=1.724e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.09  rel_max=1.364e-13  fallback=0 launches=3 moduli=[14,14]
+  ok    emu_loop_batched  uni_G8_s16/phi0.5/a1_b0 err_cw=3.062e-16  err/gamma=1.724e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.09  rel_max=1.364e-13  fallback=0 launches=24 moduli=[14,14]
+[moe_E8_decode_z1.2_up/phi0.5/a1_b0] G=8 max_k=64 flops=9.830e+04
+  ok    cublas_dgemm                   err_cw=2.887e-16  err/gamma=4.063e-02
+  ok    native_loop       moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.887e-16  err/gamma=4.063e-02  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=5.730e-14  fallback=0 launches=4 moduli=[0,0]
+  ok    native_grouped    moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.887e-16  err/gamma=4.063e-02  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=3.810e-14  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=4.603e-17  err/gamma=6.478e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.159  rel_max=5.238e-15  fallback=0 launches=72 moduli=[15,15]
+  ok    emu_grouped       moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=4.603e-17  err/gamma=6.478e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.159  rel_max=5.238e-15  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.887e-16  err/gamma=4.063e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=3.810e-14  fallback=4 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=4.603e-17  err/gamma=6.478e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.159  rel_max=5.238e-15  fallback=0 launches=3 moduli=[15,15]
+  ok    emu_loop_batched  moe_E8_decode_z1.2_up/phi0.5/a1_b0 err_cw=4.603e-17  err/gamma=6.478e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.159  rel_max=5.238e-15  fallback=0 launches=12 moduli=[15,15]
+[moe_E8_decode_z1.2_down/phi0.5/a1_b0] G=8 max_k=96 flops=9.830e+04
+  ok    cublas_dgemm                   err_cw=2.795e-16  err/gamma=2.623e-02
+  ok    native_loop       moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=2.795e-16  err/gamma=2.623e-02  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=9.685e-14  fallback=0 launches=4 moduli=[0,0]
+  ok    native_grouped    moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=2.795e-16  err/gamma=2.623e-02  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=9.685e-14  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=4.399e-17  err/gamma=4.127e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.157  rel_max=2.127e-14  fallback=0 launches=72 moduli=[15,15]
+  ok    emu_grouped       moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=4.399e-17  err/gamma=4.127e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.157  rel_max=2.127e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=2.795e-16  err/gamma=2.623e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=9.685e-14  fallback=4 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=4.399e-17  err/gamma=4.127e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.157  rel_max=2.127e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    emu_loop_batched  moe_E8_decode_z1.2_down/phi0.5/a1_b0 err_cw=4.399e-17  err/gamma=4.127e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.157  rel_max=2.127e-14  fallback=0 launches=12 moduli=[15,15]
+[het_G6_16-80/phi0.5/a1_b0] G=6 max_k=65 flops=8.894e+05
+  ok    cublas_dgemm                   err_cw=3.927e-16  err/gamma=1.241e-01
+  ok    native_loop       het_G6_16-80/phi0.5/a1_b0 err_cw=3.927e-16  err/gamma=1.241e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=5.257e-13  fallback=0 launches=6 moduli=[0,0]
+  ok    native_grouped    het_G6_16-80/phi0.5/a1_b0 err_cw=3.927e-16  err/gamma=1.241e-01  over_gamma=0 uncert=-1 repaired=-1 gate=strict  vs_native=       1  rel_max=5.257e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop          het_G6_16-80/phi0.5/a1_b0 err_cw=4.641e-16  err/gamma=1.672e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.18  rel_max=6.589e-13  fallback=0 launches=106 moduli=[14,15]
+  ok    emu_grouped       het_G6_16-80/phi0.5/a1_b0 err_cw=4.641e-16  err/gamma=1.672e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.18  rel_max=6.589e-13  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              het_G6_16-80/phi0.5/a1_b0 err_cw=3.927e-16  err/gamma=1.241e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=5.257e-13  fallback=6 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G6_16-80/phi0.5/a1_b0 err_cw=4.641e-16  err/gamma=1.672e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.18  rel_max=6.589e-13  fallback=0 launches=3 moduli=[14,15]
+  ok    emu_loop_batched  het_G6_16-80/phi0.5/a1_b0 err_cw=4.641e-16  err/gamma=1.672e-01  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    1.18  rel_max=6.589e-13  fallback=0 launches=18 moduli=[14,15]
+
+==== 491 passed, 0 failed ====
+========= ERROR SUMMARY: 0 errors
