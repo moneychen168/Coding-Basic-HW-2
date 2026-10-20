@@ -1,0 +1,3 @@
+path,calls,kernels,memops,span_ns,busy_ns,gap_ns,host_api_ns,plan_ns,host_ns,prep_ns,i8_gemm_ns,reconstruct_ns,cublas_ns,memops_ns,other_ns,prep_pct,i8_gemm_pct,reconstruct_pct,cublas_pct,memops_pct,other_pct
+native_grouped,120,2.0,1.0,875172.5,862260.0,10880.5,12072.0,0.0,21263.5,0.0,0.0,0.0,861364.0,960.0,0.0,0.0,0.0,0.0,99.88867293499891,0.11132706500109008,0.0
+auto,120,2.0,1.0,879284.0,863844.0,12128.0,11936.5,5121.5,24781.5,0.0,0.0,0.0,862948.0,896.0,0.0,0.0,0.0,0.0,99.89627756863507,0.10372243136492237,0.0

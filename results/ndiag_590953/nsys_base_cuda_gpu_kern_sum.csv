@@ -1,0 +1,41 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+36.7,495733241,4536,109288.6,23968.0,2528,7755590,361554.1,"k_cmp(int, int, int, int, double, const double *, const double *, const double *, const double *, unsigned long long *)"
+33.5,453102795,1512,299671.2,211697.0,80352,8515210,540446.1,"k_ref_dd(ggemm_problem_t, const double *, double *, double *, double *)"
+25.3,342054246,384,890766.3,857892.5,149153,1591208,422263.7,void cutlass::Kernel2<cutlass_80_tensorop_d884gemm_grouped_64x64_16x4_align1>(T1::Params)
+2.8,37711640,72,523772.8,98800.5,2688,2127018,819527.4,"k_fill_ozaki(double *, unsigned long, double, unsigned long)"
+0.5,6329917,630,10047.5,9280.0,6368,24993,3592.5,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage5_warpsize2x2x1_tensor16x8x16_execute_kernel__5x_cublas
+0.3,3563921,369,9658.3,8608.0,7808,14721,1966.8,void cutlass::Kernel2<cutlass_80_tensorop_d884gemm_32x32_16x5_nn_align1>(T1::Params)
+0.2,2142185,153,14001.2,11776.0,9345,29792,6086.7,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage5_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.1,1235876,28,44138.4,23296.0,22176,125216,36152.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x128x32_stage3_warpsize2x4x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.1,1141736,69,16546.9,10144.0,9280,30112,8544.5,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x64x32_stage3_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.1,1027845,30,34261.5,24464.5,14944,105024,26474.9,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x32_stage3_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.1,997060,322,3096.5,3424.0,2144,4032,497.3,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage5_warpsize2x2x1_tensor16x8x16_execute_split_k_kernel__5x_cublas
+0.1,765539,7,109362.7,93088.0,32160,199073,68256.1,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x16_stage3_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.1,741793,28,26492.6,20464.0,14912,103873,19325.1,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x64x32_stage3_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,656676,369,1779.6,1728.0,1568,2880,165.6,"void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, double, double, double, double, (bool)0, double, double, double, (bool)1, (bool)0, (bool)0, (bool)0>(cublasLt::cublasSplitKParams<T6>, const T4 *, const T10 *, T9 *, T5 *, const T6 *, const T6 *, const T11 *, const T4 *, T11 *, void *, long, T6 *, int *, T6 *, T6 *, const T6 *, const T6 *, const T6 *, const T6 *, const T6 *)"
+0.0,564451,48,11759.4,5920.0,1152,35553,11861.4,"k_fill_const(double *, unsigned long, double)"
+0.0,464130,8,58016.3,50896.0,27200,108289,27607.9,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x32_stage3_warpsize2x2x1_tensor16x8x16_execute_kernel__5x_cublas
+0.0,433699,19,22826.3,24896.0,15136,27264,3485.8,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x64x32_stage3_warpsize2x2x1_tensor16x8x16_execute_kernel__5x_cublas
+0.0,394594,28,14092.6,13936.0,13216,17696,851.8,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage3_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.0,384034,6,64005.7,67584.0,54561,69889,7252.9,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x128x32_stage3_warpsize2x4x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,377889,50,7557.8,7616.0,7008,8448,382.5,"std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, double, double, double, double, (bool)0, (bool)1, (bool)1, (bool)0, (int)7, (bool)0, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<double>, double>>(T13)"
+0.0,317601,4,79400.3,79904.0,75008,82785,3635.2,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x128x16_stage3_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,263682,39,6761.1,6720.0,6401,7616,216.2,"void gemv2T_kernel_val<int, int, double, double, double, double, (int)128, (int)16, (int)4, (int)4, (bool)0, (bool)0, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<double>, double>>(T13, T6, T6)"
+0.0,242914,4,60728.5,42448.5,32033,125984,43793.9,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x16_stage4_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,186338,14,13309.9,12832.0,12000,17248,1630.9,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage5_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,182403,5,36480.6,32608.0,29633,48193,7881.2,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x32_stage3_warpsize4x2x1_tensor16x8x16_execute_kernel__5x_cublas
+0.0,166592,3,55530.7,54112.0,36288,76192,19989.8,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x128x32_stage3_warpsize2x4x1_tensor16x8x16_execute_kernel__5x_cublas
+0.0,139840,46,3040.0,3072.0,2688,3232,112.5,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x64x32_stage3_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_split_k_kernel__5x_cublas
+0.0,106241,11,9658.3,9472.0,9281,10496,430.4,"std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, double, double, double, double, (bool)0, (bool)1, (bool)1, (bool)0, (int)9, (bool)0, cublasGemvParamsEx<int, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<const double>, cublasGemvTensorStridedBatched<double>, double>>(T13)"
+0.0,90848,23,3949.9,3904.0,3776,4416,144.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x128x32_stage3_warpsize2x4x1_tensor16x8x16_aligna8_alignc8_execute_split_k_kernel__5x_cublas
+0.0,82816,3,27605.3,26816.0,17760,38240,10262.8,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x32x32_stage3_warpsize2x2x1_tensor16x8x16_execute_kernel__5x_cublas
+0.0,68769,3,22923.0,21536.0,21376,25857,2542.2,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x32_stage3_warpsize4x2x1_tensor16x8x16_aligna8_alignc8_execute_kernel__5x_cublas
+0.0,67296,22,3058.9,2944.0,2816,3616,266.4,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x32_stage3_warpsize2x2x1_tensor16x8x16_aligna8_alignc8_execute_split_k_kernel__5x_cublas
+0.0,34272,6,5712.0,5760.0,5344,6016,238.4,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x128x32_stage3_warpsize2x4x1_tensor16x8x8_execute_split_k_kernel__5x_cublas
+0.0,17344,1,17344.0,17344.0,17344,17344,0.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize32x32x32_stage3_warpsize2x2x1_tensor16x8x8_execute_kernel__5x_cublas
+0.0,13824,3,4608.0,4672.0,4192,4960,388.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x32_stage3_warpsize4x2x1_tensor16x8x16_aligna8_alignc8_execute_split_k_kernel__5x_cublas
+0.0,12416,3,4138.7,4160.0,4096,4160,37.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x32_stage3_warpsize4x2x1_tensor16x8x16_execute_split_k_kernel__5x_cublas
+0.0,4512,1,4512.0,4512.0,4512,4512,0.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x128x32_stage3_warpsize2x4x1_tensor16x8x16_execute_split_k_kernel__5x_cublas
+0.0,4224,1,4224.0,4224.0,4224,4224,0.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize128x64x16_stage3_warpsize2x2x1_tensor16x8x8_execute_split_k_kernel__5x_cublas
+0.0,3808,1,3808.0,3808.0,3808,3808,0.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x32x32_stage3_warpsize2x2x1_tensor16x8x16_execute_split_k_kernel__5x_cublas
+0.0,3392,1,3392.0,3392.0,3392,3392,0.0,sm90_xmma_gemm_f64f64_f64f64_f64_nn_n_tilesize64x64x32_stage3_warpsize2x2x1_tensor16x8x16_execute_split_k_kernel__5x_cublas

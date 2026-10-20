@@ -1,0 +1,10 @@
+device: NVIDIA H200 (sm_90), reps=20 warmup=5
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+moe_E64_decode_z0.0_up             auto              N=0  rm=default phi=0.5     0.8669 ms     2554.6 GFLOPS  launches=1      fb=64   err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_up             native_grouped    N=0  rm=default phi=0.5     1.0337 ms     2142.5 GFLOPS  launches=1      fb=0    err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           auto              N=0  rm=default phi=0.5     0.8040 ms     2754.6 GFLOPS  launches=1      fb=64   err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           native_grouped    N=0  rm=default phi=0.5     1.0448 ms     2119.6 GFLOPS  launches=1      fb=0    err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             auto              N=0  rm=default phi=0.5     0.6533 ms     3390.0 GFLOPS  launches=1      fb=51   err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             native_grouped    N=0  rm=default phi=0.5     1.0459 ms     2117.5 GFLOPS  launches=1      fb=0    err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           auto              N=0  rm=default phi=0.5     0.6561 ms     3375.2 GFLOPS  launches=1      fb=51   err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           native_grouped    N=0  rm=default phi=0.5     1.0435 ms     2122.3 GFLOPS  launches=1      fb=0    err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok

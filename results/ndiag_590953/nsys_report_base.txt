@@ -1,0 +1,31 @@
+[nsys] /usr/local/cuda-13.0/bin/nsys stats --report cuda_gpu_trace,cuda_api_sum,cuda_api_trace,nvtx_pushpop_trace --format csv --output /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_base --force-export true --force-overwrite true /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_base.nsys-rep
+[nsys_report] matplotlib unavailable -> no figure
+wrote: /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_summary_nsys_base.md /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_summary_nsys_base.csv (no figure)
+# nsys summary: nsys_base
+Call detection: NVTX ranges ggemm:<path>; every value is the median over the timed calls of that path. Stage % = share of GPU busy time.
+
+| path | timed calls | kernels/call | memops/call | GPU span (us) | GPU busy (us) | launch gaps (us) | gap % of span | host API (us) | host plan (us) | host total (us) | prep (scale+residue) % | INT8 grouped GEMM % | reconstruct (CRT) % | cuBLAS FP64 % | memcpy/memset % | other kernels % |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| native_grouped | 120 | 2 | 1 | 869.9 | 857.8 | 11.6 | 1.3 | 11.8 | 0.0 | 21.9 | 0.0 | 0.0 | 0.0 | 99.9 | 0.1 | 0.0 |
+| auto | 120 | 2 | 1 | 873.3 | 860.8 | 11.6 | 1.3 | 11.7 | 6.9 | 25.8 | 0.0 | 0.0 | 0.0 | 99.9 | 0.1 | 0.0 |
+
+## CUDA API summary (whole process, incl. setup)
+
+| API | calls | total (us) | avg (us) | % of API time |
+| --- | ---: | ---: | ---: | ---: |
+| cuLibraryLoadData | 2991 | 1,440,310 | 481.55 | 39.7 |
+| cudaDeviceSynchronize | 268 | 494,004 | 1843.30 | 13.6 |
+| cudaMemcpy | 96 | 491,750 | 5122.39 | 13.6 |
+| cudaMalloc | 675 | 375,302 | 556.00 | 10.4 |
+| cudaFree | 724 | 219,915 | 303.75 | 6.1 |
+| cudaEventSynchronize | 624 | 216,960 | 347.69 | 6.0 |
+| cudaStreamCreateWithFlags | 1 | 153,484 | 153,484 | 4.2 |
+| cudaStreamSynchronize | 192 | 138,529 | 721.50 | 3.8 |
+| cudaHostAlloc | 48 | 45,279 | 943.32 | 1.2 |
+| cudaLaunchKernel | 7021 | 20,815 | 2.96 | 0.6 |
+| cudaFreeHost | 48 | 12,648 | 263.50 | 0.3 |
+| cudaLaunchKernelExC_v11060 | 1472 | 4895.7 | 3.33 | 0.1 |
+| cudaMemcpyAsync | 792 | 4170.6 | 5.27 | 0.1 |
+| cudaEventRecord | 1881 | 2091.6 | 1.11 | 0.1 |
+| cuLaunchKernel | 369 | 1057.0 | 2.86 | 0.0 |
+

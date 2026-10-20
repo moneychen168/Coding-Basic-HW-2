@@ -1,0 +1,6 @@
+base r1 rc=0
+new r1 rc=0
+base r2 rc=0
+new r2 rc=0
+base r3 rc=0
+new r3 rc=0

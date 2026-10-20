@@ -1,0 +1,60 @@
+device: NVIDIA H200 (sm_90), reps=5 warmup=2
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+moe_E8_prefill_z0.0_up             native_grouped    N=0  rm=default phi=0.5     1.1088 ms    27114.7 GFLOPS  launches=1      fb=0    err=7.44e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z0.0_up             auto              N=0  rm=default phi=0.5     1.1058 ms    27188.4 GFLOPS  launches=1      fb=8    err=7.44e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z0.0_down           native_grouped    N=0  rm=default phi=0.5     1.1261 ms    26697.9 GFLOPS  launches=1      fb=0    err=7.77e-16 (x2.1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z0.0_down           auto              N=0  rm=default phi=0.5     1.1355 ms    26478.1 GFLOPS  launches=1      fb=8    err=7.77e-16 (x2.1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z0.0_up            native_grouped    N=0  rm=default phi=0.5     1.5866 ms    22333.5 GFLOPS  launches=1      fb=0    err=7.73e-16 (x1.1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z0.0_up            auto              N=0  rm=default phi=0.5     1.5958 ms    22204.1 GFLOPS  launches=1      fb=64   err=7.73e-16 (x1.1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z0.0_down          native_grouped    N=0  rm=default phi=0.5     1.6024 ms    22112.8 GFLOPS  launches=1      fb=0    err=8.76e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z0.0_down          auto              N=0  rm=default phi=0.5     1.6068 ms    22052.9 GFLOPS  launches=1      fb=64   err=8.76e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z0.0_up           native_grouped    N=0  rm=default phi=0.5     0.8904 ms    14471.4 GFLOPS  launches=1      fb=0    err=8.13e-16 (x4.2 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z0.0_up           auto              N=0  rm=default phi=0.5     0.8956 ms    14386.6 GFLOPS  launches=1      fb=128  err=8.13e-16 (x4.2 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z0.0_down         native_grouped    N=0  rm=default phi=0.5     0.9128 ms    14116.3 GFLOPS  launches=1      fb=0    err=8.12e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z0.0_down         auto              N=0  rm=default phi=0.5     0.9254 ms    13923.5 GFLOPS  launches=1      fb=128  err=8.12e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z0.0_up              native_grouped    N=0  rm=default phi=0.5     0.1705 ms     5509.5 GFLOPS  launches=1      fb=0    err=6.70e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z0.0_up              auto              N=0  rm=default phi=0.5     0.1720 ms     5462.3 GFLOPS  launches=1      fb=8    err=6.70e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z0.0_down            native_grouped    N=0  rm=default phi=0.5     0.2709 ms     3467.6 GFLOPS  launches=1      fb=0    err=5.99e-16 (x3.3 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z0.0_down            auto              N=0  rm=default phi=0.5     0.2738 ms     3431.9 GFLOPS  launches=1      fb=8    err=5.99e-16 (x3.3 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_up             native_grouped    N=0  rm=default phi=0.5     0.8705 ms     2544.2 GFLOPS  launches=1      fb=0    err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_up             auto              N=0  rm=default phi=0.5     0.8052 ms     2750.5 GFLOPS  launches=1      fb=64   err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           native_grouped    N=0  rm=default phi=0.5     0.8124 ms     2726.0 GFLOPS  launches=1      fb=0    err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           auto              N=0  rm=default phi=0.5     0.8158 ms     2714.7 GFLOPS  launches=1      fb=64   err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z0.0_up            native_grouped    N=0  rm=default phi=0.5     0.8791 ms     1832.2 GFLOPS  launches=1      fb=0    err=6.43e-16 (x3.9 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z0.0_up            auto              N=0  rm=default phi=0.5     0.8842 ms     1821.6 GFLOPS  launches=1      fb=126  err=6.43e-16 (x3.9 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z0.0_down          native_grouped    N=0  rm=default phi=0.5     0.8798 ms     1830.6 GFLOPS  launches=1      fb=0    err=6.59e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z0.0_down          auto              N=0  rm=default phi=0.5     0.8801 ms     1830.1 GFLOPS  launches=1      fb=126  err=6.59e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z1.2_up             native_grouped    N=0  rm=default phi=0.5     1.0647 ms    28236.8 GFLOPS  launches=1      fb=0    err=7.32e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z1.2_up             auto              N=0  rm=default phi=0.5     1.0708 ms    28075.7 GFLOPS  launches=1      fb=8    err=7.32e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z1.2_down           native_grouped    N=0  rm=default phi=0.5     1.1244 ms    26738.1 GFLOPS  launches=1      fb=0    err=7.42e-16 (x1.8 native) uncert=-1 repaired=-1 ok
+moe_E8_prefill_z1.2_down           auto              N=0  rm=default phi=0.5     1.1279 ms    26654.7 GFLOPS  launches=1      fb=8    err=7.42e-16 (x1.8 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            native_grouped    N=0  rm=default phi=0.5     1.5921 ms    22255.9 GFLOPS  launches=1      fb=0    err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=default phi=0.5     1.6030 ms    22104.8 GFLOPS  launches=1      fb=64   err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          native_grouped    N=0  rm=default phi=0.5     1.5987 ms    22164.1 GFLOPS  launches=1      fb=0    err=8.83e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          auto              N=0  rm=default phi=0.5     1.6111 ms    21992.9 GFLOPS  launches=1      fb=64   err=8.83e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z1.2_up           native_grouped    N=0  rm=default phi=0.5     1.0948 ms    11769.7 GFLOPS  launches=1      fb=0    err=7.93e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z1.2_up           auto              N=0  rm=default phi=0.5     1.0964 ms    11751.8 GFLOPS  launches=1      fb=128  err=7.93e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z1.2_down         native_grouped    N=0  rm=default phi=0.5     1.1242 ms    11461.5 GFLOPS  launches=1      fb=0    err=8.29e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E128_prefill_z1.2_down         auto              N=0  rm=default phi=0.5     1.1408 ms    11294.6 GFLOPS  launches=1      fb=128  err=8.29e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z1.2_up              native_grouped    N=0  rm=default phi=0.5     0.1713 ms     5484.8 GFLOPS  launches=1      fb=0    err=6.03e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z1.2_up              auto              N=0  rm=default phi=0.5     0.1719 ms     5465.4 GFLOPS  launches=1      fb=8    err=6.03e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z1.2_down            native_grouped    N=0  rm=default phi=0.5     0.2695 ms     3486.5 GFLOPS  launches=1      fb=0    err=4.89e-16 (x2.6 native) uncert=-1 repaired=-1 ok
+moe_E8_decode_z1.2_down            auto              N=0  rm=default phi=0.5     0.2706 ms     3471.7 GFLOPS  launches=1      fb=8    err=4.89e-16 (x2.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             native_grouped    N=0  rm=default phi=0.5     0.6575 ms     3368.0 GFLOPS  launches=1      fb=0    err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             auto              N=0  rm=default phi=0.5     0.6602 ms     3354.3 GFLOPS  launches=1      fb=51   err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           native_grouped    N=0  rm=default phi=0.5     0.6626 ms     3342.2 GFLOPS  launches=1      fb=0    err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           auto              N=0  rm=default phi=0.5     0.6683 ms     3313.7 GFLOPS  launches=1      fb=51   err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z1.2_up            native_grouped    N=0  rm=default phi=0.5     0.7348 ms     2192.0 GFLOPS  launches=1      fb=0    err=6.16e-16 (x3.1 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z1.2_up            auto              N=0  rm=default phi=0.5     0.7383 ms     2181.5 GFLOPS  launches=1      fb=99   err=6.16e-16 (x3.1 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z1.2_down          native_grouped    N=0  rm=default phi=0.5     0.6911 ms     2330.6 GFLOPS  launches=1      fb=0    err=6.30e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E128_decode_z1.2_down          auto              N=0  rm=default phi=0.5     0.6917 ms     2328.3 GFLOPS  launches=1      fb=99   err=6.30e-16 (x1 native) uncert=-1 repaired=-1 ok
+Collecting data...
+Generating '/home/money168/tmp/nsys-report-fa6c.qdstrm'
+[1/1] [0%                          ] nsys_new.nsys-rep[1/1] [0%                          ] nsys_new.nsys-rep[1/1] [====27%                     ] nsys_new.nsys-rep[1/1] [==========49%               ] nsys_new.nsys-rep[1/1] [===========50%              ] nsys_new.nsys-rep[1/1] [===========53%              ] nsys_new.nsys-rep[1/1] [============56%             ] nsys_new.nsys-rep[1/1] [============57%             ] nsys_new.nsys-rep[1/1] [===================82%      ] nsys_new.nsys-rep[1/1] [====================83%     ] nsys_new.nsys-rep[1/1] [====================84%     ] nsys_new.nsys-rep[1/1] [=====================87%    ] nsys_new.nsys-rep[1/1] [========================100%] nsys_new.nsys-rep[1/1] [========================100%] nsys_new.nsys-rep
+Generated:
+	/home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new.nsys-rep
+Generating SQLite file /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new.sqlite from /home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new.nsys-rep
+Processing [/home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_gpu_kern_sum.py] to [/home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new_cuda_gpu_kern_sum.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_api_sum.py] to [/home/money168/hw2_grouped_gemm/results/ndiag_590953/nsys_new_cuda_api_sum.csv]... PROCESSED
+

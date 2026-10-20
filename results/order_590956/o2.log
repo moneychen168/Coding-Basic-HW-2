@@ -1,0 +1,14 @@
+device: NVIDIA H200 (sm_90), reps=20 warmup=5
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+moe_E64_decode_z0.0_up             native_loop       N=0  rm=default phi=0.5     1.0352 ms     2139.2 GFLOPS  launches=64     fb=0    err=2.60e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_up             native_grouped    N=0  rm=default phi=0.5     1.0466 ms     2116.0 GFLOPS  launches=1      fb=0    err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_up             auto              N=0  rm=default phi=0.5     0.7886 ms     2808.4 GFLOPS  launches=1      fb=64   err=7.47e-16 (x2.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           native_loop       N=0  rm=default phi=0.5     1.0232 ms     2164.3 GFLOPS  launches=64     fb=0    err=3.64e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           native_grouped    N=0  rm=default phi=0.5     1.0434 ms     2122.4 GFLOPS  launches=1      fb=0    err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z0.0_down           auto              N=0  rm=default phi=0.5     0.8032 ms     2757.1 GFLOPS  launches=1      fb=64   err=6.00e-16 (x1.6 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             native_loop       N=0  rm=default phi=0.5     0.7586 ms     2919.2 GFLOPS  launches=51     fb=0    err=3.01e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             native_grouped    N=0  rm=default phi=0.5     1.0444 ms     2120.4 GFLOPS  launches=1      fb=0    err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_up             auto              N=0  rm=default phi=0.5     0.6518 ms     3397.4 GFLOPS  launches=1      fb=51   err=5.65e-16 (x1.9 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           native_loop       N=0  rm=default phi=0.5     0.7435 ms     2978.5 GFLOPS  launches=51     fb=0    err=5.93e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           native_grouped    N=0  rm=default phi=0.5     0.8494 ms     2607.1 GFLOPS  launches=1      fb=0    err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok
+moe_E64_decode_z1.2_down           auto              N=0  rm=default phi=0.5     0.6574 ms     3368.5 GFLOPS  launches=1      fb=51   err=8.67e-16 (x1.5 native) uncert=-1 repaired=-1 ok

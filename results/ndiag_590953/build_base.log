@@ -1,0 +1,4 @@
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/work/money168/hw2_ndiag_590953/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /work/money168/hw2_ndiag_590953/build/libggemm.a
+[build] OK: /work/money168/hw2_ndiag_590953/build/bench_grouped
