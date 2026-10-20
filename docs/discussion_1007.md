@@ -1,5 +1,7 @@
 # 10/7 第一次討論：Grouped GEMM on INT8 Tensor Core（Ozaki II）
 
+> 註記：10/07 時以為 nano4 是 RTX 5090；實際為 H200，見 README。
+
 > 說明：本大綱不含任何實測效能數字；所有尚未量測或查證的項目都標「待查證」或「待量測」。
 > 評分對應：正確性與安全性 30%、效能與 profiling 30%、library 與可重現性 20%、結果分析與 scope 10%、討論與理解 10%。
 
@@ -28,7 +30,7 @@
 流程（4 步）：
 1. Scale + 截斷：得到 A'、B'（位元數由 k 與 N 決定，確保不超過 P/2）。
 2. 取 residue：對每個 p_i 算 A'_i、B'_i（int8）。
-3. INT8 GEMM：C_i = A'_i * B'_i，INT32 精確累加（k ≤ 131072 才不溢位）。
+3. INT8 GEMM：C_i = A'_i * B'_i，INT32 精確累加（k ≤ 131072 才不溢位）。〔後註：程式實際上限是 kp = round_up(k,32) ≤ 131040（`OZ2_MAX_K`）〕
 4. CRT 重建：由 {C_i} 還原 A'B'（用 double-double 表示），再反 scale、套 alpha/beta，寫回 FP64 C。
 
 **講稿：** 關鍵觀念是把一次 FP64 GEMM 換成 N 次 INT8 GEMM，每次都是精確整數運算，誤差只來自第一步的截斷。N 越大，P 越大，可容許的截斷位元越多，精度越高但成本越大。這也是為什麼 planner 要依 k 與目標誤差逐問題決定 N。

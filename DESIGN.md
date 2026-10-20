@@ -12,8 +12,8 @@ nvcc：`/usr/local/cuda-13.0/bin/nvcc`，編 `-gencode arch=compute_90,code=sm_9
 
 ## Grouped 的優化重點（本作業的核心貢獻）
 - Launch 合併：EMU_LOOP 每個問題要 O(N) 次 launch；EMU_GROUPED 整組固定是 3 個 kernel（prep → grouped INT8 GEMM → reconstruct），共用一次 descriptor H2D。
-- 一個 persistent grouped INT8 GEMM 跑完所有 (problem × modulus) 的 tile；tile scheduler 依工作量排序（LPT）。tile config 依問題大小逐個選。
-- Planner（AUTO）：每個問題各自決定模數個數 N；問題太小、不划算或 K 太大時 fallback 到 native FP64，並記在 stats 裡。
+- 一個 persistent grouped INT8 GEMM 跑完所有 (problem × modulus) 的 tile；tile scheduler 依工作量排序（LPT），所有 grouped path 都使用。tile config 只有 AUTO 會依問題大小逐個選（128×128／64×64／32×32）；EMU_GROUPED／EMU_GROUPED_REUSE 固定用 128×128（cfg0）。
+- Planner（AUTO）：每個問題各自決定模數個數 N（componentwise，`GGEMM_RHO_BUDGET`）；問題太小（TINY）、k ≤ 16（SMALL_K）、不划算或 K 太大（kp > 131040）時 fallback 到 native FP64，並記在 stats 裡。
 - 計時區內不做任何 allocation。所有 workspace 都在 ggemm_create 時配好，包括 pinned host descriptor buffer。
 
 ## 模組與檔案歸屬（每個 agent 只改自己的檔案）

@@ -396,7 +396,7 @@ FP64 emulation 方面，Ozaki 等人 2012 年的無誤差轉換方法為低精�
 | 15 | — | Static Batching Irregular | arXiv | 2025 | preprint | ⚠️ 部分缺 | 2501.16103 |
 | 16 | NVIDIA | cuBLAS 12.5 Grouped GEMM | Blog | 2024 | TechDoc | ✅ 完整 | developer.nvidia.com |
 | — | Ozaki et al. | Error-free Matrix Mult. | Num. Algo. | 2012 | Journal | ✅ 完整 | 10.1007/s11075-011-9478-1 |
-| — | Ozaki et al. | Ozaki Scheme II CRT | arXiv | 2024 | preprint | ✅ 完整 | 2504.08009v3 |
+| — | Ozaki et al. | Ozaki Scheme II CRT | arXiv | 2025 | preprint | ✅ 完整 | 2504.08009v3 |
 | — | Schwarz et al. | Guaranteed DGEMM ADP | arXiv+Conf | 2025 | preprint | ✅ 完整 | 2511.13778 |
 | — | — | EmuGEMM Fused Kernels | arXiv | 2026 | preprint | ✅ 完整 | 2606.25453 |
 

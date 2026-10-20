@@ -130,8 +130,8 @@ ggemm_destroy_plan(plan);                          // BEFORE ggemm_destroy(h)
 | 0 | `GGEMM_PATH_NATIVE_LOOP` | `cublasDgemm` once per problem | native FP64 baseline |
 | 1 | `GGEMM_PATH_NATIVE_GROUPED` | `cublasDgemmGroupedBatched` | native FP64 grouped baseline |
 | 2 | `GGEMM_PATH_EMU_LOOP` | single-GEMM INT8 Ozaki-II emulation called per problem; the INT8 GEMM is issued once per modulus plane (O(G*N) launches) | naive lower bound of emulation (no batching of any kind) |
-| 3 | `GGEMM_PATH_EMU_GROUPED` | fused pipeline: prep -> persistent grouped INT8 GEMM -> reconstruct (fixed 3 kernels, one descriptor H2D) | ours: isolates the launch-merging / grouping gain |
-| 4 | `GGEMM_PATH_AUTO` | EMU_GROUPED plus planner: per-problem moduli count N, per-problem tile config (128x128 / 64x64 / 32x32), LPT tile scheduling, fallback to native FP64 for unsafe or unprofitable problems. **Operand reuse is off.** | ours (default); isolates the planner gain |
+| 3 | `GGEMM_PATH_EMU_GROUPED` | fused pipeline: prep -> persistent grouped INT8 GEMM (LPT tile scheduling, fixed 128x128 tile) -> reconstruct (3 kernels, one descriptor H2D; problems with k = 0, alpha = 0 go to cuBLAS as one extra launch) | ours: isolates the launch-merging / grouping gain |
+| 4 | `GGEMM_PATH_AUTO` | EMU_GROUPED plus planner: per-problem moduli count N (componentwise, `GGEMM_RHO_BUDGET`), per-problem tile config (128x128 / 64x64 / 32x32), fallback to native FP64 for unsafe (k too large), small-k (k <= 16, route `SMALL_K`), tiny or unprofitable problems; repair ON. LPT tile scheduling is the same as in every grouped path. **Operand reuse is off.** | ours (default); isolates the planner gain |
 | 5 | `GGEMM_PATH_EMU_GROUPED_REUSE` | EMU_GROUPED plus operand reuse: prep runs once per unique A and once per unique B in the group | ours: isolates the operand-reuse gain |
 | 6 | `GGEMM_PATH_EMU_LOOP_BATCHED` | GEMMul8-style strided-batched emulation: per problem 3 launches (prep, ONE INT8 GEMM over all its planes, reconstruct) | main starter-like baseline (what a per-problem GEMMul8 call loop does) |
 
@@ -145,10 +145,10 @@ Read at `ggemm_create` (planner / handle) unless noted.
 
 | Variable | Meaning |
 |---|---|
-| `GGEMM_CALIB_JSON` | path to a calibration JSON (`f64_peak_flops`, `i8_peak_ops`, `mem_bw_*` scalars, written by `bench/calib/fit.py`). If unset, the planner loads `bench/calib/params_<gpu_slug>.json` (slug = non-alphanumeric runs to `_`, lower-case, e.g. `nvidia_h200`); if that is missing, nominal built-in defaults. `scripts/env.sh: select_calib` logs the choice into `<out>/calib.txt`. The chosen source is also printed once on stderr as `[ggemm] calib=...`, and the loaded values are range-checked. |
+| `GGEMM_CALIB_JSON` | path to a calibration JSON (`f64_peak_flops`, `i8_peak_ops`, `bw_Bps` scalars, written by `bench/calib/fit.py`). If unset, the planner loads `bench/calib/params_<gpu_slug>.json` (slug = non-alphanumeric runs to `_`, lower-case, e.g. `nvidia_h200`); if that is missing, nominal built-in defaults. `scripts/env.sh: select_calib` logs the choice into `<out>/calib.txt`. The chosen source is also printed once on stderr as `[ggemm] calib=...`, and the loaded values are range-checked. |
 | `GGEMM_FP64_FLOPS`, `GGEMM_INT8_OPS`, `GGEMM_MEM_BW` | override the cost-model peaks (FP64 flop/s, INT8 op/s, memory bytes/s) for the planner; take precedence over the JSON. Positive numbers only. |
 | `GGEMM_TINY_MNK` | m*n*k threshold under which a problem is treated as tiny by the planner (default 32^3); `0` disables the tiny route. |
-| `GGEMM_RHO_BUDGET` | planner budget for the cost-based decisions; the built-in default (16) is a placeholder and has **not been tuned**. |
+| `GGEMM_RHO_BUDGET` | rho budget used only by `AUTO` with adaptive N (`num_moduli = 0`) to choose N componentwise (`oz2_choose_num_moduli_cw`). Read once per process (function-static, at the first plan), not per handle. The built-in default (16) is a placeholder and has **not been tuned**. |
 | `GGEMM_REUSE_PROMOTE` | `1` = path 5 shares operands regardless of N and promotes every problem to the max N of its connected component (more sharing, more moduli for some problems; counted in `stats.num_promoted`). Default `0` = share only between problems with equal N. |
 | `GGEMM_STATS_REPAIR` | `1` = fill `stats.num_repaired`, `num_uncertified`, `num_safety_fallback` (reads device counters, **synchronizes the stream**; keep off in timed regions). Otherwise they are -1. |
 | `GGEMM_NVTX` | **compile-time macro**, not an env var: `-DGGEMM_NVTX=0` compiles NVTX ranges out. Default on. |
@@ -184,8 +184,7 @@ repairs by default. Use `GGEMM_STATS_REPAIR=1` to read the counters (synchronize
   `OZ2_MAX_K`); larger K falls back to native FP64 (`allow_fallback = 1`) or returns an error.
 - `oz2_prep_grouped` handles at most 65535 emulated problems per call (`num <= 65535`); the
   graph path rejects more with `GGEMM_ERR_INVALID`.
-- Plan/execute (CUDA Graph) does not merge same-shape problems in its native fallback (the eager
-  `NATIVE_GROUPED` path does); it also does not do operand reuse; plan only for paths 3 and 4; destroy
+- Plan/execute (CUDA Graph) does not do operand reuse; plan only for paths 3 and 4; destroy
   plans before the handle.
 - Multi-GPU: the CRT constant tables are uploaded (`oz2_init_constants`) only to the device that
   is current when the handle is created; a handle must be created and used on that one device.
@@ -194,10 +193,13 @@ repairs by default. Use `GGEMM_STATS_REPAIR=1` to read the counters (synchronize
 - Descriptor array must be on the host; data pointers must be device pointers.
 - Accuracy is controlled by N (moduli count, at most 20) and the input dynamic range;
   with repair ON, uncertified entries are repaired in FP64, so very wide dynamic range costs speed, not
-  correctness (quantification: see docs/report.md, TODO).
+  correctness (quantification: see docs/report.md, sections 5.3 and 9.5).
 - Small or unprofitable problems may be routed to native FP64 by the planner.
-- INT8 split-K (tile config 3) is off by default; enable it with `i8_set_auto_splitk_min_kp`.
-  When enabled, `EMU_GROUPED` can issue 4 launches instead of the usual count.
+- INT8 split-K (tile config 3) cannot be enabled through the ggemm API: the auto split-K rule
+  (`i8_set_auto_splitk_min_kp`) only applies to problems submitted with `tile_cfg < 0`
+  (`src/int8_grouped_gemm.cu`), and the ggemm planner always passes tile config 0..2. It is
+  reachable only by calling `i8_grouped_gemm` directly (tests). A 4th launch in `EMU_GROUPED`
+  comes from problems with k = 0 / alpha = 0 (or native fallbacks) that go to cuBLAS.
 - `GGEMM_RHO_BUDGET` default is untuned.
 - Single stream per handle; handles and plans are not thread-safe.
 - Only FP64 real GEMM; no FP32 / complex types.
@@ -229,7 +231,7 @@ Post-processing (CPU only, `scripts/analysis/`, run inside a job like everything
 `scripts/analysis/testdata`). `scripts/plot.py` plots bench CSVs.
 
 Measured results are in `results/` (one directory per job) and the write-up with numbers
-and discussion is `docs/report.md` (TODO, not written yet). This README intentionally
+and discussion is `docs/report.md` (final report, Traditional Chinese). This README intentionally
 quotes no measured numbers.
 
 ## Layout
@@ -244,6 +246,6 @@ src/ozaki2_numerics.*    scaling, residues, CRT reconstruct, certificate (agent-
 src/int8_grouped_gemm.*  persistent grouped INT8 GEMM (agent-K)
 src/internal.h           error codes, NVTX macros
 tests/ bench/ scripts/   tests, benchmarks (bench/app = application benchmarks), job scripts, analysis
-docs/                    related_work.md, discussion_1007.md, report.md (TODO)
+docs/                    related_work.md, discussion_1007.md, report.md (final report)
 DESIGN.md                internal design and contracts
 ```
