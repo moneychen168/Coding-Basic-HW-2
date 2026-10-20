@@ -19,16 +19,20 @@
 # racecheck/initcheck up to ~100x slower), so test_grouped runs the "tiny" set (uniform 8x16^3,
 # MoE decode with empty experts, heterogeneous 6 problems), all paths, edge cases with --small;
 # racecheck/initcheck additionally use a single phi and skip nothing else.
+# test_reuse_e2e / test_graph under racecheck use --small (same paths/edge cases, shrunken shapes,
+# no timing loops): the full-size run hit the 900 s limit in job 511062.
 set -uo pipefail
 ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"; cuda_preflight
 OUT="$ROOT/results/sanitize_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
 PROGS="${PROGS:-test_grouped test_reuse_e2e test_graph test_i8_grouped test_operand_reuse}"
-# host-only programs: no device code to instrument -> memcheck only (leak/API check)
+# host-only programs: they never call the CUDA API, so compute-sanitizer cannot attach at all
+# ("Target application terminated before first instrumented API call", exit 255) -> every tool
+# is n/a; the program is run once without the sanitizer and its exit code is recorded instead.
 HOST_ONLY="${HOST_ONLY:-test_operand_reuse}"
 TOOLS="${TOOLS:-memcheck racecheck initcheck synccheck}"
-[[ "${SKIP_BUILD:-0}" == 1 ]] || TARGETS="$PROGS" BUILD_DIR="$ROOT/build" "$ROOT/scripts/build.sh" || exit 1
+job_build "$PROGS" || exit 1
 CS="$CUDA_HOME/bin/compute-sanitizer"
 "$CS" --version | tail -1 | tee -a "$OUT/provenance.txt"
 
@@ -37,7 +41,8 @@ args_for() {   # $1 = program, $2 = tool
     test_grouped)
       if [[ "$2" == racecheck || "$2" == initcheck ]]; then echo "--set tiny --small --phis 0.5"
       else echo "--set tiny --small --phis 1"; fi ;;   # phi=1 also runs alpha=1.5,beta=-0.75
-    test_reuse_e2e|test_graph) echo "--reps 1" ;;
+    test_reuse_e2e|test_graph)   # racecheck is ~100x slower: shrunken workloads, no timing
+      if [[ "$2" == racecheck ]]; then echo "--reps 1 --small"; else echo "--reps 1"; fi ;;
     test_i8_grouped) echo "--quick" ;;
     *) echo "" ;;
   esac
@@ -52,9 +57,9 @@ tool_flags() {
 
 echo "program,tool,errors,sanitizer_exit,status,seconds,log" > "$OUT/summary.csv"
 for p in $PROGS; do
-  bin="$ROOT/build/$p"
+  bin="$BDIR/$p"
   for t in $TOOLS; do
-    if [[ " $HOST_ONLY " == *" $p "* && "$t" != memcheck ]]; then
+    if [[ " $HOST_ONLY " == *" $p "* ]]; then
       echo "$p,$t,,,n/a_host_only,0," >> "$OUT/summary.csv"; continue
     fi
     log="$OUT/${p}_${t}.log"
@@ -68,8 +73,9 @@ for p in $PROGS; do
     errs=$(grep -Eo 'ERROR SUMMARY: [0-9]+ error' "$log" | tail -1 | grep -Eo '[0-9]+')
     if [[ "$t" == racecheck ]]; then
       rerr=$(grep -Eo 'RACECHECK SUMMARY: .*\(([0-9]+) error' "$log" | tail -1 | grep -Eo '\(([0-9]+)' | tr -d '(')
-      # take the larger of the two counts (the same hazards may appear in both summaries)
-      [[ -n "$rerr" ]] && (( rerr > ${errs:-0} )) && errs=$rerr
+      # racecheck prints no "ERROR SUMMARY" line (only one RACECHECK SUMMARY per process), so
+      # errs is usually empty here: take rerr then; otherwise the larger of the two counts.
+      if [[ -n "$rerr" ]] && [[ -z "$errs" ]] || (( ${rerr:-0} > ${errs:-0} )); then errs=$rerr; fi
     fi
     if   (( rc == 124 || rc == 137 )); then st="TIMEOUT"
     elif [[ -z "$errs" ]];             then st="no_summary(rc=$rc)"
@@ -81,11 +87,22 @@ for p in $PROGS; do
   done
 done
 
+# host-only programs: plain run (no sanitizer), exit code into summary.csv as tool "plain"
+for p in $PROGS; do
+  [[ " $HOST_ONLY " == *" $p "* ]] || continue
+  if [[ -x "$BDIR/$p" ]]; then
+    "$BDIR/$p" > "$OUT/${p}_plain.log" 2>&1; rc=$?
+    st=$([[ $rc == 0 ]] && echo clean || echo "prog_fail(rc=$rc)")
+    echo "$p,plain,0,$rc,$st,0,${p}_plain.log" >> "$OUT/summary.csv"
+    echo "[sanitize] $p (host-only, no sanitizer) exit=$rc"
+  else echo "$p,plain,,,missing_binary,0," >> "$OUT/summary.csv"; fi
+done
+
 # program x tool table of error counts (status appended when not clean)
 python3 - "$OUT/summary.csv" "$TOOLS" > "$OUT/summary.md" <<'PY'
 import csv, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
-tools = sys.argv[2].split()
+tools = sys.argv[2].split() + (["plain"] if any(r["tool"] == "plain" for r in rows) else [])
 progs = list(dict.fromkeys(r["program"] for r in rows))
 cell = {(r["program"], r["tool"]): (r["errors"] or "?") + ("" if r["status"] == "clean" else f" ({r['status']})") for r in rows}
 print("errors per program x compute-sanitizer tool (clean = 0 errors and test exit 0)\n")

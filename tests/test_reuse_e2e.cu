@@ -9,7 +9,9 @@
 //       reference; EMU_LOOP_BATCHED (GEMMul8-like baseline) must also be bit-exact vs EMU_GROUPED.
 // Timing (reported, not gated): cudaEvent time per call over R back-to-back calls.
 // Env: GGEMM_REUSE_PROMOTE=1 (PROMOTE policy), GGEMM_STATS_REPAIR=1 (fills repaired / uncertified / safety_fb).
-// Usage: test_reuse_e2e [--reps R]
+// Usage: test_reuse_e2e [--reps R] [--small]
+//   --small: shrunken shapes (same three sharing patterns and gates), timing skipped; for
+//            compute-sanitizer racecheck, which timed out at full size (job 511062).
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -118,11 +120,18 @@ static double time_path(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_
 
 int main(int argc, char** argv) {
   int reps = 20;
-  for (int i = 1; i < argc; ++i)
+  bool small = false;
+  for (int i = 1; i < argc; ++i) {
     if (!strcmp(argv[i], "--reps") && i + 1 < argc) reps = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--small")) small = true;
+  }
 
   //               name    G    m     n     k    shareA shareB uA  uB
-  std::vector<Workload> ws = {
+  std::vector<Workload> ws = small ? std::vector<Workload>{
+      {"lora",  4,   16,   64,  256, false, true,   4,  1},
+      {"tp",    4,   64,   48,  256, true,  false,  1,  4},
+      {"none",  4,   48,   64,  128, false, false,  4,  4},
+  } : std::vector<Workload>{
       {"lora", 16,   16,  256, 4096, false, true,  16,  1},
       {"tp",    8,  256,  512, 4096, true,  false,  1,  8},
       {"none", 16,  256,  256, 1024, false, false, 16, 16},
@@ -145,7 +154,7 @@ int main(int argc, char** argv) {
   ggemm_config_t cfg_emu = {0, 1e-15, 0};    // adaptive N, no fallback (pure emulation)
   ggemm_config_t cfg_auto = {0, 1e-15, 1};
   const char* promote = getenv("GGEMM_REUSE_PROMOTE");
-  printf("test_reuse_e2e: reps=%d policy=%s\n", reps,
+  printf("test_reuse_e2e: reps=%d%s policy=%s\n", reps, small ? " (small, no timing)" : "",
          (promote && atoi(promote) == 1) ? "PROMOTE" : "EXACT_N");
 
   for (Workload& w : ws) {
@@ -190,6 +199,7 @@ int main(int argc, char** argv) {
     CHECK(sr.kernel_launches == sb.kernel_launches, "launches base=%d reuse=%d",
           sb.kernel_launches, sr.kernel_launches);
 
+    if (small) continue;   // sanitizer mode: correctness gates only
     const double tb = time_path(h, GGEMM_PATH_EMU_GROUPED, &cfg_emu, w, reps, s);
     const double tr = time_path(h, GGEMM_PATH_EMU_GROUPED_REUSE, &cfg_emu, w, reps, s);
     const double ta = time_path(h, GGEMM_PATH_AUTO, &cfg_auto, w, reps, s);

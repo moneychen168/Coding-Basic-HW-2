@@ -12,7 +12,9 @@
 //   lat_us        : single-call latency (sync; call; sync), median of R
 //   make_plan_ms  : one-off ggemm_make_plan cost
 //
-// Usage: test_graph [--reps R]
+// Usage: test_graph [--reps R] [--small]
+//   --small: shrunken workloads (same three kinds incl. empty / k==0 problems), T2 with 2
+//            iterations, timing skipped; for compute-sanitizer racecheck (timed out in job 511062).
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -100,9 +102,23 @@ static const char* pname(ggemm_path_t p) { return p == GGEMM_PATH_AUTO ? "AUTO" 
 
 struct Workload { const char* name; std::vector<Shape> shapes; };
 
-static std::vector<Workload> workloads() {
+static std::vector<Workload> workloads(bool small) {
   std::vector<Workload> w;
   std::mt19937 r(7);
+  if (small) {   // sanitizer mode: same three kinds, a few small problems each
+    w.push_back({"tiny8x(32,32,64)", std::vector<Shape>(8, {32, 32, 64})});
+    Workload x{"moe4(m~U[16,96],n=64,k=128)", {}};
+    std::uniform_int_distribution<int> M(16, 96);
+    for (int i = 0; i < 4; ++i) x.shapes.push_back({M(r), 64, 128});
+    w.push_back(x);
+    Workload y{"mixed6(+empty,+k0)", {}};
+    std::uniform_int_distribution<int> D(8, 96);
+    for (int i = 0; i < 4; ++i) y.shapes.push_back({D(r), D(r), D(r)});
+    y.shapes.push_back({0, 64, 64});
+    y.shapes.push_back({48, 40, 0});
+    w.push_back(y);
+    return w;
+  }
   {  // launch-overhead dominated: many tiny problems
     Workload x{"tiny64x(32,32,64)", {}};
     for (int i = 0; i < 64; ++i) x.shapes.push_back({32, 32, 64});
@@ -127,11 +143,15 @@ static std::vector<Workload> workloads() {
 
 int main(int argc, char** argv) {
   int reps = 200;
-  for (int i = 1; i < argc; ++i)
+  bool small = false;
+  for (int i = 1; i < argc; ++i) {
     if (!strcmp(argv[i], "--reps") && i + 1 < argc) reps = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--small")) small = true;
+  }
 
   cudaDeviceProp prop; CK(cudaGetDeviceProperties(&prop, 0));
-  printf("device: %s (sm_%d%d)  reps=%d\n", prop.name, prop.major, prop.minor, reps);
+  printf("device: %s (sm_%d%d)  reps=%d%s\n", prop.name, prop.major, prop.minor, reps,
+         small ? "  (small: no timing)" : "");
 
   cudaStream_t hs, s2;
   CK(cudaStreamCreateWithFlags(&hs, cudaStreamNonBlocking));
@@ -143,7 +163,7 @@ int main(int argc, char** argv) {
   printf("\n%-32s %-11s %8s %6s | %12s %10s %10s %10s | %12s\n", "workload", "path", "variant",
          "launch", "host_issue_us", "wall_us", "gpu_us", "lat_us", "make_plan_ms");
 
-  for (const Workload& wl : workloads()) {
+  for (const Workload& wl : workloads(small)) {
     DataSet X, Y;
     make_data(X, wl.shapes, 11);
     make_data(Y, wl.shapes, 22);   // same shapes, different data
@@ -191,7 +211,7 @@ int main(int argc, char** argv) {
 
       // ---- T2: plan on s2 interleaved with direct calls (other data) on the handle stream
       auto py = problems(Y, Y.dC, alpha, 0.0);
-      for (int it = 0; it < 8; ++it) {
+      for (int it = 0; it < (small ? 2 : 8); ++it) {
         CK(cudaMemcpyAsync(dCg, X.dC0, nC * 8, cudaMemcpyDeviceToDevice, s2));
         rc |= ggemm_execute_plan(plan, s2);
         rc |= ggemm_grouped_dgemm(h, path, cfg, py.data(), G, nullptr);
@@ -227,6 +247,7 @@ int main(int argc, char** argv) {
                eq2 ? "bit-exact" : "MISMATCH");
       }
       ggemm_destroy_plan(plan);
+      if (small) continue;   // sanitizer mode: correctness only
 
       // ---- timing (beta = 0 so repeated calls stay finite; output not checked here)
       auto pt = problems(X, dCg, 1.0, 0.0);

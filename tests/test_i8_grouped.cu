@@ -58,6 +58,10 @@ static void build_group(Group& g, const std::vector<Shape>& shapes, uint32_t see
   for (size_t i = 0; i < g.totB; ++i) g.hB[i] = (int8_t)(fill_mode ? -128 : d(rng));
   CK(cudaMalloc(&g.dA, g.totA)); CK(cudaMalloc(&g.dB, g.totB));
   CK(cudaMalloc(&g.dC, g.totC * 4)); CK(cudaMalloc(&g.dRef, g.totC * 4));
+  // Define the whole C / Ref images: per-problem padding (offC rounded up to 64 elements) and
+  // empty problems (m|n|kp == 0) are never written by either GEMM, but check_cpu/check_vs_lt copy
+  // the full buffers back (compute-sanitizer initcheck flagged those bytes, job 511062).
+  CK(cudaMemset(g.dC, 0, g.totC * 4)); CK(cudaMemset(g.dRef, 0, g.totC * 4));
   CK(cudaMemcpy(g.dA, g.hA.data(), g.totA, cudaMemcpyHostToDevice));
   CK(cudaMemcpy(g.dB, g.hB.data(), g.totB, cudaMemcpyHostToDevice));
   for (size_t i = 0; i < shapes.size(); ++i) {
@@ -255,7 +259,12 @@ int main(int argc, char** argv) {
     report("cuBLASLt vs ours (auto), supported problems", check_vs_lt(g, ok));
     free_group(g);
   }
-  if (quick) { std::printf(g_fail ? "SOME TESTS FAILED\n" : "ALL PASS\n"); return g_fail; }
+  // release process-lifetime resources (memcheck --leak-check full reported lt_ws/d_sched/h_sched)
+  auto cleanup = [&] {
+    cudaFreeHost(h_sched); cudaFree(d_sched); cudaFree(lt_ws);
+    cublasLtDestroy(lt); cudaStreamDestroy(st);
+  };
+  if (quick) { cleanup(); std::printf(g_fail ? "SOME TESTS FAILED\n" : "ALL PASS\n"); return g_fail; }
 
   cudaEvent_t e0, e1;
   CK(cudaEventCreate(&e0)); CK(cudaEventCreate(&e1));
@@ -342,6 +351,8 @@ int main(int argc, char** argv) {
     if (grown) g_fail = 1;
   }
   std::printf("TOPS = 2*m*n*kp / time. RTX 5090 dense INT8 peak = 838 TOPS (see src comment).\n");
+  cudaEventDestroy(e0); cudaEventDestroy(e1);
+  cleanup();
   std::printf(g_fail ? "SOME TESTS FAILED\n" : "ALL PASS\n");
   return g_fail;
 }

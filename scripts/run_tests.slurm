@@ -16,14 +16,14 @@ ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"; cuda_prefligh
 OUT="$ROOT/results/test_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
-[[ "${SKIP_BUILD:-0}" == 1 ]] || TARGETS="test_grouped bench_grouped" BUILD_DIR="$ROOT/build" "$ROOT/scripts/build.sh" || exit 1
-"$ROOT/build/test_grouped" --set "${TEST_SET:-test}" --paths "${PATHS:-all}" --phis "${PHIS:-0,0.5,1,2}" \
+job_build "test_grouped bench_grouped" || exit 1
+"$BDIR/test_grouped" --set "${TEST_SET:-test}" --paths "${PATHS:-all}" --phis "${PHIS:-0,0.5,1,2}" \
     --csv "$OUT/tests.csv" 2>&1 | tee "$OUT/tests.log"
 rc=${PIPESTATUS[0]}
 # compute-sanitizer pass on a small subset (out-of-bounds / race in the library kernels)
 if [[ "${SANITIZE:-1}" == 1 ]]; then
   "$CUDA_HOME/bin/compute-sanitizer" --tool memcheck --leak-check full --error-exitcode 9 \
-      "$ROOT/build/test_grouped" --set test --paths emu_grouped,auto --phis 1 --no-edges \
+      "$BDIR/test_grouped" --set test --paths emu_grouped,auto --phis 1 --no-edges \
       > "$OUT/memcheck.log" 2>&1
   echo "memcheck exit: $? (log: $OUT/memcheck.log)"
 fi

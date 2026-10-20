@@ -18,8 +18,8 @@ ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"; source "$ROOT/scripts/env.sh"; cuda_prefligh
 OUT="$ROOT/results/prof_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
-[[ "${SKIP_BUILD:-0}" == 1 ]] || TARGETS="test_grouped bench_grouped" BUILD_DIR="$ROOT/build" "$ROOT/scripts/build.sh" || exit 1
-B="$ROOT/build/bench_grouped"
+job_build "test_grouped bench_grouped" || exit 1
+B="$BDIR/bench_grouped"
 "$B" --set quick --dump-shapes "$OUT/shapes.csv" --dump-only
 NSYS="${NSYS:-$CUDA_HOME/bin/nsys}"; NCU="${NCU:-$CUDA_HOME/bin/ncu}"
 WORKLOADS="${WORKLOADS:-uni_G1024_s32 moe_E64_prefill_z1.2_up het_G256 lora_G64_rmix_shrink}"

@@ -57,3 +57,20 @@ cuda_preflight() {
   fi
   rm -rf "$dir"
 }
+
+# Per-job build dir so concurrent jobs never share $ROOT/build (job 511061 died with
+# "ar: unable to copy libggemm.a" when two jobs built into it at once).
+# Usage: job_build "test_grouped bench_grouped" || exit 1   -> sets BDIR (binaries in $BDIR/).
+#   default : builds into $ROOT/build_job_<jobid>, removed at script exit (KEEP_BUILD=1 keeps it)
+#   BUILD_DIR=dir : build there, never removed
+#   SKIP_BUILD=1  : no build; BDIR=${BUILD_DIR:-$ROOT/build} (pre-built binaries)
+job_build() {   # $1 = TARGETS
+  if [[ "${SKIP_BUILD:-0}" == 1 ]]; then BDIR="${BUILD_DIR:-$ROOT/build}"; return 0; fi
+  if [[ -n "${BUILD_DIR:-}" ]]; then
+    BDIR="$BUILD_DIR"
+  else
+    BDIR="$ROOT/build_job_${SLURM_JOB_ID:-local}"
+    [[ "${KEEP_BUILD:-0}" == 1 ]] || trap '[[ -n "${BDIR:-}" && "$BDIR" == */build_job_* ]] && rm -rf "$BDIR"' EXIT
+  fi
+  TARGETS="$1" BUILD_DIR="$BDIR" "$ROOT/scripts/build.sh"
+}

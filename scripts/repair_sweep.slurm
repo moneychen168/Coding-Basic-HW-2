@@ -24,8 +24,8 @@ OUT="$ROOT/results/repair_${SLURM_JOB_ID:-local}"; mkdir -p "$OUT"
 write_provenance "$OUT"
 select_calib "$OUT"
 unset GGEMM_STATS_REPAIR GGEMM_RHO_BUDGET
-[[ "${SKIP_BUILD:-0}" == 1 ]] || TARGETS="bench_grouped" BUILD_DIR="$ROOT/build" "$ROOT/scripts/build.sh" || exit 1
-B="$ROOT/build/bench_grouped"
+job_build "bench_grouped" || exit 1
+B="$BDIR/bench_grouped"
 PHIS="${PHIS:-0,0.5,1,2}"; REPS="${REPS:-10}"; WARMUP="${WARMUP:-3}"
 "$B" --set repair --dump-shapes "$OUT/shapes.csv" --dump-only
 
