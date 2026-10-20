@@ -1,6 +1,4 @@
 build/
-results/
-logs/
 bench/calib/calib
 bench/calib/*.csv
 bench/calib/*.log
@@ -9,3 +7,10 @@ docs/video/.venv/
 docs/video/build/
 docs/video/render_*.out
 docs/video/audio/
+__pycache__/
+# raw results are tracked; regenerable/huge artifacts are not (CSV exports of them are tracked)
+results/**/build/
+*.sqlite
+*.ncu-rep
+*.o
+*_trace.csv

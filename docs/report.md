@@ -1,6 +1,6 @@
 # ggemm 期末報告：以 INT8 Tensor Core 模擬 FP64 的 Grouped GEMM（Ozaki scheme II）
 
-> Coding-Basic-HW-2 延伸題「Batched/Grouped GEMM」。本報告的每個數字都取自 `results/` 或 `logs/` 底下的實測檔案，並在旁邊註明 SLURM job id（寫作「job NNNNNN」）和檔名。由檔內數字算出的比值會寫出算式。目前沒有待填的數字。效能數字以 job 590147（commit b56631d，dirty=0）為準；之後的 final job 會再更新（§12）。
+> Coding-Basic-HW-2 延伸題「Batched/Grouped GEMM」。本報告的每個數字都取自 `results/` 或 `logs/` 底下的實測檔案，並在旁邊註明 SLURM job id（寫作「job NNNNNN」）和檔名。由檔內數字算出的比值會寫出算式。目前沒有待填的數字。**正式版本是 job 590258**（`results/final_590258/`，程式 commit 1c39e40，35 個步驟全部 PASS）。provenance 記錄 dirty=6，內容是 4 個修改過的文件（DESIGN.md、README.md、docs/discussion_1007.md、docs/related_work.md）和 2 個未追蹤項目（docs/report.md、scripts/analysis/__pycache__/），`src/` 是乾淨的。job 590147（b56631d）與 590224（a48eb3e）作為修正前後的對照（§9.6）。
 
 ---
 
@@ -8,12 +8,16 @@
 
 **一句話結論。** 我們實作了完整的 grouped FP64 GEMM library `ggemm`，內容包括：Ozaki scheme II 的 CRT 流程、persistent grouped INT8 GEMM、逐 entry 的 certify-and-repair、planner、operand reuse，以及 CUDA Graph plan/execute。
 
-**主要數字**（最終 job 590147，commit b56631d，dirty=0，`results/final_590147/tables.md`，33 個步驟全部 PASS）：
+**主要數字**（正式 job 590258，commit 1c39e40，`results/final_590258/tables.md`，35 個步驟全部 PASS）：
 
-1. **模擬本身的進步**（純模擬之間的比較）：`EMU_GROUPED` 相對 `EMU_LOOP_BATCHED` 的 E2E speedup，44 個 workload 的 geomean 是 **4.93×**（uniform 17.86×、MoE 2.66×、hetero 2.26×、LoRA 3.27×；表 2c）。`EMU_LOOP_BATCHED` 相對 `EMU_LOOP` 是 1/0.41 ≈ 2.4×。
-2. **對 native 的負面結果**：在本作業唯一可用的 GPU（國網 nano4 的 H200）上，`EMU_GROUPED` 在 **44/44** 個 workload 都比 `NATIVE_GROUPED`（cuBLAS）慢，慢 **2.35×–22.4×**（geomean 0.13×，表 2b）。
-3. **AUTO 不是模擬的加速**：44 列中有 38 列 fallback = G。其餘 6 列（MoE decode）的 fallback 數等於非空問題數，剩下的是 m_e = 0 的空問題。也就是說，**AUTO 在 bench 中沒有任何一題用模擬計算**。AUTO 相對 native_grouped 的 geomean 是 0.87×；在小型 uniform workload 上比 native_grouped 慢（regression，§10.1）。
-4. **正確性**：`test_grouped` 2955 passed / 0 failed（job 511249、590147、590162）。
+1. **模擬本身的進步**（純模擬之間的比較）：`EMU_GROUPED` 相對 `EMU_LOOP_BATCHED` 的 E2E speedup，44 個 workload 的 geomean 是 **4.97×**（uniform 18.49×、MoE 2.65×、hetero 2.23×、LoRA 3.25×；表 2c）。`EMU_LOOP_BATCHED` 相對 `EMU_LOOP` 是 1/0.41 ≈ 2.4×。
+2. **對 native 的負面結果**：在本作業唯一可用的 GPU（國網 nano4 的 H200）上，`EMU_GROUPED` 在 **44/44** 個 workload 都比 `NATIVE_GROUPED`（cuBLAS）慢，慢 **2.38×–21.3×**（geomean 0.14×，表 2b）。
+3. **AUTO 不是模擬的加速**：44 列中有 38 列 fallback = G。其餘 6 列（MoE decode）的 fallback 數等於非空問題數，剩下的是 m_e = 0 的空問題；44 列的 `moduli_max` 都是 0。也就是說，**AUTO 在 bench 中沒有任何一題用模擬計算**。AUTO 相對 native_grouped 的 geomean 是 1.03×（tables.md 標為「all-native」）。
+4. **兩項修正已經實測**（§9.6）：
+   - planner 的 per-call shape memo 修掉了 AUTO 全部 fallback 時的開銷 regression。例如 uni_G4096_s32 從 0.738 ms（590147）降到 0.2944 ms（590258），同列 native_grouped 是 0.2697 ms。
+   - reconstruct 的計數器改成 warp + block 聚合後，repair sweep 的計數結果完全不變，時間 geomean 變成原來的 0.959 倍。
+5. **計時區沒有 host 配置**：590258 的 `bench.csv` 中 308 列的 `host_allocs_timed` 全部是 0。
+6. **正確性**：`test_grouped` 2955 passed / 0 failed（job 590256、590258，commit 1c39e40）；compute-sanitizer 在 job 590161 全部 0 errors。
 
 §10 列出全部的負面結果。
 
@@ -68,7 +72,7 @@ v1 的範圍：只支援 column-major、不轉置，只支援 FP64 實數。
 4. **CRT reconstruct**：把 S = ΣM_l·y_l 拆成 uint64 + uint32 兩部分精確累加，Q = rint(S/P)，相當於 double-double 等級的運算。
 5. **反 scale**：C = α·2^{−(s+t)}·X + β·C。乘 2 的冪次沒有捨入誤差。
 
-N 的選擇（job 590147 `logs/test_numerics_standalone.log`）：normwise 目標 1e-15 時，k = 256／1024／4096 取 N = 15，k = 16384／65536 取 N = 16；k = 131072 時回傳 −1，代表做不到，必須 fallback。
+N 的選擇（job 590258 `logs/test_numerics_standalone.log`）：normwise 目標 1e-15 時，k = 256／1024／4096 取 N = 15，k = 16384／65536 取 N = 16；k = 131072 時回傳 −1，代表做不到，必須 fallback。
 
 ### 2.2 Grouped pipeline：整組固定 3 個 kernel
 
@@ -93,7 +97,7 @@ GPU ：oz2_prep_kernel → i8_grouped_persistent_kernel → oz2_reconstruct_kern
 
 ### 2.4 Prep 與 reconstruct
 
-- **prep**：一次 launch 處理整組。它算 2-norm 與 scale，寫出 N+1 份 residue plane 和 row/col workspace（內容包括 s_i、σ_i、‖dA_i‖ 上界、‖A'_i‖ 上界）。最終 commit b56631d 加入 **prep split-K**，即沿 k 切段計算再合併。job 590147 驗證 S = 2、3、7、16、64 和 S = 1 的結果相比是 `0 differing buffers`（bit-exact）。
+- **prep**：一次 launch 處理整組。它算 2-norm 與 scale，寫出 N+1 份 residue plane 和 row/col workspace（內容包括 s_i、σ_i、‖dA_i‖ 上界、‖A'_i‖ 上界）。最終 commit b56631d 加入 **prep split-K**，即沿 k 切段計算再合併。job 590258 驗證 S = 2、3、7、16、64 和 S = 1 的結果相比是 `0 differing buffers`（bit-exact）。
 - **reconstruct**：一次 launch 處理整組，做 CRT 還原、反 scale、套 α/β，以及 §2.5 的認證。
 
 ### 2.5 Certify-and-repair
@@ -108,7 +112,9 @@ normwise 誤差界無法保證 componentwise 誤差：ρ_ij = ‖a_i‖‖b_j‖
    - **ON**：在同一個 thread 內改用 FP64 FMA 內積重算，計入 `num_repaired`。這是 `AUTO` 的預設。
 4. 不論哪個 mode，含 NaN/Inf 的列或行一律走 FP64 dot（safety fallback）。
 
-例子（job 590147 numerics log，64 個 16³ 問題，φ = 2，N = 15）：
+**計數器的實作**（commit 1c39e40）：uncertified、repaired、safety_fallback 三個計數器原本是「每個計數非零的 thread 各對同一個全域位址做一次 atomicAdd」。現在改成先在 warp 內聚合（warp shuffle），再在 block 內聚合，最後每個 block 只做一次全域 atomicAdd；prep 的 NONFINITE 計數改用 ballot。數值結果與計數完全不變，效果見 §9.6。
+
+例子（job 590258 numerics log，64 個 16³ 問題，φ = 2，N = 15）：
 
 | mode | gate | 計數 |
 |---|---|---|
@@ -136,7 +142,12 @@ OFF 和 COUNT 的輸出 bitwise 相同。gate 的定義見 §5.1，≤ 1 才算�
 - **Tile**：在 padding 效率 ≥ 0.75 的前提下取最大的 tile，再做 wave-quantization 調整。
 - **Cost model**：t_emu = prep 流量/BW + ⌈planes·tiles/slots⌉·per_tile + reconstruct 流量/BW；t_native = max(2mnk/FP64 峰值, 流量/BW)。參數取自 `bench/calib/params_nvidia_h200.json`。
 - 每次呼叫走 native 的題數會寫在 `stats.num_fallback`。
-- 效能：G = 65535 時 planner 的 host 時間最佳 7219.7 µs、平均 7322.8 µs（110.17 ns/problem），steady state 沒有任何 `operator new`。planner 單元測試 1607/1607 通過。以上皆來自 job 511063 `test_planner.log`。
+- **Per-call shape memo**（commit a48eb3e）：在同一次呼叫內，α = 0 檢查之後的規劃結果只取決於 (m, n, k, β ≠ 0)，所以相同 shape 的問題只規劃一次（`ggemm_plan_ex` 搭配 memo 表，大小由 `ggemm_plan_memo_cap(G)` 決定），呼叫路徑中沒有配置。`tests/test_planner.cpp` 第 403 行起用隨機 group 比較 memo 與非 memo 的 plan，要求 bit for bit 相同。
+- 效能與測試（job 590223，`planner_unit_590223/test_planner.log`，commit a48eb3e）：
+  - planner 單元測試 **1655 passed / 0 failed**，包含 memo 與非 memo 的逐 entry 比對。
+  - G = 65535 時，非 memo 的 `ggemm_plan` host 時間平均為 path 3 7322.2 µs（111.02 ns/problem）、path 4 8214.4 µs（124.81 ns/problem）。
+  - `operator new` 呼叫次數：首次呼叫與 steady state 都是 0。
+  - 舊版（job 511063）是 1607/1607，path 3 為 110.17 ns/problem。
 
 ### 2.7 Operand reuse（path 5）
 
@@ -169,14 +180,14 @@ bench／test 對各路徑使用的設定不同（`tests/test_grouped.cu: cfg_for
 | 項目 | 值 | 來源 |
 |---|---|---|
 | 叢集 | NCHC nano4，partition `dev`，每 job 1 GPU、12 CPU | `scripts/final/run_final.slurm` |
-| GPU | NVIDIA H200（sm_90，132 SMs，143771 MiB） | job 590147 `provenance.txt`；校正 JSON |
-| Driver | 580.65.06（CUDA Version 13.0） | job 590147 `nvidia-smi.txt` |
-| CUDA | 13.0，nvcc V13.0.48（`cuda_13.0.r13.0/compiler.36260728_0`） | job 590147 `nvcc.txt` |
-| Clocks | SM／Graphics 最高 1980 MHz，Memory 3201 MHz；Applications Clocks 為預設值 1980 MHz，**未鎖頻**；power limit 700 W | job 590147 `nvidia-smi.txt` |
+| GPU | NVIDIA H200（sm_90，132 SMs，143771 MiB） | job 590258 `provenance.txt`；校正 JSON |
+| Driver | 580.65.06（CUDA Version 13.0） | job 590258 `nvidia-smi.txt` |
+| CUDA | 13.0，nvcc V13.0.48（`cuda_13.0.r13.0/compiler.36260728_0`） | job 590258 `nvcc.txt` |
+| Clocks | SM／Graphics 最高 1980 MHz，Memory 3201 MHz；Applications Clocks 為預設值 1980 MHz，**未鎖頻**；power limit 700 W | job 590258 `nvidia-smi.txt` |
 | compute-sanitizer | 2025.3.0.0 | job 511062 |
 | 編譯 | sm_90 與 sm_120 都編，`-O3 -lineinfo`，C++17 | `scripts/build.sh` |
-| 最終版本 | commit b56631d（dirty=0） | job 590147 `provenance_git.txt` |
-| 節點 | 590147：25a-hgpn004；590148：25a-hgpn042；590162：25a-hgpn066 | 各 `provenance.txt` |
+| 正式版本 | commit 1c39e40（dirty=6，只有文件與未追蹤項目，`src/` 乾淨） | job 590258 `provenance.txt` |
+| 節點 | 590258：25a-hgpn069；590147：25a-hgpn004；590148：25a-hgpn042 | 各 `provenance.txt` |
 
 **目標平台說明**：題目的目標機是 RTX 5090（sm_120，FP64 很弱），**但 nano4 上沒有 RTX 5090**。所有 job 都在 H200 上執行。程式雖然有編 sm_120，卻**從未在 sm_120 上執行過**，所以本報告不對 5090 的效能做任何宣稱。
 
@@ -207,7 +218,7 @@ Grouped 路徑的價值有兩點：把每次呼叫的固定成本攤到很多題
 | 應用 MoE FFN | T = 4096、E = 16、top2、1024／2048、Zipf {0, 1.0, 1.5}；另加 T = 16384、E = 8、top1、256／256、Zipf 1.2 | 科學計算 ML 的 FP64 MoE，例如 Behler-Parrinello／DeePMD 類型原子勢（等同 top-1 MoE），**不是** LLM；router 是合成的 Zipf |
 | 應用 block-sparse | (atoms, basis, nrhs) = (1024, cc-pVDZ, 128)、(512, cc-pVTZ, 256)、(256, cc-pVQZ, 256)，cutoff 6 Å，block 與 panel 兩種模式 | 線性尺度電子結構（DBCSR／CP2K 類）的 F·C_occ，大量大小不一的小 FP64 GEMM |
 
-job 590147 的 `bench` set 共 44 個 workload（`shapes.csv`：uniform 14、MoE 24、hetero 2、LoRA 4），φ = 0.5。正確性測試用縮小版的 `test` set，另外加 k = 4096、k 不是 32 倍數兩個案例，並掃 φ ∈ {0, 0.5, 1, 2}。
+job 590258 的 `bench` set 共 44 個 workload（`shapes.csv`：uniform 14、MoE 24、hetero 2、LoRA 4），φ = 0.5。正確性測試用縮小版的 `test` set，另外加 k = 4096、k 不是 32 倍數兩個案例，並掃 φ ∈ {0, 0.5, 1, 2}。
 
 ---
 
@@ -241,17 +252,17 @@ job 590147 的 `bench` set 共 44 個 workload（`shapes.csv`：uniform 14、MoE
 
 | 測試 | 結果 | 來源 |
 |---|---|---|
-| test_grouped（7 條路徑 × test set × 4 種 φ × α/β 組合 + edge + big-K） | **2955 passed / 0 failed** | job 511249（b56631d，dirty=0）；job 590147 `logs/test_grouped.log`；job 590162（同一 commit，dirty=8，只改了 `tests/` 與 `scripts/`，`src/` 未動）`results/test_590162` |
-| test_grouped 在 memcheck 下（縮小版） | 312 passed / 0 failed，`ERROR SUMMARY: 0 errors`，leak 0 bytes | job 511249 `test_511249/memcheck.log` |
-| test_graph（plan 和 direct bit-exact、換 stream、update_pointers） | **63 / 0** | job 590147（早先的 510998、511060 也是 63/63） |
-| test_reuse_e2e（REUSE 和 GROUPED bit-exact；EXACT_N 與 PROMOTE） | **30 / 0** | job 590147（EXACT_N）；job 511060（含 PROMOTE） |
-| test_planner | **1607 / 0** | job 511063 |
-| test_numerics_standalone | **PASSED (0 failures)** | job 590147；job 511101 |
-| test_i8_grouped（對 CPU、cuBLASLt bit-exact；kp = 131040 邊界） | **ALL PASS** | job 590147 |
+| test_grouped（7 條路徑 × test set × 4 種 φ × α/β 組合 + edge + big-K） | **2955 passed / 0 failed** | **job 590256 與 590258（commit 1c39e40）**；較早的 511249（b56631d）、590147、590162 也都是 2955/0 |
+| test_grouped 在 memcheck 下（縮小版） | 312 passed / 0 failed，`ERROR SUMMARY: 0 errors`，leak 0 bytes | job 511249 `test_511249/memcheck.log`；四種 sanitizer 工具的全面重跑見 §10.3（job 590161） |
+| test_graph（plan 和 direct bit-exact、換 stream、update_pointers） | **63 / 0** | job 590258（早先的 510998、511060、590147 也是 63/63） |
+| test_reuse_e2e（REUSE 和 GROUPED bit-exact） | **54 / 0** | job 590258；舊版（590147）是 30/0；job 511060 另含 PROMOTE |
+| test_planner（含 memo 與非 memo 的逐 entry 比對） | **1655 / 0** | job 590223（a48eb3e）；舊版 511063 是 1607/0 |
+| test_numerics_standalone | **PASSED (0 failures)** | job 590258；job 511101 |
+| test_i8_grouped（對 CPU、cuBLASLt bit-exact；kp = 131040 邊界） | **ALL PASS** | job 590258 |
 
-Edge cases（job 511249）：1×1×1、zero_dims_mix、all_empty、beta0_nanC、k_not_mult32 全部 ok。big-K（k = 140000）：AUTO 有 3 題 fallback，err/gamma = 0.1885；`allow_fallback = 0` 時 emu_grouped 與 auto 都回傳 rc = 3（UNSAFE），符合預期。non-finite 測試：counter = 2，預期也是 2（job 590147）。
+Edge cases（job 511249）：1×1×1、zero_dims_mix、all_empty、beta0_nanC、k_not_mult32 全部 ok。big-K（k = 140000）：AUTO 有 3 題 fallback，err/gamma = 0.1885；`allow_fallback = 0` 時 emu_grouped 與 auto 都回傳 rc = 3（UNSAFE），符合預期。non-finite 測試：counter = 2，預期也是 2（job 590258）。
 
-**逐路徑彙總（test set，所有 φ 與 edge cases；job 590147 `tables.md` §1，來源 `tests.csv`）：**
+**逐路徑彙總（test set，所有 φ 與 edge cases；job 590258 `tables.md` §1，來源 `tests.csv`）：**
 
 | path | gate | cases | pass | fail | worst err/gamma | worst vs native | nonfinite | fallback (sum) |
 |---|---|---|---|---|---|---|---|---|
@@ -263,7 +274,7 @@ Edge cases（job 511249）：1×1×1、zero_dims_mix、all_empty、beta0_nanC、
 | emu_grouped_reuse | cert | 66 | 66 | 0 | **175.9** | 445.5 | 0 | 0 |
 | auto | strict | 66 | 66 | 0 | 0.5584 | 8.502 | 0 | 3778 |
 
-**Full bench set 的精度**（不計時的 check call，φ = 0.5，44 列／路徑；`tables.md` §1，來源 `bench.csv`）：native 與 auto 的 err/gamma > 1 都是 0 列，最大 0.5055。四條 EMU 路徑各有 1 列 err/gamma > 1，最大 2.204，worst rel_max 6.273e-09。bench 沒有讀 certificate 計數（`num_uncertified = -1`），所以這一列在 bench 中無法確認有沒有被標記；有計數的版本見 §5.3 的 test set 與 repair sweep。
+**Full bench set 的精度**（不計時的 check call，φ = 0.5，44 列／路徑；`tables.md` §1，來源 `bench.csv`）：native 與 auto 的 err/gamma > 1 都是 0 列，最大 0.5055。四條 EMU 路徑各有 1 列 err/gamma > 1，最大 2.204，worst rel_max 6.273e-09。590258 的 bench 在一次不計時的 `--count-call` 中讀了 certificate 計數（native 路徑沒有 certificate，所以是 −1，屬於正常）。EMU 路徑中有 28 列 num_uncertified > 0，**沒有任何一列 n_over_gamma > num_uncertified**（由 `bench.csv` 統計），所以上面那一列超出 γ 的 entry 也都被標記出來了。
 
 **Certificate repairs**（`tables.md` §1）：
 - `test_reuse_e2e`（`GGEMM_STATS_REPAIR=1`，3 個 workload）：所有路徑 repaired 都是 0。
@@ -273,7 +284,7 @@ Edge cases（job 511249）：1×1×1、zero_dims_mix、all_empty、beta0_nanC、
 
 `EMU_*` 路徑通過的是 cert gate，不是 strict gate。
 
-**EMU 路徑 err/gamma > 1 的列數**（job 590147 `tests.csv`；四條 EMU 路徑合計 264 列；由 tests.csv 統計）：
+**EMU 路徑 err/gamma > 1 的列數**（job 590258 `tests.csv`；四條 EMU 路徑合計 264 列；由 tests.csv 統計）：
 
 | φ | 列數 | err/gamma > 1 的列數 | 最大 err/gamma |
 |---|---|---|---|
@@ -294,16 +305,18 @@ Edge cases（job 511249）：1×1×1、zero_dims_mix、all_empty、beta0_nanC、
 
 要真正達到 FP64 等級，必須用 repair ON。certificate 是保守的：φ = 2 時多報了 113944/13561 ≈ 8.4 倍。
 
-**Repair sweep**（job 590148，`results/repair_590148/plots/repair_summary.md`；EMU_GROUPED、固定 N、COUNT 與 ON 比較；計時 R = 10、warmup 3 取 median；uncert frac 來自另一次不計時的呼叫）。下表取 N = 15，括號內是 COUNT 下的 uncertified 比例：
+**Repair sweep**（正式版 job 590257，commit 1c39e40，`results/repair_590257/plots/repair_summary.md`；EMU_GROUPED、固定 N、COUNT 與 ON 比較；計時 R = 10、warmup 3 取 median；uncert frac 來自另一次不計時的呼叫）。下表取 N = 15，括號內是 COUNT 下的 uncertified 比例：
 
 | workload | φ=0 ON/COUNT | φ=0.5 | φ=1 | φ=2 | φ=2 時 err/gamma（COUNT → ON） |
 |---|---|---|---|---|---|
-| uni_G1024_s64 | 0.997 (0) | 1.001 (0) | 1.003 (9.5e-07) | **1.176** (4.60e-02) | 10.87 → 0.2295 |
-| uni_G256_s256 | 1.002 (0) | 0.999 (0) | 0.998 (0) | **2.725** (3.51e-02) | 2.784 → 0.1128 |
-| moe_E64_prefill_z1.2_up | 0.999 (0) | 1.000 (0) | 1.000 (0) | **3.309** (2.04e-02) | 0.7805 → 0.02758 |
-| het_G256_16-2048 | 1.001 (0) | 0.999 (0) | 1.000 (2.2e-06) | **2.826** (3.76e-02) | 98.36 → 0.4012 |
+| uni_G1024_s64 | 0.995 (0) | 1.004 (0) | 0.990 (9.5e-07) | **1.186** (4.60e-02) | 10.87 → 0.2295 |
+| uni_G256_s256 | 0.999 (0) | 1.000 (0) | 0.997 (0) | **2.902** (3.51e-02) | 2.784 → 0.1128 |
+| moe_E64_prefill_z1.2_up | 1.000 (0) | 0.999 (0) | 1.001 (0) | **4.113** (2.04e-02) | 0.7805 → 0.02758 |
+| het_G256_16-2048 | 1.000 (0) | 1.000 (0) | 0.999 (2.2e-06) | **3.337** (3.76e-02) | 98.36 → 0.4012 |
 
-**repair ON 時的 FP64 重算比例**（job 590148 `emu_repair.csv`，repair_mode = on 共 96 列；比例 = num_repaired / total_entries，由 CSV 統計）：
+舊版 job 590148（b56631d）和 590257 的 192 列 EMU 結果，以 (workload, path, G, φ, N, repair_mode, ρ, total_entries) 配對後，所有計數與 err_max 都完全相同（§9.6）。因此下面的重算比例兩個 job 一樣。
+
+**repair ON 時的 FP64 重算比例**（job 590257 與 590148 的 `emu_repair.csv`，repair_mode = on 共 96 列；比例 = num_repaired / total_entries，由 CSV 統計）：
 
 | 分組 | 各列比例的平均 | 最大 |
 |---|---|---|
@@ -323,8 +336,8 @@ N = 13 時，uni_G1024_s64 在 φ = 0／0.5／1／2 的重算比例分別是 99.
 
 整張 sweep 表的結論：
 - ON 模式的 err/gamma 在所有格子都 ≤ 1，最大是 0.4559（het，φ = 2，N = 13）。COUNT 模式最差到 1.018e+04（同一格）。
-- 最貴的情況是 ON/COUNT = 4.684（moe，φ = 1，N = 13，uncert 比例 0.1813）。
-- **φ = 2 時，加大 N 比修復更划算**：het 的 ON 時間在 N = 15 是 29.9767 ms，N = 18 只要 12.2948 ms；moe up 在 N = 15 是 22.4619 ms，N = 18 是 8.5576 ms。
+- 最貴的情況是 ON/COUNT = 5.634（moe，φ = 2，N = 13；590257）。COUNT 在計數器修正後變快了，所以 repair 的相對成本看起來比舊版（590148）的 4.684 更高。
+- **φ = 2 時，加大 N 比修復更划算**（590257）：het 的 ON 時間在 N = 15 是 34.71 ms，N = 18 只要 12.60 ms；moe up 在 N = 15 是 28.03 ms，N = 18 是 8.630 ms。
 - 另一份資料（job 511101 `numerics_perf_511101.log`，ON，N = 15，被重算的 entry 數）：φ ≤ 1 的四種 shape 都是 0；φ = 4 時 128×96×1000 有 9331/12288 ≈ 76% 被重算，64×64×4096 有 3306/4096 ≈ 81%。
 
 這些數字支持 README 的說法：動態範圍寬時付出的是速度，不是正確性。
@@ -338,8 +351,8 @@ N = 13 時，uni_G1024_s64 在 φ = 0／0.5／1／2 的重算比例分別是 99.
 依 `bench/bench_grouped.cu` 檔頭：
 
 - 同一 workload、同一份資料（固定 seed）、同樣的 handle sizing、同一個 stream；不同路徑只換 path 參數。
-- 所有 allocation 都在計時區外。
-- **warmup 5 次、計時 20 次，取 median**（另外也輸出 min 和 wall）。job 590147 用 `REPS=20 WARMUP=5`。
+- 所有 allocation 都在計時區外。**實測證據**：bench 在每次計時呼叫前後計算 host 配置次數，寫在 `host_allocs_timed` 欄。job 590258 與 590224 的 `bench.csv` 各 308 列（44 個 workload × 7 條路徑），全部是 0。
+- **warmup 5 次、計時 20 次，取 median**（另外也輸出 min 和 wall）。job 590258 用 `REPS=20 WARMUP=5`。
 - β = 0，所以重複呼叫是 idempotent 的。不 flush L2。
 - `effective_GFLOPS` 只計入被取代的 FP64 flops。
 - 誤差和 certificate 計數來自另一次不計時的呼叫；計數用的是另一個設了 `GGEMM_STATS_REPAIR=1` 的 handle。
@@ -360,77 +373,80 @@ Speedup 一律定義為 time(base)/time(path)，> 1 表示 path 比較快。凡�
 
 ## 7. 效能結果
 
-### 7.1 Full bench set 的 E2E（job 590147，φ = 0.5，adaptive N，ms）
+### 7.1 Full bench set 的 E2E（正式 job 590258，φ = 0.5，adaptive N，ms）
 
 設定（§2.9）：EMU 路徑用 normwise 選 N、repair COUNT、allow_fallback = 0；AUTO 用 componentwise 選 N、repair ON、allow_fallback = 1。
 
-表中欄位（數字取自 `tables.md` 表 2a／2c 與 `bench.csv`）：
+表中欄位（數字取自 `tables.md` 表 2a、2b、2c 與 `bench.csv`）：
 - **ELB/EG** = time(emu_loop_batched) / time(emu_grouped)，即純模擬之間的 speedup。
 - **EG 相對 NG** = time(native_grouped) / time(emu_grouped)，< 1 表示模擬比較慢。
+- **auto 相對 NG** = time(native_grouped) / time(auto)。
 - **auto fallback** = 走 native 的題數 / G。
 
-| workload | G | native_grouped | emu_loop | emu_loop_batched | emu_grouped | emu_grouped_reuse | auto | auto fallback | ELB/EG | EG 相對 NG |
-|---|---|---|---|---|---|---|---|---|---|---|
-| uni_G256_s16 | 256 | 0.02362 | 24.14 | 6.59 | 0.2654 | 0.2955 | 0.02491 | 256/256 | 24.83× | 0.09× |
-| uni_G256_s32 | 256 | 0.02478 | 28.46 | 9.006 | 0.3191 | 0.3556 | 0.05398 | 256/256 | 28.23× | 0.08× |
-| uni_G256_s64 | 256 | 0.02794 | 31.46 | 9.828 | 0.447 | 0.4986 | 0.05464 | 256/256 | 21.99× | 0.06× |
-| uni_G256_s128 | 256 | 0.0683 | 36.78 | 11.46 | 0.8276 | 0.9083 | 0.09666 | 256/256 | 13.85× | 0.08× |
-| uni_G256_s256 | 256 | 0.3503 | 44.54 | 14.55 | 2.542 | 2.673 | 0.3803 | 256/256 | 5.72× | 0.14× |
-| uni_G1024_s16 | 1024 | 0.06429 | 98.97 | 26.5 | 1.038 | 1.151 | 0.06862 | 1024/1024 | 25.53× | 0.06× |
-| uni_G1024_s32 | 1024 | 0.06827 | 117.1 | 36.45 | 1.251 | 1.399 | 0.1845 | 1024/1024 | 29.14× | 0.05× |
-| uni_G1024_s64 | 1024 | 0.08882 | 125.1 | 39.6 | 1.697 | 1.932 | 0.1955 | 1024/1024 | 23.34× | 0.05× |
-| uni_G1024_s128 | 1024 | 0.2395 | 147.8 | 45.98 | 3.132 | 3.512 | 0.3529 | 1024/1024 | 14.68× | 0.08× |
-| uni_G1024_s256 | 1024 | 1.318 | 178.1 | 58 | 9.962 | 10.62 | 1.429 | 1024/1024 | 5.82× | 0.13× |
-| uni_G4096_s16 | 4096 | 0.2486 | 403.5 | 107.7 | 4.694 | 5.154 | 0.2685 | 4096/4096 | 22.94× | 0.05× |
-| uni_G4096_s32 | 4096 | 0.2727 | 468.8 | 146.3 | 5.541 | 6.154 | 0.7375 | 4096/4096 | 26.40× | 0.05× |
-| uni_G4096_s64 | 4096 | 0.3279 | 504.4 | 157.8 | 7.343 | 8.305 | 0.7601 | 4096/4096 | 21.49× | 0.04× |
-| uni_G4096_s128 | 4096 | 0.9041 | 589.7 | 184.9 | 13.02 | 14.57 | 1.362 | 4096/4096 | 14.20× | 0.07× |
-| moe_E8_prefill_z0.0_up | 8 | 1.101 | 5.207 | 3.809 | 2.742 | 2.688 | 1.101 | 8/8 | 1.39× | 0.40× |
-| moe_E8_prefill_z0.0_down | 8 | 1.123 | 8.9 | 4.991 | 2.645 | 2.445 | 1.112 | 8/8 | 1.89× | 0.42× |
-| moe_E64_prefill_z0.0_up | 64 | 1.575 | 44.27 | 22.02 | 6.312 | 6.194 | 1.587 | 64/64 | 3.49× | 0.25× |
-| moe_E64_prefill_z0.0_down | 64 | 1.596 | 33.9 | 16.57 | 6.463 | 6.541 | 1.612 | 64/64 | 2.56× | 0.25× |
-| moe_E128_prefill_z0.0_up | 128 | 0.8775 | 70.85 | 28.27 | 6.375 | 6.249 | 0.8951 | 128/128 | 4.43× | 0.14× |
-| moe_E128_prefill_z0.0_down | 128 | 0.9059 | 41.29 | 19.1 | 6.695 | 7.203 | 0.9226 | 128/128 | 2.85× | 0.14× |
-| moe_E8_decode_z0.0_up | 8 | 0.1597 | 3.55 | 2.028 | 1.051 | 0.9848 | 0.1605 | 8/8 | 1.93× | 0.15× |
-| moe_E8_decode_z0.0_down | 8 | 0.2606 | 7.35 | 3.246 | 1.551 | 1.269 | 0.2616 | 8/8 | 2.09× | 0.17× |
-| moe_E64_decode_z0.0_up | 64 | 1.048 | 40.61 | 20.07 | 5.449 | 5.321 | 0.7958 | 64/64 | 3.68× | 0.19× |
-| moe_E64_decode_z0.0_down | 64 | 0.7985 | 30.5 | 14.72 | 5.435 | 5.518 | 0.8116 | 64/64 | 2.71× | 0.15× |
-| moe_E128_decode_z0.0_up | 128 | 0.8649 | 66.74 | 25.72 | 5.937 | 5.822 | 0.8847 | 126/128 | 4.33× | 0.15× |
-| moe_E128_decode_z0.0_down | 128 | 0.8682 | 38.99 | 17.59 | 6.074 | 6.589 | 0.8868 | 126/128 | 2.90× | 0.14× |
-| moe_E8_prefill_z1.2_up | 8 | 1.063 | 5.252 | 3.737 | 2.725 | 2.674 | 1.064 | 8/8 | 1.37× | 0.39× |
-| moe_E8_prefill_z1.2_down | 8 | 1.118 | 8.75 | 4.863 | 2.669 | 2.437 | 1.118 | 8/8 | 1.82× | 0.42× |
-| moe_E64_prefill_z1.2_up | 64 | 1.576 | 43.42 | 22.49 | 6.803 | 6.709 | 1.594 | 64/64 | 3.31× | 0.23× |
-| moe_E64_prefill_z1.2_down | 64 | 1.595 | 33.35 | 17.35 | 6.952 | 7.055 | 1.609 | 64/64 | 2.50× | 0.23× |
-| moe_E128_prefill_z1.2_up | 128 | 1.155 | 69.88 | 27.55 | 6.588 | 6.499 | 1.093 | 128/128 | 4.18× | 0.18× |
-| moe_E128_prefill_z1.2_down | 128 | 1.118 | 41 | 18.87 | 7.046 | 7.581 | 1.138 | 128/128 | 2.68× | 0.16× |
-| moe_E8_decode_z1.2_up | 8 | 0.1607 | 3.531 | 2.004 | 1.068 | 0.9839 | 0.1608 | 8/8 | 1.88× | 0.15× |
-| moe_E8_decode_z1.2_down | 8 | 0.2611 | 7.329 | 3.196 | 1.567 | 1.287 | 0.2612 | 8/8 | 2.04× | 0.17× |
-| moe_E64_decode_z1.2_up | 64 | 0.8419 | 32.49 | 16.1 | 4.441 | 4.281 | 0.6572 | 51/64 | 3.62× | 0.19× |
-| moe_E64_decode_z1.2_down | 64 | 0.8499 | 24.38 | 11.71 | 4.403 | 4.45 | 0.6604 | 51/64 | 2.66× | 0.19× |
-| moe_E128_decode_z1.2_up | 128 | 0.7277 | 52.54 | 20.24 | 4.783 | 4.624 | 0.7365 | 99/128 | 4.23× | 0.15× |
-| moe_E128_decode_z1.2_down | 128 | 0.685 | 30.61 | 13.81 | 4.846 | 5.227 | 0.6958 | 99/128 | 2.85× | 0.14× |
-| het_G64_16-2048 | 64 | 0.4658 | 13.76 | 5.441 | 2.505 | 2.568 | 0.4751 | 64/64 | 2.17× | 0.19× |
-| het_G256_16-2048 | 256 | 1.974 | 59.45 | 23.99 | 10.21 | 11.33 | 2.018 | 256/256 | 2.35× | 0.19× |
-| lora_G16_r16_shrink | 16 | 0.1598 | 14.08 | 4.698 | 1.127 | 1.561 | 0.162 | 16/16 | 4.17× | 0.14× |
-| lora_G16_r16_expand | 16 | 0.05598 | 2.902 | 1.612 | 1.124 | 1.3 | 0.05624 | 16/16 | 1.43× | 0.05× |
-| lora_G64_rmix_shrink | 64 | 0.166 | 54.4 | 17.38 | 1.734 | 1.733 | 0.1722 | 64/64 | 10.02× | 0.10× |
-| lora_G64_rmix_expand | 64 | 0.1188 | 9.562 | 4.511 | 2.354 | 3.057 | 0.1231 | 64/64 | 1.92× | 0.05× |
+| workload | G | native_grouped | emu_loop | emu_loop_batched | emu_grouped | emu_grouped_reuse | auto | auto fallback | ELB/EG | EG 相對 NG | auto 相對 NG |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| uni_G256_s16 | 256 | 0.02341 | 23.8 | 6.478 | 0.2476 | 0.2782 | 0.02506 | 256/256 | 26.16× | 0.09× | 0.93× |
+| uni_G256_s32 | 256 | 0.02459 | 28.05 | 8.92 | 0.2967 | 0.3378 | 0.02656 | 256/256 | 30.07× | 0.08× | 0.93× |
+| uni_G256_s64 | 256 | 0.02757 | 30.73 | 9.796 | 0.4244 | 0.4774 | 0.02942 | 256/256 | 23.08× | 0.06× | 0.94× |
+| uni_G256_s128 | 256 | 0.06816 | 36.33 | 11.37 | 0.8083 | 0.889 | 0.06984 | 256/256 | 14.07× | 0.08× | 0.98× |
+| uni_G256_s256 | 256 | 0.3505 | 44.08 | 14.47 | 2.533 | 2.66 | 0.3522 | 256/256 | 5.71× | 0.14× | 0.99× |
+| uni_G1024_s16 | 1024 | 0.06392 | 97.72 | 26.16 | 0.9725 | 1.083 | 0.07013 | 1024/1024 | 26.90× | 0.07× | 0.91× |
+| uni_G1024_s32 | 1024 | 0.06762 | 115.6 | 36.07 | 1.166 | 1.321 | 0.07438 | 1024/1024 | 30.93× | 0.06× | 0.91× |
+| uni_G1024_s64 | 1024 | 0.0887 | 123.8 | 39.16 | 1.627 | 1.858 | 0.09462 | 1024/1024 | 24.07× | 0.05× | 0.94× |
+| uni_G1024_s128 | 1024 | 0.2383 | 146.1 | 45.59 | 3.061 | 3.447 | 0.2456 | 1024/1024 | 14.89× | 0.08× | 0.97× |
+| uni_G1024_s256 | 1024 | 1.32 | 176.6 | 57.74 | 9.922 | 10.57 | 1.327 | 1024/1024 | 5.82× | 0.13× | 0.99× |
+| uni_G4096_s16 | 4096 | 0.245 | 398.5 | 106.2 | 4.405 | 4.878 | 0.2702 | 4096/4096 | 24.11× | 0.06× | 0.91× |
+| uni_G4096_s32 | 4096 | 0.2697 | 463.5 | 144.7 | 5.197 | 5.816 | 0.2944 | 4096/4096 | 27.84× | 0.05× | 0.92× |
+| uni_G4096_s64 | 4096 | 0.3309 | 495.5 | 157.5 | 7.041 | 8.031 | 0.355 | 4096/4096 | 22.37× | 0.05× | 0.93× |
+| uni_G4096_s128 | 4096 | 0.9083 | 584 | 183.2 | 12.74 | 14.31 | 0.9353 | 4096/4096 | 14.39× | 0.07× | 0.97× |
+| moe_E8_prefill_z0.0_up | 8 | 1.094 | 5.191 | 3.795 | 2.744 | 2.681 | 1.102 | 8/8 | 1.38× | 0.40× | 0.99× |
+| moe_E8_prefill_z0.0_down | 8 | 1.115 | 8.898 | 4.998 | 2.65 | 2.45 | 1.116 | 8/8 | 1.89× | 0.42× | 1.00× |
+| moe_E64_prefill_z0.0_up | 64 | 1.58 | 44.08 | 21.93 | 6.311 | 6.193 | 1.577 | 64/64 | 3.47× | 0.25× | 1.00× |
+| moe_E64_prefill_z0.0_down | 64 | 1.593 | 33.65 | 16.51 | 6.467 | 6.539 | 1.602 | 64/64 | 2.55× | 0.25× | 0.99× |
+| moe_E128_prefill_z0.0_up | 128 | 0.8746 | 70.51 | 28.2 | 6.365 | 6.239 | 0.8803 | 128/128 | 4.43× | 0.14× | 0.99× |
+| moe_E128_prefill_z0.0_down | 128 | 0.9036 | 41.1 | 19.04 | 6.679 | 7.19 | 0.913 | 128/128 | 2.85× | 0.14× | 0.99× |
+| moe_E8_decode_z0.0_up | 8 | 0.1595 | 3.524 | 2.021 | 1.052 | 0.9851 | 0.1607 | 8/8 | 1.92× | 0.15× | 0.99× |
+| moe_E8_decode_z0.0_down | 8 | 0.2606 | 7.335 | 3.238 | 1.55 | 1.266 | 0.2606 | 8/8 | 2.09× | 0.17× | 1.00× |
+| moe_E64_decode_z0.0_up | 64 | 1.053 | 40.36 | 20.06 | 5.435 | 5.317 | 0.7887 | 64/64 | 3.69× | 0.19× | 1.33× |
+| moe_E64_decode_z0.0_down | 64 | 1.054 | 30.3 | 14.71 | 5.428 | 5.515 | 0.8043 | 64/64 | 2.71× | 0.19× | 1.31× |
+| moe_E128_decode_z0.0_up | 128 | 0.8671 | 66.45 | 25.61 | 5.917 | 5.806 | 0.8706 | 126/128 | 4.33× | 0.15× | 1.00× |
+| moe_E128_decode_z0.0_down | 128 | 0.8674 | 38.74 | 17.52 | 6.048 | 6.573 | 0.8752 | 126/128 | 2.90× | 0.14× | 0.99× |
+| moe_E8_prefill_z1.2_up | 8 | 1.056 | 5.248 | 3.729 | 2.726 | 2.684 | 1.065 | 8/8 | 1.37× | 0.39× | 0.99× |
+| moe_E8_prefill_z1.2_down | 8 | 1.117 | 8.737 | 4.884 | 2.693 | 2.439 | 1.117 | 8/8 | 1.81× | 0.41× | 1.00× |
+| moe_E64_prefill_z1.2_up | 64 | 1.57 | 43.26 | 22.47 | 6.824 | 6.739 | 1.585 | 64/64 | 3.29× | 0.23× | 0.99× |
+| moe_E64_prefill_z1.2_down | 64 | 1.595 | 33.14 | 17.31 | 6.969 | 7.083 | 1.609 | 64/64 | 2.48× | 0.23× | 0.99× |
+| moe_E128_prefill_z1.2_up | 128 | 1.077 | 69.52 | 27.44 | 6.59 | 6.508 | 1.086 | 128/128 | 4.16× | 0.16× | 0.99× |
+| moe_E128_prefill_z1.2_down | 128 | 1.118 | 40.77 | 18.83 | 7.098 | 7.639 | 1.129 | 128/128 | 2.65× | 0.16× | 0.99× |
+| moe_E8_decode_z1.2_up | 8 | 0.16 | 3.511 | 2.011 | 1.068 | 0.9834 | 0.1608 | 8/8 | 1.88× | 0.15× | 1.00× |
+| moe_E8_decode_z1.2_down | 8 | 0.2597 | 7.323 | 3.189 | 1.562 | 1.283 | 0.2608 | 8/8 | 2.04× | 0.17× | 1.00× |
+| moe_E64_decode_z1.2_up | 64 | 1.052 | 32.29 | 16.11 | 4.436 | 4.274 | 0.6507 | 51/64 | 3.63× | 0.24× | 1.62× |
+| moe_E64_decode_z1.2_down | 64 | 1.052 | 24.2 | 11.75 | 4.395 | 4.442 | 0.6602 | 51/64 | 2.67× | 0.24× | 1.59× |
+| moe_E128_decode_z1.2_up | 128 | 1.048 | 52.22 | 20.14 | 4.775 | 4.609 | 0.7299 | 99/128 | 4.22× | 0.22× | 1.44× |
+| moe_E128_decode_z1.2_down | 128 | 1.051 | 30.43 | 13.76 | 4.837 | 5.22 | 0.6873 | 99/128 | 2.84× | 0.22× | 1.53× |
+| het_G64_16-2048 | 64 | 0.464 | 13.63 | 5.435 | 2.537 | 2.59 | 0.4715 | 64/64 | 2.14× | 0.18× | 0.98× |
+| het_G256_16-2048 | 256 | 1.982 | 58.95 | 23.93 | 10.35 | 11.48 | 2.004 | 256/256 | 2.31× | 0.19× | 0.99× |
+| lora_G16_r16_shrink | 16 | 0.1597 | 13.97 | 4.685 | 1.124 | 1.562 | 0.1618 | 16/16 | 4.17× | 0.14× | 0.99× |
+| lora_G16_r16_expand | 16 | 0.056 | 2.882 | 1.617 | 1.131 | 1.31 | 0.05606 | 16/16 | 1.43× | 0.05× | 1.00× |
+| lora_G64_rmix_shrink | 64 | 0.1654 | 54.3 | 17.38 | 1.737 | 1.735 | 0.1715 | 64/64 | 10.01× | 0.10× | 0.96× |
+| lora_G64_rmix_expand | 64 | 0.1183 | 9.457 | 4.479 | 2.385 | 3.089 | 0.1233 | 64/64 | 1.88× | 0.05× | 0.96× |
 
 **Geomean**（`tables.md` 表 2b、2c，各家族括號內是 workload 數）：
 
 | 比較 | uniform (14) | moe (24) | hetero (2) | lora (4) | all (44) |
 |---|---|---|---|---|---|
-| emu_grouped 相對 emu_loop_batched（**模擬的加速**） | 17.86× | 2.66× | 2.26× | 3.27× | **4.93×** |
-| emu_loop 相對 emu_loop_batched | 0.30× | 0.49× | 0.40× | 0.41× | 0.41× |
-| emu_grouped 相對 native_grouped | 0.07× | 0.20× | 0.19× | 0.08× | **0.13×** |
-| auto 相對 native_grouped（fallback 比例見上表） | 0.63× | 1.03× | 0.98× | 0.98× | 0.87× |
-| native_loop 相對 native_grouped | 0.02× | 0.95× | 0.66× | 0.40× | 0.26× |
+| emu_grouped 相對 emu_loop_batched（**模擬的加速**） | 18.49× | 2.65× | 2.23× | 3.25× | **4.97×** |
+| emu_loop 相對 emu_loop_batched | 0.31× | 0.49× | 0.40× | 0.41× | 0.41× |
+| emu_grouped 相對 native_grouped | 0.07× | 0.21× | 0.19× | 0.08× | **0.14×** |
+| emu_grouped_reuse 相對 native_grouped | 0.07× | 0.22× | 0.18× | 0.06× | 0.13× |
+| auto 相對 native_grouped（44 列都是 all-native，fallback 比例見上表） | 0.94× | 1.10× | 0.99× | 0.98× | 1.03× |
+| native_loop 相對 native_grouped | 0.02× | 1.01× | 0.67× | 0.41× | 0.28× |
 
 讀法：
 - emu_loop → emu_loop_batched 是題內 batching 的增益；emu_loop_batched → emu_grouped 是跨題合併的增益，這是本作業的核心。**模擬的進步只看這兩步**，三者都是純模擬（COUNT）。
-- 表 2c 中 auto 相對 emu_loop_batched 是 32.91×（geomean），但 AUTO 的 fallback 是 100% 的非空問題，所以這個數字量到的是 cuBLAS 對模擬，**不能**當成 planner 或模擬的加速。
+- 表 2c 中 auto 相對 emu_loop_batched 是 37.55×（geomean，tables.md 標為 all-native n = 44）。但 AUTO 的 fallback 是 100% 的非空問題，所以這個數字量到的是 cuBLAS 對模擬，**不能**當成 planner 或模擬的加速。tables.md 中 AUTO「emu」那一組（AUTO 至少模擬一題的列）是 n = 0。
 - 6 列 MoE decode 的 auto fallback 小於 G（126/128、51/64、99/128）。差額是 m_e = 0 的空問題：native_loop 的 launch 數同樣是 126、51、99（表 3）。所以**沒有任何非空問題被模擬**。
-- AUTO 在 3 列 moe_E64_decode 比 native_grouped 快（0.6572 對 0.8419 ms 等）。AUTO 在這些列沒有模擬任何問題，所以這個差異與模擬無關。確切原因沒有量測，不做推測。
+- AUTO 在 6 列 MoE decode（moe_E64_decode 的 4 列與 moe_E128_decode_z1.2 的 2 列）比 native_grouped 快 1.31–1.62 倍，例如 moe_E64_decode_z1.2_up 是 0.6507 對 1.052 ms。AUTO 在這些列沒有模擬任何問題，所以這個差異與模擬無關。確切原因沒有量測，不做推測。
+- 590147 與 590258 的 launch 數逐列相同（308 列，由兩份 `bench.csv` 比對）。
 
 ### 7.2 Launch 數（`tables.md` 表 3，`ggemm_stats_t.kernel_launches`）
 
@@ -440,53 +456,56 @@ Speedup 一律定義為 time(base)/time(path)，> 1 表示 path 比較快。凡�
 - native_loop 等於非空題數。
 - AUTO 在 44 列的 moduli 都是 0-0，代表沒有任何一題被模擬。
 
-### 7.3 應用層 E2E（`tables.md` 表 4，ms）
+### 7.3 應用層 E2E（job 590258 `tables.md` 表 4，ms）
 
 **MoE FFN（FP64）**（`moe_ffn_fp64.csv`，median of 10）：
 
 | config | native_grouped | emu_loop_batched | emu_grouped | emu_grouped_reuse | auto（fallback） | EG 相對 ELB | EG 相對 NG |
 |---|---|---|---|---|---|---|---|
-| T=4096 E=16 top2 1024/2048 zipf 0 | 2.625 | 11.87 | 6.501 | 6.140 | 2.630（32/32） | 1.83× | 0.40× |
-| 同上 zipf 1.0 | 2.672 | 11.69 | 6.672 | 6.266 | 2.669（32/32） | 1.75× | 0.40× |
-| 同上 zipf 1.5 | 2.656 | 11.33 | 6.504 | 6.122 | 2.663（32/32） | 1.74× | 0.41× |
-| T=16384 E=8 top1 256/256 zipf 1.2 | 0.3181 | 2.083 | 1.560 | 1.586 | 0.3219（16/16） | 1.34× | 0.20× |
+| T=4096 E=16 top2 1024/2048 zipf 0 | 2.624 | 11.90 | 6.515 | 6.149 | 2.628（32/32） | 1.83× | 0.40× |
+| 同上 zipf 1.0 | 2.666 | 11.73 | 6.655 | 6.285 | 2.668（32/32） | 1.76× | 0.40× |
+| 同上 zipf 1.5 | 2.665 | 11.34 | 6.511 | 6.157 | 2.659（32/32） | 1.74× | 0.41× |
+| T=16384 E=8 top1 256/256 zipf 1.2 | 0.3189 | 2.088 | 1.575 | 1.595 | 0.3199（16/16） | 1.33× | 0.20× |
 
-err_y/bound：EMU 路徑是 4.382e-05–9.341e-04，native_grouped 最大 6.076e-05。gemm 佔 E2E 的比例：EMU 路徑 91.5%–98.9%。
+err_y/bound：EMU 路徑是 4.382e-05–9.341e-04，native_grouped 最大 6.076e-05。gemm 佔 E2E 的比例：EMU 路徑 91.7%–98.9%。
 
 **Block-sparse BSR × dense**（`block_sparse_fp64.csv`，median of 5）：
 
 | config | G | native_grouped | emu_loop_batched | emu_grouped | emu_grouped_reuse | auto（fallback） | EG 相對 ELB | EG 相對 NG |
 |---|---|---|---|---|---|---|---|---|
-| block 1024 dz 128 | 93822 | 16.08 | **call_failed** | **call_failed** | **call_failed** | 16.73（93822/93822） | — | — |
-| panel 1024 dz 128 | 1024 | 0.9705 | 77.74 | 5.305 | 5.489 | 0.9804（1024/1024） | 14.65× | 0.18× |
-| block 512 tz 256 | 46894 | 8.846 | 1883 | 151.9 | 134.7 | 11.67（46894/46894） | 12.39× | 0.06× |
-| panel 512 tz 256 | 512 | 3.158 | 83.67 | 9.929 | 9.810 | 3.154（512/512） | 8.43× | 0.32× |
-| block 256 qz 256 | 23380 | 5.349 | 997.1 | 86.97 | 77.36 | 7.981（23380/23380） | 11.46× | 0.06× |
-| panel 256 qz 256 | 256 | 2.105 | 74.26 | 10.15 | 9.599 | 2.100（256/256） | 7.32× | 0.21× |
+| block 1024 dz 128 | 93822 | 15.90 | **call_failed** | **call_failed** | **call_failed** | 16.55（93822/93822） | — | — |
+| panel 1024 dz 128 | 1024 | 0.9814 | 78.27 | 5.289 | 5.485 | 0.9723（1024/1024） | 14.80× | 0.19× |
+| block 512 tz 256 | 46894 | 8.889 | 1865 | 147.9 | 132.4 | 9.158（46894/46894） | 12.61× | 0.06× |
+| panel 512 tz 256 | 512 | 3.156 | 83.56 | 9.898 | 9.820 | 3.153（512/512） | 8.44× | 0.32× |
+| block 256 qz 256 | 23380 | 5.332 | 1004 | 85.77 | 76.54 | 5.518（23380/23380） | 11.71× | 0.06× |
+| panel 256 qz 256 | 256 | 2.098 | 74.27 | 10.16 | 9.600 | 2.108（256/256） | 7.31× | 0.21× |
 
 - G = 93822 的 block 模式中，所有 EMU 路徑都回傳錯誤（call_failed），因為超過每次呼叫 65535 個模擬問題的上限（§10.7）。AUTO 全部 fallback，所以能執行。
-- block 512 tz 與 block 256 qz 中，AUTO 全部 fallback 後仍比 native_grouped 慢（11.67 對 8.846 ms，7.981 對 5.349 ms），屬於 §10.1 的 AUTO 開銷 regression。
+- block 模式中 AUTO 全部 fallback 後，仍比 native_grouped 慢 3%–4%：16.55 對 15.90、9.158 對 8.889、5.518 對 5.332 ms。修正前（590147）分別是 11.67 對 8.846 ms 與 7.981 對 5.349 ms，shape memo 已大幅縮小這段差距（§9.6）。
 
 ### 7.4 Operand reuse
 
-- **時間**：依 §6.2，以 bench 的 `emu_grouped_reuse` 列為準（job 590147 表 2a）。bench 的 44 個 workload 都沒有設計共用 operand（MoE／LoRA 每個 expert 或 adapter 的權重不同），所以量到的是 reuse 偵測的開銷：44 列中有 27 列 reuse 比 emu_grouped 慢，emu_grouped_reuse/emu_grouped 的時間比介於 0.818–1.385，geomean 1.040，也就是平均慢 4.0%（由 `bench.csv` 計算）。應用 BSR 的 block 模式中 reuse 較快：134.7 對 151.9 ms、77.36 對 86.97 ms（表 4）。原因不在本次量測範圍內，不做推測。
-- **正確性**：`test_reuse_e2e` 在 lora（共用 B，uB = 1）、tp（共用 A，uA = 1）、none 三個 case 都和 EMU_GROUPED bit-exact，30/30 通過（job 590147）。
+- **時間**：依 §6.2，以 bench 的 `emu_grouped_reuse` 列為準（job 590258 表 2a）。bench 的 44 個 workload 都沒有設計共用 operand（MoE／LoRA 每個 expert 或 adapter 的權重不同），所以量到的是 reuse 偵測的開銷。
+  - 44 列中有 27 列 reuse 比 emu_grouped 慢。
+  - emu_grouped_reuse/emu_grouped 的時間比介於 0.817–1.389，geomean 1.042，也就是平均慢 4.2%（由 `bench.csv` 計算）。
+  - 應用 BSR 的 block 模式中 reuse 較快：132.4 對 147.9 ms、76.54 對 85.77 ms（表 4）。原因不在本次量測範圍內，不做推測。
+- **正確性**：`test_reuse_e2e` 中 REUSE 和 EMU_GROUPED bit-exact，54/54 通過（job 590258）。
 - `test_reuse_e2e` 印出的時間**不引用**（§6.2）。因此真正有共用 operand 時 reuse 的效能**目前沒有可引用的量測**。
 
-### 7.5 CUDA Graph（Graph replay；job 590147 `logs/test_graph.log`，R = 200；AUTO 在這三個 workload 都全部 fallback，見 log 中 T1 的 `fallback=64/32/14`）
+### 7.5 CUDA Graph（Graph replay；job 590258 `logs/test_graph.log`，R = 200；AUTO 在這三個 workload 都全部 fallback，見 log 中 T1 的 `fallback=64/32/14`）
 
 | workload | path | direct gpu_us | graph gpu_us | direct host_issue | graph host_issue | make_plan_ms |
 |---|---|---|---|---|---|---|
-| tiny64×(32,32,64) | EMU_GROUPED | 86.46 | 68.52 | 85.84 | 1.96 | 0.100 |
-| tiny64×(32,32,64) | AUTO | 18.65 | 11.08 | 18.61 | 9.67 | 0.065 |
-| moe32 | EMU_GROUPED | 611.15 | 596.75 | 605.11 | 1.97 | 0.103 |
-| moe32 | AUTO | 100.35 | 101.08 | 99.41 | 87.07 | 0.078 |
-| mixed16 | EMU_GROUPED | 215.48 | 200.93 | 213.52 | 1.94 | 0.087 |
-| mixed16 | AUTO | 107.67 | 73.71 | 107.64 | 1.99 | 0.190 |
+| tiny64×(32,32,64) | EMU_GROUPED | 86.53 | 68.90 | 85.92 | 1.96 | 0.097 |
+| tiny64×(32,32,64) | AUTO | 17.48 | 11.17 | 17.37 | 9.68 | 0.060 |
+| moe32 | EMU_GROUPED | 612.89 | 600.39 | 606.97 | 1.95 | 0.111 |
+| moe32 | AUTO | 100.20 | 100.37 | 99.26 | 86.48 | 0.089 |
+| mixed16 | EMU_GROUPED | 217.47 | 204.04 | 215.39 | 1.96 | 0.078 |
+| mixed16 | AUTO | 108.37 | 73.78 | 108.34 | 1.95 | 0.184 |
 
-- 問題越小，graph 的收益越大：tiny 是 86.46/68.52 = 1.26×，moe32 只有 611.15/596.75 = 1.024×。
-- graph 把 host issue 時間從 85.84 µs 壓到 1.96 µs，顯示 direct 呼叫的 host 規劃是可觀的固定成本。
-- moe32 AUTO 用 graph 反而沒變快，graph 的 host_issue 仍有 87.07 µs。原因不在本次量測範圍內，不做推測。
+- 問題越小，graph 的收益越大：tiny 是 86.53/68.90 = 1.26×，moe32 只有 612.89/600.39 = 1.021×。
+- graph 把 host issue 時間從 85.92 µs 壓到 1.96 µs，顯示 direct 呼叫的 host 規劃是可觀的固定成本。
+- moe32 AUTO 用 graph 反而沒變快，graph 的 host_issue 仍有 86.48 µs。原因不在本次量測範圍內，不做推測。
 
 ---
 
@@ -519,7 +538,7 @@ emu_grouped 的 GPU busy 時間按 stage 分：
 由此得到三個結論：
 1. **launch 合併有效**：kernel 數從 18,432 降到 3，gap 從 15.7% 降到 1.0%。
 2. **小問題時 host 規劃是瓶頸**：plan 時間 675.7 µs 大於 GPU span 577.5 µs，和 §7.5 graph 的觀察一致。
-3. **較大的問題時，prep 是最大的 GPU stage**（63.4%–86.5%），所以最終版加入了 prep split-K。最終版的 profile（§8.4）顯示 MoE up 的 prep 佔比仍是 63.7%，split-K 對 emu_grouped 的 prep 佔比幾乎沒有改變。
+3. **較大的問題時，prep 是最大的 GPU stage**（63.4%–86.5%），所以最終版加入了 prep split-K。最終版的 profile（§8.4，job 590258）顯示 MoE up 的 prep 佔比仍是 63.4%，split-K 對 emu_grouped 的 prep 佔比幾乎沒有改變。
 
 ### 8.2 ncu（job 511064，emu_grouped，`--set full`，2 次 launch 的 median）
 
@@ -540,73 +559,74 @@ emu_grouped 的 GPU busy 時間按 stage 分：
 - LoRA shrink 的 prep：DRAM 5.3%、SM 18.5%，主要在 wait。這代表平行度不足，正是 prep split-K 要解決的問題。
 - **AUTO 的 ncu 結果要小心解讀**：這些 workload 的 AUTO 全部 fallback，所以 ncu 量到的是 **cuBLAS 的 FP64 kernel**（job 511064 uni 的 AUTO 是 cuBLAS `Kernel2` 29.4 µs），不是我們的模擬 kernel。job 511064 中另外三個 AUTO 的 ncu log 出現 `LookupError: unknown encoding: utf-8-sig`，沒有產生摘要。
 
-### 8.3 INT8 kernel 與 cuBLASLt（job 590147 `logs/test_i8_grouped.log`）
+### 8.3 INT8 kernel 與 cuBLASLt（job 590258 `logs/test_i8_grouped.log`）
 
 | set | ours（auto） | cuBLASLt-loop | 比值 |
 |---|---|---|---|
-| single 8192³ | 624.09 TOPS | 1471.93 TOPS | 42.4% |
-| single 4096×4096×16384 | 606.08 | 1523.25 | 39.8% |
-| ozaki-like 2048³×14 | 543.26 | 693.06 | 78.4% |
-| random64 | 438.68 | 110.36 | ours 快 3.98× |
-| mix 8×2048³ + 64 skinny | 422.04 | 55.97 | ours 快 7.54× |
-| small256 | 0.0240 ms | 2.2848 ms | ours 快 95× |
+| single 8192³ | 620.49 TOPS | 1470.04 TOPS | 42.2% |
+| single 4096×4096×16384 | 610.20 | 1520.60 | 40.1% |
+| ozaki-like 2048³×14 | 543.70 | 686.58 | 79.2% |
+| random64 | 437.67 | 109.90 | ours 快 3.98× |
+| mix 8×2048³ + 64 skinny | 422.34 | 54.61 | ours 快 7.73× |
+| small256 | 0.0240 ms | 2.2635 ms | ours 快 94× |
 
-在單一大 GEMM 上，我們的 kernel 只有 cuBLASLt 的約 40%；但在 grouped／異質的情況下，persistent + LPT 比逐題呼叫 cuBLASLt 快 4–95 倍。
+在單一大 GEMM 上，我們的 kernel 只有 cuBLASLt 的約 40%；但在 grouped／異質的情況下，persistent + LPT 比逐題呼叫 cuBLASLt 快 4–94 倍。
 
-### 8.4 最終版的 profiling（job 590147，`tables.md` §5 與 `analysis/nsys_summary_*.csv`）
+### 8.4 最終版的 profiling（job 590258，`tables.md` §5 與 `analysis/nsys_summary_*.csv`）
 
 **GPU-busy**（nsys，5 次 timed call 的 median，µs）：
 
 | workload | path | kernels/call | GPU span | GPU busy | gap % | host (µs) | host plan (µs) | prep % | INT8 GEMM % | reconstruct % |
 |---|---|---|---|---|---|---|---|---|---|---|
-| uni_G1024_s32 | native_grouped | 2 | 32.35 | 23.55 | 27.6 | 54.30 | 0 | — | — | — |
-| uni_G1024_s32 | emu_loop_batched | 3072 | 35,422 | 32,390 | 8.54 | 24,483 | 824.4 | 39.1 | 16.3 | 44.4 |
-| uni_G1024_s32 | emu_grouped | 3 | 604.4 | 599.0 | 0.879 | 733.9 | 707.8 | 34.0 | 49.9 | 9.1 |
-| uni_G1024_s32 | auto（fallback 1024/1024） | 2 | 32.06 | 23.49 | 26.5 | 171.0 | 152.0 | — | — | — |
-| moe_E64_prefill_z1.2_up | native_grouped | 2 | 1589 | 1573 | 0.774 | 22.95 | 0 | — | — | — |
-| moe_E64_prefill_z1.2_up | emu_loop_batched | 192 | 22,414 | 22,100 | 1.39 | 877.5 | 62.5 | 80.5 | 13.5 | 6.0 |
-| moe_E64_prefill_z1.2_up | emu_grouped | 3 | 6767 | 6762 | 0.0823 | 64.99 | 44.1 | 63.7 | 29.1 | 7.0 |
-| moe_E64_prefill_z1.2_up | auto（fallback 64/64） | 2 | 1584 | 1573 | 0.786 | 30.89 | 11.6 | — | — | — |
-| het_G256_16-2048 | native_grouped | 2 | 1981 | 1967 | 0.682 | 29.80 | 0 | — | — | — |
-| het_G256_16-2048 | emu_loop_batched | 768 | 23,850 | 22,740 | 4.63 | 3340 | 222.1 | 52.8 | 24.6 | 22.5 |
-| het_G256_16-2048 | emu_grouped | 3 | 10,037 | 10,030 | 0.0529 | 238.6 | 220.1 | 41.3 | 35.4 | 23.2 |
-| het_G256_16-2048 | auto（fallback 256/256） | 2 | 1984 | 1972 | 0.645 | 61.53 | 40.8 | — | — | — |
+| uni_G1024_s32 | native_grouped | 2 | 32.48 | 23.71 | 27.6 | 54.39 | 0 | — | — | — |
+| uni_G1024_s32 | emu_loop_batched | 3072 | 35,474 | 32,368 | 8.77 | 24,463 | 748.0 | 39.2 | 16.1 | 44.5 |
+| uni_G1024_s32 | emu_grouped | 3 | 603.5 | 595.7 | 1.29 | 649.8 | 618.9 | 34.1 | 50.0 | 9.2 |
+| uni_G1024_s32 | auto（fallback 1024/1024） | 2 | 31.81 | 23.52 | 26.1 | 60.47 | 42.0 | — | — | — |
+| moe_E64_prefill_z1.2_up | native_grouped | 2 | 1585 | 1570 | 0.874 | 25.54 | 0 | — | — | — |
+| moe_E64_prefill_z1.2_up | emu_loop_batched | 192 | 23,035 | 22,719 | 1.37 | 856.4 | 58.7 | 78.6 | 15.5 | 5.9 |
+| moe_E64_prefill_z1.2_up | emu_grouped | 3 | 6802 | 6794 | 0.111 | 63.87 | 45.1 | 63.4 | 29.0 | 7.5 |
+| moe_E64_prefill_z1.2_up | auto（fallback 64/64） | 2 | 1580 | 1569 | 0.685 | 27.17 | 9.7 | — | — | — |
+| het_G256_16-2048 | native_grouped | 2 | 1985 | 1972 | 0.619 | 27.91 | 0 | — | — | — |
+| het_G256_16-2048 | emu_loop_batched | 768 | 23,989 | 22,884 | 4.61 | 3488 | 229.1 | 52.5 | 24.9 | 22.5 |
+| het_G256_16-2048 | emu_grouped | 3 | 10,201 | 10,194 | 0.0587 | 242.5 | 221.4 | 40.7 | 35.0 | 24.2 |
+| het_G256_16-2048 | auto（fallback 256/256） | 2 | 1973 | 1961 | 0.633 | 61.62 | 41.5 | — | — | — |
 
 （host plan 欄來自 csv 的 `plan_ns`；stage % 是 GPU busy 的佔比。）
 
-- 在 uni_G1024_s32 上，emu_grouped 的 host（733.9 µs）仍然大於 GPU span（604.4 µs），host 規劃依然是瓶頸。
-- AUTO 全部 fallback，GPU 時間和 native_grouped 相同（32.06 對 32.35 µs）。但 host 多了 152.0 µs 的 plan，這就是 §10.1 的 regression 來源。
+- 在 uni_G1024_s32 上，emu_grouped 的 host（649.8 µs）仍然大於 GPU span（603.5 µs），host 規劃依然是瓶頸（host plan 618.9 µs）。
+- AUTO 全部 fallback，GPU 時間和 native_grouped 相同（31.81 對 32.48 µs）。加入 shape memo 後，AUTO 的 host plan 從 152.0 µs（590147）降到 42.0 µs（590258），這就是 §10.1 regression 被修正的原因。
 
 **ncu**（emu_grouped，kernel 2 次 launch 的 median）：
 
 | workload | stage | duration (µs) | INT8 pipe % | DRAM % | SM % | occupancy % | regs | 首要 stall |
 |---|---|---|---|---|---|---|---|---|
-| het_G256 | i8_gemm | 4196 | 23.3 | 23.8 | 35.4 | 25.0 | 128 | wait 23.56% |
-| het_G256 | prep | 5315 | 0 | 11.7 | 46.7 | 36.1 | 72 | short_scoreboard 33.48% |
-| het_G256 | reconstruct | 2755 | 0 | 25.1 | 64.8 | 47.4 | 64 | long_scoreboard 46.67% |
-| moe_E64 up | i8_gemm | 2452 | 44.5 | 31.6 | 48.8 | 24.9 | 128 | wait 29.43% |
-| moe_E64 up | prep | 5569 | 0 | 22.7 | 66.8 | 36.8 | 72 | wait 35.02% |
-| moe_E64 up | reconstruct | 563.2 | 0 | 23.0 | 63.7 | 46.9 | 64 | long_scoreboard 45.45% |
-| uni_G1024_s32 | i8_gemm | 367.7 | 4.90 | 4.56 | 39.5 | 24.9 | 128 | long_scoreboard 35.57% |
-| uni_G1024_s32 | prep | 268.0 | 0 | 2.20 | 57.9 | 36.2 | 72 | short_scoreboard 37.45% |
-| uni_G1024_s32 | reconstruct | 64.69 | 0 | 24.0 | 52.2 | 45.0 | 64 | long_scoreboard 50.98% |
+| het_G256 | i8_gemm | 4198 | 23.4 | 23.8 | 35.6 | 25.0 | 128 | wait 23.59% |
+| het_G256 | prep | 5362 | 0 | 11.6 | 46.7 | 36.1 | 72 | short_scoreboard 33.48% |
+| het_G256 | reconstruct | 2955 | 0 | 23.4 | 65.8 | 47.9 | 64 | long_scoreboard 42.56% |
+| moe_E64 up | i8_gemm | 2456 | 44.5 | 31.5 | 48.8 | 24.9 | 128 | wait 29.47% |
+| moe_E64 up | prep | 5571 | 0 | 22.7 | 66.8 | 36.8 | 72 | wait 35.03% |
+| moe_E64 up | reconstruct | 612.2 | 0 | 21.1 | 65.1 | 47.4 | 64 | long_scoreboard 41.14% |
+| uni_G1024_s32 | i8_gemm | 370.0 | 4.92 | 4.55 | 39.7 | 24.9 | 128 | long_scoreboard 35.25% |
+| uni_G1024_s32 | prep | 267.3 | 0 | 2.19 | 58.2 | 36.2 | 72 | short_scoreboard 37.51% |
+| uni_G1024_s32 | reconstruct | 66.22 | 0 | 23.3 | 53.2 | 45.1 | 64 | long_scoreboard 49.74% |
 
 - 加入 split-K 後，prep 的 registers 從 48 增加到 72，achieved occupancy 從約 59–61% 降到約 36–37%（和 §8.2 比較）。
+- 這個 workload 下，reconstruct 的 ncu duration 比 590147 略長（het 2955 對 2755 µs，moe 612.2 對 563.2 µs）；原因沒有量測，不做推測。計數器聚合的實測效益出現在 uncertified 很多的 repair sweep（§9.6）。
 - 最終版 AUTO 的 ncu 摘要（`analysis/ncu_summary_*_auto.md`）沒有任何 kernel 列。這些 workload 的 AUTO 全部 fallback，就算有資料，量到的也會是 cuBLAS kernel，不是模擬。
 
 **Roofline**（每條路徑在 44 個 workload 上達到自己 roof 的百分比）：
 
 | path | points | median % | max % | bound |
 |---|---|---|---|---|
-| native_loop | 44 | 24.0 | 70.1 | compute 12、memory 32 |
-| native_grouped | 44 | 37.0 | 60.0 | compute 12、memory 32 |
-| emu_loop | 44 | 2.57 | 12.9 | memory 44 |
-| emu_loop_batched | 44 | 5.73 | 18.0 | memory 44 |
-| emu_grouped | 44 | 20.1 | 29.7 | memory 44 |
-| emu_grouped_reuse | 44 | 19.7 | 27.9 | memory 44 |
-| auto（all fallback） | 38 | 34.3 | 48.2 | compute 12、memory 26 |
+| native_loop | 44 | 24.4 | 70.5 | compute 12、memory 32 |
+| native_grouped | 44 | 36.2 | 49.4 | compute 12、memory 32 |
+| emu_loop | 44 | 2.58 | 12.9 | memory 44 |
+| emu_loop_batched | 44 | 5.75 | 18.0 | memory 44 |
+| emu_grouped | 44 | 20.2 | 29.8 | memory 44 |
+| emu_grouped_reuse | 44 | 19.6 | 28.0 | memory 44 |
+| auto（all fallback） | 38 | 36.3 | 49.0 | compute 12、memory 26 |
 
-emu_grouped 的 roof 利用率 median 是 20.1%，44 個點全部是 memory-bound。這和 prep 是最大 stage 的觀察一致。
+emu_grouped 的 roof 利用率 median 是 20.2%，44 個點全部是 memory-bound。這和 prep 是最大 stage 的觀察一致。
 
 ---
 
@@ -617,11 +637,13 @@ emu_grouped 的 roof 利用率 median 是 20.1%，44 個點全部是 memory-boun
 | 步驟 | 比較 | 隔離出的機制 | 數字 |
 |---|---|---|---|
 | A | emu_loop → emu_loop_batched | 題內 batching | geomean 1/0.41 ≈ 2.44×（表 2c 的 emu_loop 欄是 0.41×；各家族 0.30–0.49×） |
-| B | emu_loop_batched → emu_grouped | 跨題合併（3 kernel + LPT） | geomean **4.93×**；範圍 1.37×（moe_E8_prefill_z1.2_up）到 29.14×（uni_G1024_s32）（表 2c） |
-| C | emu_grouped → auto | planner | **無法評估**：AUTO 沒有模擬任何非空問題（§7.1），表 2c 中 auto 的 32.91× 是 cuBLAS 對模擬 |
-| D | emu_grouped → emu_grouped_reuse | operand reuse | bench 中沒有共用 operand 的 workload：geomean 慢 4.0%（§7.4） |
-| E | direct → graph | CUDA Graph | EMU_GROUPED 的 Graph replay 是 1.024–1.26×（§7.5） |
-| F | COUNT → ON | repair 成本 | N = 15：φ ≤ 1 時 0.997–1.003；φ = 2 時 1.176–3.309；全表最大 4.684（job 590148，§5.3） |
+| B | emu_loop_batched → emu_grouped | 跨題合併（3 kernel + LPT） | geomean **4.97×**；範圍 1.37×（moe_E8_prefill_z1.2_up）到 30.93×（uni_G1024_s32）（job 590258 表 2c） |
+| C | emu_grouped → auto | planner | **無法評估**：AUTO 沒有模擬任何非空問題（§7.1），表 2c 中 auto 的 37.55× 是 cuBLAS 對模擬 |
+| D | emu_grouped → emu_grouped_reuse | operand reuse | bench 中沒有共用 operand 的 workload：geomean 慢 4.2%（§7.4） |
+| E | direct → graph | CUDA Graph | EMU_GROUPED 的 Graph replay 是 1.021–1.26×（§7.5） |
+| F | COUNT → ON | repair 成本 | N = 15：φ ≤ 1 時 0.990–1.004；φ = 2 時 1.186–4.113；全表最大 5.634（job 590257，§5.3） |
+| G | planner 無 memo → 有 memo | per-call shape memo | AUTO 全部 fallback 時的開銷：uni_G4096_s32 從 0.7375 降到 0.2944 ms（§9.6） |
+| H | 每 thread atomic → warp+block 聚合 | 計數器聚合 | repair sweep EMU 192 列，時間 geomean 0.959×（§9.6） |
 
 ### 9.2 INT8 kernel 第二輪改動的 ablation（負面結果；job 510965，pass 2，單位 TOPS；small256 那欄是 ms）
 
@@ -652,23 +674,44 @@ r2 的 cfg0 退步 8.7%–11.7%。把四項改動全部還原後仍回不到 r1�
 
 cfg2 提升 31.7%–53.0%，但 cfg0 下降 2.7%–4.2%，所以不採用。
 
-**獨立的 split-K kernel（cfg3）**（job 511054）：small256 從 auto 的 0.0236 ms 變成 auto_sk 的 0.0310／0.0313 ms，慢約 31%；mix 從 422.79 降到 409.59 TOPS，慢約 3%。因此預設關閉，而且經由 ggemm API 無法啟用（§2.3）。最終版的 job 590147 結果一致：small256 auto 0.0240 ms、auto-sk 0.0316 ms。
+**獨立的 split-K kernel（cfg3）**（job 511054）：small256 從 auto 的 0.0236 ms 變成 auto_sk 的 0.0310／0.0313 ms，慢約 31%；mix 從 422.79 降到 409.59 TOPS，慢約 3%。因此預設關閉，而且經由 ggemm API 無法啟用（§2.3）。最終版的 job 590258 結果一致：small256 auto 0.0240 ms、auto-sk 0.0314 ms。
 
-### 9.4 Tile config（job 590147，TOPS；small256 為 ms）
+### 9.4 Tile config（job 590258，TOPS；small256 為 ms）
 
 | set | cfg0 | cfg1 | cfg2 | auto |
 |---|---|---|---|---|
-| random64 | 442.33 | 290.23 | 129.00 | 438.68 |
-| mix | 406.68 | 289.21 | 134.89 | 422.04 |
-| single 8192³ | 592.83 | 369.68 | 165.74 | 624.09 |
-| small256 (ms) | 0.0264 | 0.0258 | 0.0456 | 0.0240 |
+| random64 | 441.26 | 290.05 | 128.97 | 437.67 |
+| mix | 407.06 | 289.54 | 134.89 | 422.34 |
+| single 8192³ | 598.17 | 368.53 | 165.91 | 620.49 |
+| small256 (ms) | 0.0266 | 0.0260 | 0.0460 | 0.0240 |
 
-在異質的情況（mix、small256）下，auto 優於任何單一固定 config；random64 上 auto 和 cfg0 相差 0.8% 以內。
+在異質的情況（mix、small256）下，auto 優於任何單一固定 config；random64 上 auto 和 cfg0 相差 0.9% 以內。
 
-### 9.5 Repair mode 與 ρ_budget（job 590148）
+### 9.5 Repair mode 與 ρ_budget（job 590257；舊版 590148 結論相同）
 - **Repair mode**：見 §5.3 與 §9.1 步驟 F。
-- **ρ_budget ∈ {4, 16, 64, 256}**：四個 repair workload 的 AUTO 在所有 ρ 與 φ 下都全部 fallback。moduli 都是 [0,0]，fallback 等於 G（uni_G1024_s64 是 1024；uni_G256_s256、het 是 256；moe 是 64），repaired 比例都是 0。時間不隨 ρ 變化，例如 uni_G1024_s64 是 0.1957–0.2033 ms。所以**在 H200 上無法評估 ρ_budget**，預設值至今仍沒有調過。
-- AUTO 相對 native_loop 的時間：uni_G1024_s64 φ = 0.5、ρ = 16 是 0.1958 對 7.1781 ms；het 是 2.0084 對 3.0468 ms。這反映的是 native_grouped 對 native_loop 的差距。
+- **ρ_budget ∈ {4, 16, 64, 256}**：四個 repair workload 的 AUTO 在所有 ρ 與 φ 下都全部 fallback。moduli 都是 [0,0]，fallback 等於 G（uni_G1024_s64 是 1024；uni_G256_s256、het 是 256；moe 是 64），repaired 比例都是 0。時間不隨 ρ 變化，例如 uni_G1024_s64 是 0.09488–0.09670 ms（590148 時是 0.1957–0.2033 ms，差別來自 shape memo）。所以**在 H200 上無法評估 ρ_budget**，預設值至今仍沒有調過。
+- AUTO 相對 native_loop 的時間：uni_G1024_s64 φ = 0.5、ρ = 16 是 0.09664 對 7.2516 ms；het 是 2.0113 對 3.0567 ms。這反映的是 native_grouped 對 native_loop 的差距。
+
+### 9.6 兩項修正的前後對照（590147 → 590224 → 590258；590148 → 590257）
+
+**(a) Planner per-call shape memo**（commit a48eb3e；§2.6）
+
+| workload | AUTO：590147（b56631d） | AUTO：590224（a48eb3e） | AUTO：590258（1c39e40） | native_grouped（590258） |
+|---|---|---|---|---|
+| uni_G4096_s32 | 0.7375 ms | 0.2967 ms | 0.2944 ms | 0.2697 ms |
+| uni_G1024_s32 | 0.1845 ms | 0.0746 ms | 0.07438 ms | 0.06762 ms |
+
+- AUTO 比 native_grouped 慢 5% 以上的列數，從 590147 的 14/44 降到 590258 的 9/44（由 `bench.csv` 計算）。剩下的 9 列都是小問題的 uniform workload，慢 6.7%–10.3%，例如 uni_G4096_s16 0.2702 對 0.245 ms、uni_G1024_s32 0.07438 對 0.06762 ms。這是剩餘的 host plan 開銷：nsys 量到 uni_G1024_s32 的 AUTO host plan 是 42.0 µs（§8.4）。
+- 正確性：planner 單元測試 1655/0（job 590223），包含 memo 與非 memo 的 plan 逐 entry bit-identical 比對（`tests/test_planner.cpp` 第 403 行起）；plan 呼叫中的 `operator new` 次數為 0。
+
+**(b) Reconstruct 計數器改成 warp + block 聚合**（commit 1c39e40；§2.5）
+
+- **計數不變**：repair sweep 舊版 590148 與新版 590257 的 EMU 結果共 192 列，以 (workload, path, G, φ, N, repair_mode, ρ, total_entries) 配對後，num_uncertified、num_repaired、num_safety_fallback、n_over_gamma、err_max **全部完全相同**。連同 AUTO／native 的 128 列，320 列都相同（由兩份 CSV 比對）。
+- **時間**：EMU 192 列的時間比（新/舊）geomean 是 0.959；18 列快了 20% 以上，8 列慢了 5% 以上（最大 1.248）。只看 COUNT 模式的 geomean 是 0.918。效果最明顯的是 uncertified 很多的格子：
+  - het_G256 φ = 2 N = 13 COUNT：24.68 → 9.358 ms。
+  - uni_G256_s256 φ = 2 N = 13 COUNT：5.148 → 2.261 ms。
+- 這證實了 `docs/qa_prep.md` 先前的推論：舊版每個 thread 都對同一個全域位址做 atomicAdd，這些 atomic 會被序列化。
+- 副作用：COUNT 變快以後，ON/COUNT 的比值變大（§5.3）。repair 的絕對成本沒有變，只是不再被 atomic 的開銷掩蓋。
 
 ---
 
@@ -676,10 +719,13 @@ cfg2 提升 31.7%–53.0%，但 cfg0 下降 2.7%–4.2%，所以不採用。
 
 ### 10.1 H200 上 native FP64 全面勝出，AUTO 全部走 native，而且 AUTO 有開銷 regression
 
-**最終版**（job 590147，表 2a、2b、3）：
-- emu_grouped 在 **44/44** 列都比 native_grouped 慢，慢 2.35×（moe_E8_prefill_z0.0_down）到 22.4×（uni_G4096_s64），geomean 0.13×。
-- AUTO 有 38/44 列 fallback = G；其餘 6 列 fallback = 非空題數。**AUTO 在整個 bench 中沒有模擬任何一題**。repair sweep 的 ρ_budget 掃描也一樣全部 fallback（§9.5）。
-- **AUTO 全部 fallback 時比 native_grouped 慢（regression）**：44 列中有 14 列 AUTO 比 native_grouped 慢 5% 以上（由 `bench.csv` 計算）。例如 uni_G4096_s32 是 0.7375 對 0.2727 ms（2.7 倍），uni_G1024_s32 是 0.1845 對 0.06827 ms（2.7 倍）。uniform 家族 geomean 是 0.63×。nsys 顯示 AUTO 的 GPU 時間和 native 相同，多出來的是 host plan（uni_G1024_s32 是 152.0 µs，§8.4）。BSR 的 block 模式也有一樣的情形（§7.3）。另一個 agent 正在修 planner 的開銷，修好後會重跑 final；**本節數字是修正前的 job 590147**，屆時會更新。
+**正式版**（job 590258，表 2a、2b、3）：
+- emu_grouped 在 **44/44** 列都比 native_grouped 慢，慢 2.38×（moe_E8_prefill_z0.0_down）到 21.3×（uni_G4096_s64），geomean 0.14×。
+- AUTO 有 38/44 列 fallback = G；其餘 6 列 fallback = 非空題數；44 列的 `moduli_max` 都是 0。**AUTO 在整個 bench 中沒有模擬任何一題**。repair sweep 的 ρ_budget 掃描也一樣全部 fallback（§9.5）。
+- **AUTO 全部 fallback 時的開銷**：
+  - 修正前（job 590147）有 14/44 列 AUTO 比 native_grouped 慢 5% 以上，例如 uni_G4096_s32 是 0.7375 對 0.2727 ms（2.7 倍）、uni_G1024_s32 是 0.1845 對 0.06827 ms（2.7 倍）。
+  - 加入 planner shape memo 後（job 590258）降到 **9/44 列**，例如 uni_G4096_s32 是 0.2944 對 0.2697 ms、uni_G1024_s32 是 0.07438 對 0.06762 ms。剩下的差距是 6.7%–10.3%，全部在小問題的 uniform workload（§9.6）。uniform 家族的 geomean 從 0.63× 改善到 0.94×。
+  - **殘留的 regression 照實保留**：在小問題的 uniform 上，AUTO 仍然比直接呼叫 native_grouped 慢約 7%–10%。BSR 的 block 模式也有一樣的情形（慢 3%–4%，§7.3）。
 
 前一版 commit da18425 的 quick set（job 511065 `bench.csv`，φ = 0.5，median of 20，ms），結論相同：
 
@@ -697,10 +743,10 @@ cfg2 提升 31.7%–53.0%，但 cfg0 下降 2.7%–4.2%，所以不採用。
 2. 我們的 INT8 kernel 只有 cuBLASLt 的約 40%。
 3. prep 是主要成本。
 
-planner 把問題路由到 native 的判斷是正確的，但它本身的 host 開銷讓 AUTO 在小問題上輸給直接呼叫 native_grouped（見上）。FP64 較弱的硬體上結果是否會反轉，我們**沒有實測**。校正檔裡的 `crossover_square_pow2_by_N`（N = 15 時方陣邊長 ≥ 4096 才划算）只是 model 推估，沒有被驗證；而且它用的是 cuBLASLt 的 INT8 峰值，對我們的 kernel 偏樂觀。
+planner 把問題路由到 native 的判斷是正確的，但它本身的 host 開銷（修正後仍有，例如 uni_G1024_s32 的 host plan 是 42.0 µs）讓 AUTO 在小問題上略輸給直接呼叫 native_grouped（見上）。FP64 較弱的硬體上結果是否會反轉，我們**沒有實測**。校正檔裡的 `crossover_square_pow2_by_N`（N = 15 時方陣邊長 ≥ 4096 才划算）只是 model 推估，沒有被驗證；而且它用的是 cuBLASLt 的 INT8 峰值，對我們的 kernel 偏樂觀。
 
 ### 10.2 INT8 kernel 的效率缺口
-在單一大 GEMM 上只有 cuBLASLt 的 39.8%–42.4%，tensor pipe 最高 48.0%，occupancy 約 25%，第二輪改動還退步約 10%（§8.2、§8.3、§9.2）。
+在單一大 GEMM 上只有 cuBLASLt 的 40.1%–42.2%（job 590258），tensor pipe 最高 48.0%，occupancy 約 25%，第二輪改動還退步約 10%（§8.2、§8.3、§9.2）。
 
 ### 10.3 compute-sanitizer
 
@@ -729,17 +775,17 @@ job 511062 回報的問題都出在測試程式或摘要腳本，不是 library 
 | test_i8_grouped | 0 | 0 | 0 | 0 | — |
 | test_operand_reuse | n/a（host-only） | n/a | n/a | n/a | 0 |
 
-四個 GPU 測試程式在四種 sanitizer 工具下都是 0 errors。
+四個 GPU 測試程式在四種 sanitizer 工具下都是 0 errors。這次 sanitizer 跑的是 b56631d 的 `src/`；之後 a48eb3e 與 1c39e40 改過 src，**正式版本 1c39e40 沒有重跑 sanitizer**，只重跑了正確性測試（590256、590258，2955/0）。
 
 ### 10.4 Operand reuse 的增益沒有被證明
-- 最終版 bench 中有 27/44 列 reuse 比 emu_grouped 慢，geomean 慢 4.0%（§7.4）。例如 uni_G4096_s64 是 8.305 對 7.343 ms，lora_G64_rmix_expand 是 3.057 對 2.354 ms。
-- nsys 顯示 reuse 的 prep 佔比較高：het 是 47.1% 對 41.3%，GPU span 11,220 對 10,040 µs（§8.4 與 `tables.md` §5）。
+- 正式版 bench（590258）中有 27/44 列 reuse 比 emu_grouped 慢，geomean 慢 4.2%（§7.4）。例如 uni_G4096_s64 是 8.031 對 7.041 ms，lora_G64_rmix_expand 是 3.089 對 2.385 ms。
+- nsys 顯示 reuse 的 prep 佔比較高：het 是 46.6% 對 40.7%，GPU span 11,330 對 10,200 µs（`tables.md` §5）。
 - bench 裡沒有共用 operand 的 workload，而有共用 operand 的 `test_reuse_e2e` 計時不可引用（§6.2）。所以 **reuse 帶來的效能增益目前沒有可引用的證據**。
 - 早先的影片（10/07）引用的 reuse 1.015–1.079×（job 510998）來自 `test_reuse_e2e`，而且當時對照組（不共用）也有同樣程度的加速，因此作廢。
 
 ### 10.5 寬動態範圍的代價
-- 純模擬（COUNT）的 err/gamma 最高到 175.9（test set，job 590147），repair sweep 中最高到 1.018e+04（job 590148）。
-- 開 ON 之後全部 ≤ 0.4559，代價是 φ = 2、N = 15 時慢 1.18–3.31 倍，最壞情況慢 4.68 倍。
+- 純模擬（COUNT）的 err/gamma 最高到 175.9（test set，job 590258），repair sweep 中最高到 1.018e+04（job 590257、590148）。
+- 開 ON 之後全部 ≤ 0.4559，代價是 φ = 2、N = 15 時慢 1.19–4.11 倍，最壞情況慢 5.63 倍（job 590257）。
 - ON 模式平均有 13.3% 的 entry 要用 FP64 重算；N = 13 時部分 workload 超過 99.9%（§5.3）。
 - **repair ON 是正確性的安全網，不是加速**。
 
@@ -748,12 +794,12 @@ job 511062 回報的問題都出在測試程式或摘要腳本，不是 library 
 - 這個計時內含同步，依 §6.2 不引用。
 - 最終 commit 的 prep split-K 讓 EMU_LOOP_BATCHED 大幅變快（例如 bench 的 lora_G16_r16_shrink，ELB/EG 現在是 4.17×）。
 
-本報告一律以 job 590147 為準。另外，影片中「完整正確性測試」引用的是 job 511059；最終版本的對應數字是 job 511249、590147、590162（都是 2955/0）。
+本報告一律以 job 590258 為準。另外，影片中「完整正確性測試」引用的是 job 511059；最終版本的對應數字是 job 590256、590258（都是 2955/0）。
 
 ### 10.5c 量測與文件本身的缺陷
 - 校正檔的 INT8 擬合峰值 1676 TOPS 高於同一檔案中的實測最大值 1503.6 TOPS（`i8_peak_ops` 對 `i8_peak_ops_max`）。兩者都來自 cuBLASLt，而我們的 kernel 只有 cuBLASLt 的約 40%，所以 cost model 偏樂觀。這不影響 H200 上「全部 fallback」的結論，但會影響 crossover 的推估（§10.1）。
-- job 590148 的 ρ_budget 掃描全部 fallback，無法提供資訊，所以 ρ_budget 預設值仍未調過（§9.5）。
-- 部分 results 沒有記錄 commit（511060、511063、511101），部分早期 job 是在 dirty tree 上跑的（510965 dirty=18、510989 dirty=36）。這些數字只用於歷史對照或 ablation，最終結論都基於 dirty=0 的 job 590147、590148、511249。
+- job 590148 與 590257 的 ρ_budget 掃描全部 fallback，無法提供資訊，所以 ρ_budget 預設值仍未調過（§9.5）。
+- 部分 results 沒有記錄 commit（511060、511063、511101），部分早期 job 是在 dirty tree 上跑的（510965 dirty=18、510989 dirty=36）。這些數字只用於歷史對照或 ablation，最終結論都基於 job 590258、590257、590256（commit 1c39e40；dirty 只涉及文件檔，`src/` 乾淨）。
 
 ### 10.6 開發過程中失敗的 job（保留在 `results/` 中）
 
@@ -803,7 +849,11 @@ AI 的用途：
 
 **人類的角色。** 理解題目、做方向與取捨的決策、審查 agent 的產出、核准 SLURM job。所有 GPU 程式都在 compute node 上執行，login node 只用來編譯。
 
-**Git 歷史。** 歷史完整保留，但粒度很粗：只有 5 個 commit（5d8e2ad、173bb94、da18425、1422998、b56631d），都是 2026-10-07 由 `moneychen168` 提交。每個 results 目錄都有 `provenance.txt`，記錄當時的 hash 與 dirty 檔案數。部分早期 job 是在 dirty tree 上跑的（510887 dirty=3、510965 dirty=18、510989 dirty=36）。**最終量測 590147、590148 與正確性測試 511249 都是 dirty=0**；590162 是 dirty=8，只動了 tests 和 scripts。
+**Git 歷史。** 歷史完整保留，目前共 10 個 commit：
+- 前 5 個（5d8e2ad、173bb94、da18425、1422998、b56631d）都在 2026-10-07 由 `moneychen168` 提交，粒度很粗。
+- 之後依序是 bc310b8（sanitizer 誤報修正）、a48eb3e（planner shape memo、`host_allocs_timed`）、97cde81（qa_prep.md）、1c39e40（計數器聚合）、6ac461e（本報告初版）。
+
+每個 results 目錄都有 `provenance.txt`，記錄當時的 hash 與 dirty 檔案數。部分早期 job 是在 dirty tree 上跑的（510887 dirty=3、510965 dirty=18、510989 dirty=36）。**正式量測 590258（以及 590256、590257）都在 commit 1c39e40**。provenance 記錄 dirty=6，`provenance_git.txt` 列出的是 4 個修改過的文件檔（DESIGN.md、README.md、docs/discussion_1007.md、docs/related_work.md）和 2 個未追蹤項目（docs/report.md、scripts/analysis/__pycache__/），`src/` 乾淨。舊版 590147、590148、511249 是 dirty=0（b56631d）。
 
 **外部程式碼：沒有複製任何外部實作。**
 - **GEMMul8**：只讀過它的論文和演算法，沒有使用其程式碼（`src/ozaki2_numerics.cu` 檔頭註明「Written from the paper; no code taken from GEMMul8」）。`EMU_LOOP_BATCHED` 是我們自己寫的 GEMMul8 風格 baseline。
@@ -838,7 +888,11 @@ sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i
 
 對應的程式版本是 commit b56631d。核心程式碼逐段說明、profiling 的解讀，以及「改參數時的預測」整理在 `docs/qa_prep.md`（口試準備）。
 
-**版本說明**：本報告的效能數字取自 job 590147（b56631d）。新的 final job（590224，commit a48eb3e：planner shape memo、`--count-call`、fallback 比例欄）以及之後的 src 修正版本完成後，§0、§7、§8.4、§10.1 的數字會再依最新的 job 更新。
+**版本說明**：
+- **正式版本是 commit 1c39e40，job 590258**（`results/final_590258/`，35 步全部 PASS），以 `sbatch scripts/final/run_final.slurm` 產生。
+- 修正前後的對照用：job 590147（b56631d，修正前）、590224（a48eb3e，只加 shape memo）（§9.6）。
+- repair sweep 是 590257（1c39e40），對照 590148（b56631d）。
+- 測試是 590256（1c39e40），planner 單元測試是 590223（a48eb3e），sanitizer 是 590161（b56631d，dirty=8，只修改了 tests／scripts）。**注意**：sanitizer 跑的是 b56631d 的 `src/`；a48eb3e（planner）與 1c39e40（計數器聚合）的 src 修改之後**沒有重跑 sanitizer**（§10.3）。
 
 ---
 
@@ -846,8 +900,13 @@ sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i
 
 | job | 種類 | commit（dirty） | 用於 | 檔案 |
 |---|---|---|---|---|
-| 590147 | final matrix（33 步全部 PASS） | b56631d (0) | §0、§2、§5、§7、§8.3、§8.4、§9、§10 | `results/final_590147/tables.md` 等 |
-| 590148 | repair sweep | b56631d (0) | §5.3、§9.1、§9.5、§10.5 | `results/repair_590148/plots/repair_summary.md` |
+| **590258** | **正式 final matrix（35 步全部 PASS）** | 1c39e40 (6，只有文件檔) | §0、§2、§3、§5、§6、§7、§8.3、§8.4、§9、§10 | `results/final_590258/tables.md`、`bench.csv` 等 |
+| 590256 | test_grouped | 1c39e40 (6) | §0、§5.2 | `results/test_590256/`、`slurm-ggemm-test-590256.out` |
+| 590257 | repair sweep（正式） | 1c39e40 (6) | §5.3、§9.1、§9.5、§9.6、§10.5 | `results/repair_590257/plots/repair_summary.md`、`emu_repair.csv` |
+| 590224 | final matrix（只加 shape memo，對照用） | a48eb3e (4) | §9.6 | `results/final_590224/bench.csv` |
+| 590223 | planner unit | a48eb3e（log 中未記錄 dirty） | §2.6、§5.2、§9.6 | `results/planner_unit_590223/test_planner.log` |
+| 590147 | final matrix（修正前，對照用） | b56631d (0) | §9.6、§10.1、§7.3（對照） | `results/final_590147/tables.md` |
+| 590148 | repair sweep（修正前，對照用） | b56631d (0) | §5.3、§9.6 | `results/repair_590148/` |
 | 590162 | test_grouped 重跑 | b56631d (8，只動 tests／scripts) | §5.2 | `results/test_590162/` |
 | 590161 | sanitizer 重跑 | b56631d (8，只動 tests／scripts) | §10.3 | `results/sanitize_590161/summary.md` |
 | 511249 | test_grouped + memcheck | b56631d (0) | §2.2、§5.2、§5.3 | `results/slurm-ggemm-test-511249.out`、`test_511249/` |

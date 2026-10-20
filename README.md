@@ -234,6 +234,12 @@ Measured results are in `results/` (one directory per job) and the write-up with
 and discussion is `docs/report.md` (final report, Traditional Chinese). This README intentionally
 quotes no measured numbers.
 
+Not committed to git (size): per-job build dirs, `*.ncu-rep`, nsys `*.sqlite`, and the per-event
+nsys trace exports `*_trace.csv`. The `.nsys-rep` files are committed; regenerate the traces with
+`nsys stats -r cuda_gpu_trace,cuda_api_trace,nvtx_pushpop_trace -f csv -o <prefix> <file>.nsys-rep`
+or pass the `.nsys-rep` directly to `scripts/analysis/nsys_report.py`. ncu summaries are committed
+as `*_details.csv` / `*_raw.csv`. The final run is `results/final_590258/`.
+
 ## Layout
 
 ```
