@@ -311,7 +311,9 @@ __global__ void __launch_bounds__(THREADS) oz2_prep_kernel(const oz2_problem* __
         pr.row_shift[i] = sh;
         pr.row_shift[m + i] = sg;
       }
-      if (lead && sh == OZ2_SHIFT_NONFINITE) atomicAdd(&g_cnt[0], 1ull);
+      // ty == 0 is exactly warp 0 (tx = lane, all 32 lanes active): one atomic per warp.
+      const unsigned nf = __ballot_sync(0xffffffffu, lead && sh == OZ2_SHIFT_NONFINITE);
+      if (tx == 0 && nf) atomicAdd(&g_cnt[0], (unsigned long long)__popc(nf));
     }
     __syncthreads();
     const int sh = s_shift[tx], sg = s_sig[tx];
@@ -559,9 +561,28 @@ __global__ void __launch_bounds__(THREADS) oz2_reconstruct_kernel(const oz2_prob
     j += di;
     if (i >= m) { i -= m; ++j; }
   }
-  if (n_uncert) atomicAdd(&g_cnt[1], (unsigned long long)n_uncert);
-  if (n_repair) atomicAdd(&g_cnt[2], (unsigned long long)n_repair);
-  if (n_safety) atomicAdd(&g_cnt[3], (unsigned long long)n_safety);
+  // Aggregate the per-thread counters before touching global memory: warp shuffle-reduce,
+  // then a block reduce through shared memory, then at most one atomicAdd per counter per
+  // block (and only when nonzero).  One atomic per thread on the same three addresses
+  // serialised badly when many entries were uncertified (COUNT mode).  Every thread reaches
+  // this point: the only earlier returns are block-uniform (they depend on blockIdx.y only),
+  // and the per-entry 'break's leave the do/while, not the kernel.  Exact integer sums.
+  unsigned long long cu = n_uncert, cr = n_repair, cf = n_safety;
+#pragma unroll
+  for (int o = 16; o; o >>= 1) {
+    cu += __shfl_down_sync(0xffffffffu, cu, o);
+    cr += __shfl_down_sync(0xffffffffu, cr, o);
+    cf += __shfl_down_sync(0xffffffffu, cf, o);
+  }
+  __shared__ unsigned long long s_cnt[3][THREADS / 32];
+  const int lane = threadIdx.x & 31, wid = threadIdx.x >> 5;
+  if (lane == 0) { s_cnt[0][wid] = cu; s_cnt[1][wid] = cr; s_cnt[2][wid] = cf; }
+  __syncthreads();
+  if (threadIdx.x < 3) {
+    unsigned long long t = 0;
+    for (int w = 0; w < THREADS / 32; ++w) t += s_cnt[threadIdx.x][w];
+    if (t) atomicAdd(&g_cnt[1 + threadIdx.x], t);
+  }
 }
 
 int g_uploaded_dev = -1;

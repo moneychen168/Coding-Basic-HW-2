@@ -1,4 +1,4 @@
-// ggemm public API (agent-P): workspace management + the 5 execution paths.
+// ggemm public API (agent-P): workspace management + the 7 execution paths (ggemm_path_t 0..6, see README "The seven paths").
 #include "internal.h"
 #include "operand_reuse.h"
 
