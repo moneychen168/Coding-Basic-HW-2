@@ -58,17 +58,25 @@ def main():
 
     hdr = ["workload", "path", "G", "total_flops", "time_ms", "effective_GFLOPS", "launches", "err_max", "num_fallback",
            "family", "phi", "num_moduli_cfg", "time_ms_min", "wall_ms", "err_over_gamma", "err_vs_native", "rel_max",
-           "moduli_min", "moduli_max", "reps", "gpu", "status"]
+           "moduli_min", "moduli_max", "reps", "gpu", "status", "num_uncertified", "num_repaired", "n_over_gamma",
+           "repair_mode", "rho_budget", "total_entries", "num_safety_fallback", "host_allocs_timed"]
     rows = []
     for wl, fam, G, k in [("uni_G64_s32", "uniform", 64, 1.0), ("moe_E8_prefill_z1.2_up", "moe", 8, 2.0)]:
         for p in PATHS:
             t = T[p] * k
             st = "call_failed" if (wl.startswith("moe") and p == "emu_loop") else "ok"
-            rows.append([wl, p, G, 1e9, t, 1e9 / (t * 1e-3) / 1e9, L[p], 1e-15, 2 if p == "auto" else 0, fam, 0.5, 0,
-                         t, t * 1.1, 0.25 if p in EMU else 0.5, 1.0, 1e-16, 14 if p in EMU else 0,
-                         17 if p in EMU else 0, 20, "NVIDIA H200", st])
+            # moe: AUTO routes all G problems to native (moduli 0-0) -> "all-native" geomean group
+            nat = wl.startswith("moe") and p == "auto"
+            emu = p in EMU and not nat
+            rows.append([wl, p, G, 1e9, t, 1e9 / (t * 1e-3) / 1e9, L[p], 1e-15,
+                         G if nat else (2 if p == "auto" else 0), fam, 0.5, 0,
+                         t, t * 1.1, 0.25 if p in EMU else 0.5, 1.0, 1e-16, 14 if emu else 0,
+                         17 if emu else 0, 20, "NVIDIA H200", st,
+                         3 if emu else -1, (16 if p == "auto" else 0) if emu else -1, 0, "default", "default",
+                         4096, 0 if emu else -1, 1 if (wl.startswith("moe") and p == "emu_grouped") else 0])
     rows.append(["uni_G64_s32", "native_grouped", 64, 1e9, 99.0, 1, 1, 1e-15, 0, "uniform", 1.0, 0, 99, 99, 0.5,
-                 1.0, 1e-16, 0, 0, 20, "NVIDIA H200", "ok"])   # other phi: must be filtered out
+                 1.0, 1e-16, 0, 0, 20, "NVIDIA H200", "ok", -1, -1, 0, "default", "default", 4096, -1,
+                 0])   # other phi: must be filtered out
     w("bench.csv", hdr, rows)
 
     hdr = ("app,path,T,E,topk,d_model,d_ff,zipf,phi,act,seed,num_moduli_cfg,experts_active,load_max,load_min,"

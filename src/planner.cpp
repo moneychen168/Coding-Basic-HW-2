@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
 
 static double env_or(const char* name, double dflt) {
@@ -203,9 +204,11 @@ static void cost(const ggemm_problem_t& p, int nm, int cfg, const ggemm_device_m
 // Wave quantization: a persistent grid holds ~num_sms * GGEMM_I8_CTAS_PER_SM tiles at once. Makespan >= max(W/slots, largest tile).
 // If one problem's tile is heavier than the per-slot average, its tiles are too few to
 // fill the machine -> shrink its tile (more, smaller tiles). Repeat until stable.
-static void tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device_model_t* dm,
+// Returns true if any tile_cfg was changed (the caller re-costs only then).
+static bool tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device_model_t* dm,
                        ggemm_plan_entry_t* out) {
   const double slots = (double)dm->num_sms * GGEMM_I8_CTAS_PER_SM;
+  bool any = false;
   for (int pass = 0; pass < GGEMM_NUM_TILE_CFG; ++pass) {
     double W = 0;
     for (int g = 0; g < num; ++g) {
@@ -213,7 +216,7 @@ static void tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device
       double t = ggemm_tile_dim(out[g].tile_cfg);
       W += oz2_num_planes(out[g].num_moduli) * tiles_of(probs[g].m, probs[g].n, out[g].tile_cfg) * t * t * kp_of(probs[g].k);
     }
-    if (W <= 0) return;
+    if (W <= 0) return any;
     const double per_slot = W / slots;
     bool changed = false;
     for (int g = 0; g < num; ++g) {
@@ -221,15 +224,80 @@ static void tune_tiles(const ggemm_problem_t* probs, int num, const ggemm_device
       double t = ggemm_tile_dim(out[g].tile_cfg);
       if (t * t * kp_of(probs[g].k) > per_slot) { out[g].tile_cfg++; changed = true; }
     }
-    if (!changed) return;
+    if (!changed) return any;
+    any = true;
   }
+  return any;
+}
+
+// Everything below the alpha == 0 check depends on the problem only through
+// (m, n, k, beta != 0) -- cfg, path, dm and rho_budget are per call. plan_shape() is that part
+// (e already reset to route EMU by the caller); the memo in ggemm_plan_ex keys on exactly these.
+static int plan_shape(const ggemm_problem_t& p, const ggemm_config_t* cfg, bool autop, int allow_fb,
+                      double rho_budget, const ggemm_device_model_t* dm, ggemm_plan_entry_t& e) {
+  if (p.k > GGEMM_MAX_K_EXACT) {
+    if (!allow_fb) return GGEMM_ERR_UNSAFE;
+    e.route = GGEMM_ROUTE_K_TOO_LARGE; return GGEMM_OK;
+  }
+  if (autop && allow_fb && p.k <= GGEMM_AUTO_NATIVE_MAX_K) { e.route = GGEMM_ROUTE_SMALL_K; return GGEMM_OK; }
+  if (autop && !(cfg && cfg->num_moduli > 0)) {
+    // AUTO adaptive: componentwise planning (uncertified entries are repaired in FP64, so N
+    // only moves the repair rate). -1 only for k > OZ2_MAX_K (already rerouted above).
+    e.num_moduli = oz2_choose_num_moduli_cw(p.k, rho_budget);
+    if (e.num_moduli >= 0) e.num_moduli = std::min(std::max(e.num_moduli, 2), GGEMM_MAX_MODULI);
+  } else {
+    e.num_moduli = ggemm_plan_num_moduli(cfg, p.k);
+  }
+  if (e.num_moduli < 0) {
+    if (!allow_fb) return GGEMM_ERR_UNSAFE;
+    e.route = GGEMM_ROUTE_PRECISION; e.num_moduli = 0; return GGEMM_OK;
+  }
+  if (!autop) return GGEMM_OK;  // EMU_LOOP / EMU_GROUPED: fixed tile 0, no cost-based fallback
+  e.tile_cfg = tile_by_padding(p.m, p.n);
+  cost(p, e.num_moduli, e.tile_cfg, dm, &e.t_emu_s, &e.t_native_s);
+  if (allow_fb) {
+    if ((double)p.m * p.n * p.k < dm->tiny_mnk) e.route = GGEMM_ROUTE_TINY;
+    else if (e.t_emu_s > e.t_native_s) e.route = GGEMM_ROUTE_UNPROFITABLE;
+  }
+  return GGEMM_OK;
+}
+
+static inline bool same_shape(const ggemm_problem_t& a, const ggemm_problem_t& b) {
+  return a.m == b.m && a.n == b.n && a.k == b.k && (a.beta != 0.0) == (b.beta != 0.0);
+}
+static inline uint32_t shape_hash(const ggemm_problem_t& p) {
+  uint32_t h = (uint32_t)p.m * 73856093u ^ (uint32_t)p.n * 19349663u ^ (uint32_t)p.k * 83492791u ^
+               (p.beta != 0.0 ? 2654435761u : 0u);
+  h ^= h >> 16; h *= 0x45d9f3bu; h ^= h >> 16;
+  return h;
+}
+
+size_t ggemm_plan_memo_cap(int max_problems) {
+  size_t cap = 1;
+  while (cap < 2 * (size_t)std::max(max_problems, 1)) cap <<= 1;
+  return cap;
 }
 
 int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
                ggemm_path_t path, const ggemm_device_model_t* dm, ggemm_plan_entry_t* out) {
+  return ggemm_plan_ex(probs, num, cfg, path, dm, out, nullptr, 0);
+}
+
+int ggemm_plan_ex(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
+                  ggemm_path_t path, const ggemm_device_model_t* dm, ggemm_plan_entry_t* out,
+                  int* memo, size_t memo_cap) {
   const int allow_fb = cfg ? cfg->allow_fallback : 0;
   const bool autop = (path == GGEMM_PATH_AUTO);
   static const double rho_budget = env_or("GGEMM_RHO_BUDGET", GGEMM_RHO_BUDGET_DEFAULT);
+  // Shape memo: open-addressing table of problem indices (-1 = empty), linear probing; the
+  // first problem of each distinct shape is planned, later ones copy its entry bit for bit.
+  // Caller-owned (ggemm_create sizes it), so no allocation here; too small -> no memo.
+  size_t mask = 0;
+  if (memo && num > 0) {
+    const size_t cap = ggemm_plan_memo_cap(num);
+    if (cap <= memo_cap) { std::fill(memo, memo + cap, -1); mask = cap - 1; }
+    else memo = nullptr;
+  }
   for (int g = 0; g < num; ++g) {
     const ggemm_problem_t& p = probs[g];
     ggemm_plan_entry_t& e = out[g];
@@ -238,34 +306,19 @@ int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
     if (p.k == 0) { e.route = GGEMM_ROUTE_K_ZERO; continue; }
     // alpha == 0: C = beta*C exactly; never emulate (prep would leave planes unwritten).
     if (p.alpha == 0.0) { e.route = GGEMM_ROUTE_ALPHA_ZERO; continue; }
-    if (p.k > GGEMM_MAX_K_EXACT) {
-      if (!allow_fb) return GGEMM_ERR_UNSAFE;
-      e.route = GGEMM_ROUTE_K_TOO_LARGE; continue;
+    if (memo) {
+      size_t s = shape_hash(p) & mask;
+      int rep;
+      while ((rep = memo[s]) >= 0 && !same_shape(probs[rep], p)) s = (s + 1) & mask;
+      if (rep >= 0) { e = out[rep]; continue; }   // rep < g: its entry is complete
+      memo[s] = g;
     }
-    if (autop && allow_fb && p.k <= GGEMM_AUTO_NATIVE_MAX_K) { e.route = GGEMM_ROUTE_SMALL_K; continue; }
-    if (autop && !(cfg && cfg->num_moduli > 0)) {
-      // AUTO adaptive: componentwise planning (uncertified entries are repaired in FP64, so N
-      // only moves the repair rate). -1 only for k > OZ2_MAX_K (already rerouted above).
-      e.num_moduli = oz2_choose_num_moduli_cw(p.k, rho_budget);
-      if (e.num_moduli >= 0) e.num_moduli = std::min(std::max(e.num_moduli, 2), GGEMM_MAX_MODULI);
-    } else {
-      e.num_moduli = ggemm_plan_num_moduli(cfg, p.k);
-    }
-    if (e.num_moduli < 0) {
-      if (!allow_fb) return GGEMM_ERR_UNSAFE;
-      e.route = GGEMM_ROUTE_PRECISION; e.num_moduli = 0; continue;
-    }
-    if (!autop) continue;  // EMU_LOOP / EMU_GROUPED: fixed tile 0, no cost-based fallback
-    e.tile_cfg = tile_by_padding(p.m, p.n);
-    cost(p, e.num_moduli, e.tile_cfg, dm, &e.t_emu_s, &e.t_native_s);
-    if (allow_fb) {
-      if ((double)p.m * p.n * p.k < dm->tiny_mnk) e.route = GGEMM_ROUTE_TINY;
-      else if (e.t_emu_s > e.t_native_s) e.route = GGEMM_ROUTE_UNPROFITABLE;
-    }
+    const int r = plan_shape(p, cfg, autop, allow_fb, rho_budget, dm, e);
+    if (r) return r;
   }
-  if (autop) {
-    tune_tiles(probs, num, dm, out);
-    // tile changes move t_emu: re-evaluate cost and the profitability route once.
+  // tile changes move t_emu: re-evaluate cost and the profitability route once. Skipped when
+  // tune_tiles changed nothing: cost() would then reproduce the first-pass values exactly.
+  if (autop && tune_tiles(probs, num, dm, out)) {
     for (int g = 0; g < num; ++g) {
       ggemm_plan_entry_t& e = out[g];
       if (e.route != GGEMM_ROUTE_EMU) continue;

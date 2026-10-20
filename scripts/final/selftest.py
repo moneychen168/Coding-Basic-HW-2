@@ -66,13 +66,21 @@ def main():
         r = row(md, "moe_E8_prefill_z1.2_up", "### 2a.")
         check(r is not None and r[5] == "call_failed", f"failed cell shows status: {r}")
         r = row(md, "uni_G64_s32", "### 2b.")   # cols: native_loop emu_loop elb emu_grouped reuse auto
-        check(r is not None and r[1:] == ["0.50x", "0.25x", "2.00x", "4.00x", "5.00x", "8.00x"], f"speedup vs NG: {r}")
+        check(r is not None and r[1:] == ["0.50x", "0.25x", "2.00x", "4.00x", "5.00x", "8.00x fb=2/64",
+                                          "0.391% (16/4096)"], f"speedup vs NG (+auto fb, repair frac): {r}")
         r = row(md, "moe_E8_prefill_z1.2_up", "### 2b.")
-        check(r is not None and r[2] == "n/a", f"speedup of failed cell is n/a: {r}")
+        check(r is not None and r[2] == "n/a" and r[6] == "8.00x fb=8/8" and r[7] == "n/a",
+              f"speedup of failed cell is n/a; all-native auto fb=8/8, repairs unmeasured: {r}")
         r = row(md, "**geomean all** (2)", "### 2b.")
-        check(r is not None and r[4] == "4.00x", f"geomean vs NG: {r}")
+        check(r is not None and r[4] == "4.00x" and r[6] == "emu 8.00x (n=1); all-native 8.00x (n=1)",
+              f"geomean vs NG (auto split emu / all-native): {r}")
         r = row(md, "uni_G64_s32", "### 2c.")   # cols: native_loop native_grouped emu_loop emu_grouped reuse auto
-        check(r is not None and r[1:] == ["0.25x", "0.50x", "0.12x", "2.00x", "2.50x", "4.00x"], f"speedup vs ELB: {r}")
+        check(r is not None and r[1:] == ["0.25x", "0.50x", "0.12x", "2.00x", "2.50x", "4.00x fb=2/64",
+                                          "0.391% (16/4096)"], f"speedup vs ELB: {r}")
+        check("E2E (host planning + H2D descriptors + kernels)" in md, "timing kind labelled E2E")
+        check("= 0 in 14 / 15 measured rows" in md, "host_allocs_timed summary")
+        r = row(md, "moe_E8_prefill_z1.2_up", "No-allocation check")
+        check(r is not None and r[1:] == ["emu_grouped", "0.5", "1"], f"host_allocs_timed offender row: {r}")
         r = row(md, "uni_G64_s32", "## 3.")
         check(r is not None and r[1] == "64" and r[5] == "192" and r[9:] == ["2", "14-17"], f"launch row: {r}")
 

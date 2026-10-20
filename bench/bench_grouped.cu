@@ -25,6 +25,8 @@
 //     --count-call: counters (num_uncertified/num_repaired) come from one extra UNTIMED call on a
 //       fresh handle created with GGEMM_STATS_REPAIR=1; timed calls never read counters.
 //     rho_budget column = env GGEMM_RHO_BUDGET (read once per process by the planner).
+//     host_allocs_timed column = growth of i8_grouped_gemm_host_allocs() (agent-K host scratch)
+//       across the R timed calls of that row; expected 0 (-1 = counter not available).
 //   paths "all" = native_loop,native_grouped,emu_loop,emu_grouped,auto,emu_grouped_reuse,emu_loop_batched
 #include <algorithm>
 #include <chrono>
@@ -50,6 +52,14 @@
 #define BENCH_NVTX_POP() do {} while (0)
 #endif
 #include "workloads.h"
+#if __has_include("int8_grouped_gemm.h")
+#include "int8_grouped_gemm.h"
+static long long host_allocs() { return i8_grouped_gemm_host_allocs(); }
+#define BENCH_HAS_HOST_ALLOCS 1
+#else
+static long long host_allocs() { return 0; }
+#define BENCH_HAS_HOST_ALLOCS 0
+#endif
 #include "../tests/reference.h"
 
 static bool is_emu(ggemm_path_t p) {
@@ -201,7 +211,7 @@ int main(int argc, char** argv) {
   fprintf(f, "workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,"
              "family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,"
              "moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma,repair_mode,"
-             "rho_budget,total_entries,num_safety_fallback\n");
+             "rho_budget,total_entries,num_safety_fallback,host_allocs_timed\n");
 
   cudaStream_t s; cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
   cudaEvent_t e0, e1; cudaEventCreate(&e0); cudaEventCreate(&e1);
@@ -237,6 +247,7 @@ int main(int argc, char** argv) {
           int rc = 0;
           for (int r = 0; h && rc == 0 && r < warmup; ++r) rc = ggemm_grouped_dgemm(h, p, &cfg, b.probs.data(), G, &st);
           if (h && cudaStreamSynchronize(s) != cudaSuccess) rc = -1;
+          const long long allocs0 = host_allocs();   // no allocation expected in the timed loop
           for (int r = 0; h && rc == 0 && r < reps; ++r) {
             auto w0 = std::chrono::steady_clock::now();
             BENCH_NVTX_PUSH("bench:timed");
@@ -250,6 +261,7 @@ int main(int argc, char** argv) {
             t.push_back(ms);
             wall.push_back(std::chrono::duration<double, std::milli>(w1 - w0).count());
           }
+          const long long allocs_timed = BENCH_HAS_HOST_ALLOCS ? host_allocs() - allocs0 : -1LL;
           if (h && rc != 0) status = "call_failed";
           if (cudaGetLastError() != cudaSuccess) status = "cuda_error";
           if (count_call && h && rc == 0) {
@@ -273,13 +285,13 @@ int main(int argc, char** argv) {
           double tm = median(t), tmin = t.empty() ? NAN : *std::min_element(t.begin(), t.end());
           double gfl = w.total_flops() / (tm * 1e-3) / 1e9;
           fprintf(f, "%s,%s,%d,%.6e,%.6f,%.3f,%d,%.6e,%d,%s,%.2f,%d,%.6f,%.6f,%.6e,%.6e,%.6e,%d,%d,%d,%s,%s,%lld,%lld,%lld,"
-                     "%s,%s,%zu,%lld\n",
+                     "%s,%s,%zu,%lld,%lld\n",
                   w.name.c_str(), ggemm_path_name(p), G, w.total_flops(), tm, gfl, st.kernel_launches,
                   have_ref ? e.err_cw : NAN, st.num_fallback, w.family.c_str(), phi, nm, tmin, median(wall),
                   have_ref ? e.ratio_gamma : NAN, vs_native, have_ref ? e.rel_max : NAN, st.moduli_min,
                   st.moduli_max, (int)t.size(), gpu.c_str(), status, stats_num_uncertified(sc), stats_num_repaired(sc),
                   have_ref ? (long long)e.n_over_gamma : -1LL, repair_mode_name(rm), rho_env.c_str(), w.elems_C(),
-                  stats_num_safety_fallback(sc));
+                  stats_num_safety_fallback(sc), allocs_timed);
           fflush(f);
           fprintf(stderr, "%-34s %-17s N=%-2d rm=%-7s phi=%.1f  %9.4f ms  %9.1f GFLOPS  launches=%-6d fb=%-4d "
                           "err=%.2e (x%.2g native) uncert=%lld repaired=%lld %s\n",

@@ -400,6 +400,29 @@ static void test_determinism(const ggemm_device_model_t& dm) {
       CHECK(ra == rb && ra == GGEMM_OK && diff == 0, "G=%d path=%d: rc %d/%d, %d entries differ", G, path, ra, rb, diff);
     }
   }
+  // ggemm_plan_ex shape memo must reproduce ggemm_plan (no memo) bit for bit: random groups,
+  // a group with few distinct shapes (incl. beta / alpha variants), every path and fb setting.
+  for (int G : {1, 17, 1000, 65535}) {
+    for (int variant = 0; variant < 2; ++variant) {
+      std::vector<ggemm_problem_t> ps = make_group(G, 999u + G);
+      if (variant)   // few distinct shapes: memo hits dominate
+        for (int g = 0; g < G; ++g) ps[g] = ps[g % 7];
+      std::vector<int> memo(ggemm_plan_memo_cap(G));
+      for (int path : {GGEMM_PATH_AUTO, GGEMM_PATH_EMU_GROUPED, GGEMM_PATH_EMU_LOOP})
+        for (int fb : {0, 1}) {
+          std::vector<ggemm_plan_entry_t> a(G), b(G);
+          std::memset(a.data(), 0x11, G * sizeof a[0]);
+          std::memset(b.data(), 0x77, G * sizeof b[0]);
+          ggemm_config_t cfg = C(0, fb);
+          int ra = ggemm_plan(ps.data(), G, &cfg, (ggemm_path_t)path, &dm, a.data());
+          int rb = ggemm_plan_ex(ps.data(), G, &cfg, (ggemm_path_t)path, &dm, b.data(), memo.data(), memo.size());
+          int diff = 0;
+          if (ra == GGEMM_OK) for (int g = 0; g < G; ++g) diff += !same_entry(a[g], b[g]);
+          CHECK(ra == rb && diff == 0, "memo G=%d var=%d path=%d fb=%d: rc %d/%d, %d entries differ",
+                G, variant, path, fb, ra, rb, diff);
+        }
+    }
+  }
 }
 
 // ================================================================= 6. host time + no allocation

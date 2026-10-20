@@ -116,6 +116,7 @@ struct ggemm_handle_s {
 
   // host scratch (allocated once; sized by max_problems)
   ggemm_plan_entry_t* plan;
+  int* plan_memo; size_t plan_memo_cap;   // ggemm_plan_ex shape memo (>= 2 max_problems, pow2)
   int* emu_idx; int* nat_idx;
   i8_sched_info* loop_info;   // [max_problems * planes] agent-K schedule info per EMU_LOOP(_BATCHED) image
   cublasOperation_t* nat_ta; cublasOperation_t* nat_tb;

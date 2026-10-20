@@ -103,19 +103,27 @@ static int run_once(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   return rc;
 }
 
+// Timed on a handle created WITHOUT GGEMM_STATS_REPAIR (ht in main): with it, every call ends
+// with a counter readback + stream sync. Counters are read only by the untimed run_once calls.
+// Returns us/call, NAN if any call failed (rc checked on every call, outside the event pair).
 static double time_path(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* cfg,
                         Workload& w, int reps, cudaStream_t s) {
-  for (int i = 0; i < 3; ++i) ggemm_grouped_dgemm(h, path, cfg, w.probs.data(), w.G, nullptr);
+  int rc = 0;
+  for (int i = 0; i < 3 && rc == 0; ++i) rc = ggemm_grouped_dgemm(h, path, cfg, w.probs.data(), w.G, nullptr);
+  CHECK(rc == 0, "%s %s: warm-up rc=%d", w.name.c_str(), pname(path), rc);
+  if (rc) return NAN;
   cudaEvent_t e0, e1;
   CK(cudaEventCreate(&e0)); CK(cudaEventCreate(&e1));
   CK(cudaStreamSynchronize(s));
   CK(cudaEventRecord(e0, s));
-  for (int i = 0; i < reps; ++i) ggemm_grouped_dgemm(h, path, cfg, w.probs.data(), w.G, nullptr);
+  int bad = 0;
+  for (int i = 0; i < reps; ++i) bad |= ggemm_grouped_dgemm(h, path, cfg, w.probs.data(), w.G, nullptr) != 0;
   CK(cudaEventRecord(e1, s));
   CK(cudaEventSynchronize(e1));
   float ms = 0; CK(cudaEventElapsedTime(&ms, e0, e1));
   cudaEventDestroy(e0); cudaEventDestroy(e1);
-  return 1e3 * ms / reps;
+  CHECK(!bad, "%s %s: timed call failed", w.name.c_str(), pname(path));
+  return bad ? NAN : 1e3 * ms / reps;
 }
 
 int main(int argc, char** argv) {
@@ -150,6 +158,17 @@ int main(int argc, char** argv) {
   ggemm_handle_t h = nullptr;
   int rc = ggemm_create(&h, maxG, maxA, maxB, maxC, s);
   if (rc) { printf("ggemm_create failed: %d\n", rc); return 2; }
+  // timing handle: GGEMM_STATS_REPAIR is read at ggemm_create, so create it with the env
+  // unset (restored afterwards for anything that reads it later).
+  ggemm_handle_t ht = nullptr;
+  if (!small) {
+    const char* sr_env = getenv("GGEMM_STATS_REPAIR");
+    const std::string saved = sr_env ? sr_env : "";
+    unsetenv("GGEMM_STATS_REPAIR");
+    rc = ggemm_create(&ht, maxG, maxA, maxB, maxC, s);
+    if (sr_env) setenv("GGEMM_STATS_REPAIR", saved.c_str(), 1);
+    if (rc) { printf("ggemm_create (timing) failed: %d\n", rc); return 2; }
+  }
 
   ggemm_config_t cfg_emu = {0, 1e-15, 0};    // adaptive N, no fallback (pure emulation)
   ggemm_config_t cfg_auto = {0, 1e-15, 1};
@@ -200,15 +219,16 @@ int main(int argc, char** argv) {
           sb.kernel_launches, sr.kernel_launches);
 
     if (small) continue;   // sanitizer mode: correctness gates only
-    const double tb = time_path(h, GGEMM_PATH_EMU_GROUPED, &cfg_emu, w, reps, s);
-    const double tr = time_path(h, GGEMM_PATH_EMU_GROUPED_REUSE, &cfg_emu, w, reps, s);
-    const double ta = time_path(h, GGEMM_PATH_AUTO, &cfg_auto, w, reps, s);
-    const double tl = time_path(h, GGEMM_PATH_EMU_LOOP_BATCHED, &cfg_emu, w, reps, s);
+    const double tb = time_path(ht, GGEMM_PATH_EMU_GROUPED, &cfg_emu, w, reps, s);
+    const double tr = time_path(ht, GGEMM_PATH_EMU_GROUPED_REUSE, &cfg_emu, w, reps, s);
+    const double ta = time_path(ht, GGEMM_PATH_AUTO, &cfg_auto, w, reps, s);
+    const double tl = time_path(ht, GGEMM_PATH_EMU_LOOP_BATCHED, &cfg_emu, w, reps, s);
     printf("  time/call (us): EMU_LOOP_BATCHED=%.1f  EMU_GROUPED=%.1f  REUSE=%.1f  AUTO=%.1f  "
            "speedup REUSE/EMU=%.3fx\n", tl, tb, tr, ta, tb / tr);
   }
 
   ggemm_destroy(h);
+  if (ht) ggemm_destroy(ht);
   for (Workload& w : ws) release(w);
   cudaStreamDestroy(s);
   printf("test_reuse_e2e: %d passed, %d failed\n", g_pass, g_fail);

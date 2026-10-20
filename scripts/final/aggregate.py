@@ -298,19 +298,90 @@ def t_of(v, w, p):
     return num(r["time_ms"])
 
 
+AUTO = "auto"
+T_E2E = "E2E (host planning + H2D descriptors + kernels)"
+
+
+def auto_fb(v, w):
+    """(num_fallback, G) of the AUTO cell of workload w; nan if not available."""
+    r = v["cell"].get((w, AUTO))
+    return (num(r["num_fallback"]), num(r["G"])) if r is not None else (math.nan, math.nan)
+
+
+def auto_has_emu(v, w):
+    """True if AUTO emulated at least one problem (moduli_max > 0; older CSVs: num_fallback < G)."""
+    r = v["cell"].get((w, AUTO))
+    if r is None:
+        return None
+    mm = num(r.get("moduli_max"))
+    if finite(mm):
+        return mm > 0
+    fb, g = auto_fb(v, w)
+    return fb < g if finite(fb) and finite(g) else None
+
+
+def auto_repair_frac(v, w):
+    """'pct% (repaired/entries)' of the AUTO cell; n/a if the counters were not measured (-1 / column absent)."""
+    r = v["cell"].get((w, AUTO))
+    if r is None:
+        return NA
+    rp, ne = num(r.get("num_repaired")), num(r.get("total_entries"))
+    if not (finite(rp) and rp >= 0 and finite(ne) and ne > 0):
+        return NA
+    return f"{fmt(100 * rp / ne, 3)}% ({int(rp)}/{int(ne)})"
+
+
 def speedup_table(v, base):
+    """Speedup (E2E time) table. AUTO cells carry fb=<num_fallback>/<G>; the AUTO geomean is split into rows
+    where AUTO emulated something ("emu") and rows where it ran 100% native ("all-native"), so a fully
+    fallen-back workload never counts as emulation speedup. Last column: AUTO repair fraction."""
     if base not in v["paths"]:
         return f"`{base}` is not in bench.csv for this run -> no speedup table vs {base}.\n"
     others = [p for p in v["paths"] if p != base]
+    ia = others.index(AUTO) if AUTO in others else None
     rows, per_fam = [], {}
     for w in v["wls"]:
         tb = t_of(v, w, base)
         sp = [div(tb, t_of(v, w, p)) for p in others]
-        rows.append([w] + [fmt_ratio(x) for x in sp])
-        per_fam.setdefault(v["family"][w], []).append(sp)
+        cells = [fmt_ratio(x) for x in sp]
+        if ia is not None:
+            fb, g = auto_fb(v, w)
+            if finite(fb) and finite(g):
+                cells[ia] += f" fb={int(fb)}/{int(g)}"
+            cells.append(auto_repair_frac(v, w))
+        rows.append([w] + cells)
+        per_fam.setdefault(v["family"][w], []).append((sp, auto_has_emu(v, w)))
     for fam, lst in list(per_fam.items()) + [("all", [s for l in per_fam.values() for s in l])]:
-        rows.append([f"**geomean {fam}** ({len(lst)})"] + [fmt_ratio(geomean(s[i] for s in lst)) for i in range(len(others))])
-    return md_table(["workload"] + [f"{p}" for p in others], rows)
+        cells = [fmt_ratio(geomean(s[i] for s, _ in lst)) for i in range(len(others))]
+        if ia is not None:
+            emu = [s[ia] for s, he in lst if he]
+            nat = [s[ia] for s, he in lst if he is False]
+            cells[ia] = f"emu {fmt_ratio(geomean(emu))} (n={len(emu)}); all-native {fmt_ratio(geomean(nat))} (n={len(nat)})"
+            cells.append("")
+        rows.append([f"**geomean {fam}** ({len(lst)})"] + cells)
+    hdr = ["workload"] + [f"{p}" for p in others] + (["auto repaired / C entries"] if ia is not None else [])
+    note = ""
+    if ia is not None:
+        note = ("auto cell: speedup, then fb = `num_fallback` / G (problems AUTO routed to native FP64). "
+                "auto geomean: `emu` = rows where AUTO emulated >= 1 problem (`moduli_max` > 0), `all-native` = "
+                "rows where it ran 100% native (excluded from the emulation geomean). "
+                "repaired = `num_repaired` / `total_entries` (untimed `--count-call`; n/a = not measured).\n\n")
+    return note + md_table(hdr, rows)
+
+
+def sec_alloc(v_rows):
+    """host_allocs_timed (bench_grouped): agent-K host-scratch growths inside the timed loop, expected 0."""
+    vals = [(r, num(r.get("host_allocs_timed"))) for r in v_rows]
+    meas = [(r, x) for r, x in vals if finite(x) and x >= 0]
+    if not meas:
+        return "No-allocation check: `host_allocs_timed` not in bench.csv (older binary).\n"
+    bad = [(r, x) for r, x in meas if x != 0]
+    out = (f"No-allocation check: `host_allocs_timed` (growth of `i8_grouped_gemm_host_allocs()` across the timed "
+           f"calls) = 0 in {len(meas) - len(bad)} / {len(meas)} measured rows.\n")
+    if bad:
+        out += "\n" + md_table(["workload", "path", "phi", "host_allocs_timed"],
+                               [[r["workload"], r["path"], r["phi"], fmt_int(x)] for r, x in bad], "llrr")
+    return out
 
 
 def sec_perf(d, phi):
@@ -318,7 +389,8 @@ def sec_perf(d, phi):
     if v is None:
         return "## 2. Performance (bench_grouped)\n\n`bench.csv` not available.\n"
     out = [f"## 2. Performance (bench_grouped, phi = {v['phi']}, adaptive moduli)\n",
-           "time = `time_ms` (median of the timed calls, ms, end-to-end incl. host planning + descriptor H2D). "
+           f"time = `time_ms` = {T_E2E}: cudaEvent time around one `ggemm_grouped_dgemm` call, median of the "
+           "timed calls, ms. Not kernel-only time (that is the nsys GPU span in section 5). "
            "A cell shows the `status` text if the call did not return ok.\n"]
     rows = []
     for w in v["wls"]:
@@ -327,12 +399,13 @@ def sec_perf(d, phi):
             c = v["cell"].get((w, p))
             r.append(NA if c is None else (fmt(num(c["time_ms"])) if c["status"] == "ok" else c["status"]))
         rows.append(r)
-    out.append("### 2a. Time (ms)\n\n" + md_table(["workload", "family", "G"] + v["paths"], rows, "llr" + "r" * len(v["paths"]))
+    out.append(f"### 2a. Time, {T_E2E} (ms)\n\n" + md_table(["workload", "family", "G"] + v["paths"], rows, "llr" + "r" * len(v["paths"]))
                + src("bench.csv") + "\n")
-    out.append(f"### 2b. Speedup vs {BASE_NG} = time({BASE_NG}) / time(path)\n\n" + speedup_table(v, BASE_NG)
+    out.append(f"### 2b. Speedup (E2E time) vs {BASE_NG} = time({BASE_NG}) / time(path)\n\n" + speedup_table(v, BASE_NG)
                + src("bench.csv") + "\n")
-    out.append(f"### 2c. Speedup vs {BASE_ELB} = time({BASE_ELB}) / time(path)\n\n" + speedup_table(v, BASE_ELB)
+    out.append(f"### 2c. Speedup (E2E time) vs {BASE_ELB} = time({BASE_ELB}) / time(path)\n\n" + speedup_table(v, BASE_ELB)
                + src("bench.csv") + "\n")
+    out.append(sec_alloc(read_csv(os.path.join(d, "bench.csv")) or []) + src("bench.csv") + "\n")
     return "\n".join(out)
 
 

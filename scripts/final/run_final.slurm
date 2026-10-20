@@ -145,15 +145,17 @@ for t in test_i8_grouped test_numerics_standalone test_grouped test_graph test_r
   fi
   case $t in
     test_grouped)  run_step "$t" 3600 "'$BUILD/$t' --set test --paths '$PATHS_CSV' --phis 0,0.5,1,2 --csv '$OUT/tests.csv'" ;;
-    test_reuse_e2e) run_step "$t" 1800 "GGEMM_STATS_REPAIR=1 '$BUILD/$t'" ;;   # fills stats.num_repaired
+    test_reuse_e2e) run_step "$t" 1800 "GGEMM_STATS_REPAIR=1 '$BUILD/$t'" ;;   # fills stats.num_repaired (untimed calls; timing uses its own handle without it)
     *)             run_step "$t" 1800 "'$BUILD/$t'" ;;
   esac
 done
 
 # ------------------------------------------------------------------ 4) bench_grouped, full set
+# --count-call: num_uncertified / num_repaired / num_safety_fallback come from one extra UNTIMED call
+# per row on a fresh GGEMM_STATS_REPAIR=1 handle (timed calls never read counters); without it they are -1.
 if need bench_grouped; then
   run_step bench_grouped 5400 "'$BUILD/bench_grouped' --set '${BENCH_SET:-bench}' --paths '$PATHS_CSV' --phis '${PHI:-0.5}' \
-      --moduli 0 --reps '${REPS:-20}' --warmup '${WARMUP:-5}' --csv '$OUT/bench.csv' --dump-shapes '$OUT/shapes.csv'"
+      --moduli 0 --reps '${REPS:-20}' --warmup '${WARMUP:-5}' --count-call --csv '$OUT/bench.csv' --dump-shapes '$OUT/shapes.csv'"
 else
   printf 'bench_grouped\tFAIL\t-\t0\tbinary not built (see logs/build.log)\n' >> "$STEPS"
 fi
@@ -245,6 +247,7 @@ if [[ -s "$OUT/bench.csv" ]]; then
 fi
 
 # ------------------------------------------------------------------ 8) tables + summary
+run_step aggregate_selftest 300 "python3 -I '$ROOT/scripts/final/selftest.py'"   # aggregate.py on synthetic data
 run_step aggregate 600 "python3 -I '$ROOT/scripts/final/aggregate.py' '$OUT' -o '$OUT/tables.md'"
 write_summary
 cat "$OUT/summary.md"

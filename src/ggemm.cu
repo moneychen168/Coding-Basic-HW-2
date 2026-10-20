@@ -202,7 +202,7 @@ extern "C" void ggemm_destroy(ggemm_handle_t h) {
   cudaFree(h->cublas_ws); cudaFree(h->A8); cudaFree(h->B8); cudaFree(h->C32);
   cudaFree(h->row_shift); cudaFree(h->col_shift); cudaFree(h->d_desc);
   if (h->h_desc) cudaFreeHost(h->h_desc);
-  delete[] h->plan; delete[] h->emu_idx; delete[] h->nat_idx; delete[] h->loop_info;
+  delete[] h->plan; delete[] h->plan_memo; delete[] h->emu_idx; delete[] h->nat_idx; delete[] h->loop_info;
   delete[] h->nat_ta; delete[] h->nat_tb;
   delete[] h->nat_m; delete[] h->nat_n; delete[] h->nat_k;
   delete[] h->nat_lda; delete[] h->nat_ldb; delete[] h->nat_ldc; delete[] h->nat_gsize;
@@ -300,6 +300,8 @@ extern "C" int ggemm_create_ex(ggemm_handle_t* out, int max_problems, size_t max
   }
 
   h->plan = new (std::nothrow) ggemm_plan_entry_t[P];
+  h->plan_memo_cap = ggemm_plan_memo_cap(max_problems);
+  h->plan_memo = new (std::nothrow) int[h->plan_memo_cap];
   h->emu_idx = new (std::nothrow) int[P];
   h->nat_idx = new (std::nothrow) int[P];
   h->loop_info = new (std::nothrow) i8_sched_info[P * M];
@@ -310,7 +312,7 @@ extern "C" int ggemm_create_ex(ggemm_handle_t* out, int max_problems, size_t max
   h->nat_ldb = new (std::nothrow) int[P]; h->nat_ldc = new (std::nothrow) int[P];
   h->nat_gsize = new (std::nothrow) int[P];
   h->nat_alpha = new (std::nothrow) double[P]; h->nat_beta = new (std::nothrow) double[P];
-  if (!h->plan || !h->loop_info || !h->emu_idx || !h->nat_idx || !h->nat_ta || !h->nat_tb || !h->nat_m ||
+  if (!h->plan || !h->plan_memo || !h->loop_info || !h->emu_idx || !h->nat_idx || !h->nat_ta || !h->nat_tb || !h->nat_m ||
       !h->nat_n || !h->nat_k || !h->nat_lda || !h->nat_ldb || !h->nat_ldc || !h->nat_gsize ||
       !h->nat_alpha || !h->nat_beta) FAIL(GGEMM_ERR_ALLOC);
 
@@ -381,7 +383,8 @@ static int path_emu(ggemm_handle_t h, ggemm_path_t path, const ggemm_config_t* c
   const ggemm_path_t plan_path = (path == GGEMM_PATH_EMU_GROUPED_REUSE) ? GGEMM_PATH_EMU_GROUPED
                                : (path == GGEMM_PATH_EMU_LOOP_BATCHED) ? GGEMM_PATH_EMU_LOOP : path;
   GGEMM_NVTX_RANGE(nv_plan, "plan");   // planning + reuse + descriptors + LPT schedule
-  int r = ggemm_plan(probs, num, cfg, plan_path, &h->dm, h->plan);
+  // shape memo (handle scratch): G problems of D distinct shapes cost D planner evaluations
+  int r = ggemm_plan_ex(probs, num, cfg, plan_path, &h->dm, h->plan, h->plan_memo, h->plan_memo_cap);
   if (r) return r;
 
   // ---- operand reuse (host, O(G), no allocation): after the plan, before any sizing.

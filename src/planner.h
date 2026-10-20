@@ -1,5 +1,6 @@
 // Planner (agent-P): per-problem emulate/fallback, num_moduli, tile config. Host-only.
 #pragma once
+#include <stddef.h>
 #include "ggemm.h"
 
 // Why a problem was routed to native FP64 (0 = emulated).
@@ -66,6 +67,16 @@ int ggemm_plan_num_moduli(const ggemm_config_t* cfg, int k);
 // allow_fallback == 0.
 int ggemm_plan(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
                ggemm_path_t path, const ggemm_device_model_t* dm, ggemm_plan_entry_t* out);
+
+// Same plan, bit for bit, with a per-call shape memo: problems with equal (m, n, k, beta != 0)
+// (all the planner reads past the alpha == 0 check) are planned once. memo = caller-owned int
+// scratch of memo_cap entries; memo_cap >= ggemm_plan_memo_cap(num) or the memo is skipped.
+// No allocation. ggemm_plan == ggemm_plan_ex(..., nullptr, 0) (no memo; reference).
+int ggemm_plan_ex(const ggemm_problem_t* probs, int num, const ggemm_config_t* cfg,
+                  ggemm_path_t path, const ggemm_device_model_t* dm, ggemm_plan_entry_t* out,
+                  int* memo, size_t memo_cap);
+// Table size used by ggemm_plan_ex for num problems (power of two >= 2 num).
+size_t ggemm_plan_memo_cap(int num);
 
 #ifdef __cplusplus
 }
