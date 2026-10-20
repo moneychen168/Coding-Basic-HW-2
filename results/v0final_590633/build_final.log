@@ -1,0 +1,4 @@
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build_v0final_590633
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build_v0final_590633/libggemm.a
+[build] OK: /home/money168/hw2_grouped_gemm/build_v0final_590633/bench_grouped

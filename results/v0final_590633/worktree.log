@@ -1,0 +1,2 @@
+Preparing worktree (detached HEAD 5d8e2ad)
+HEAD is now at 5d8e2ad ggemm v0: Ozaki-II INT8 grouped DGEMM pipeline, persistent grouped INT8 GEMM, planner, tests/bench/calib
