@@ -12,12 +12,18 @@
 
 1. **模擬本身的進步**（純模擬之間的比較）：`EMU_GROUPED` 相對 `EMU_LOOP_BATCHED` 的 E2E speedup，44 個 workload 的 geomean 是 **4.97×**（uniform 18.49×、MoE 2.65×、hetero 2.23×、LoRA 3.25×；表 2c）。`EMU_LOOP_BATCHED` 相對 `EMU_LOOP` 是 1/0.41 ≈ 2.4×。
 2. **對 native 的負面結果**：在本作業唯一可用的 GPU（國網 nano4 的 H200）上，`EMU_GROUPED` 在 **44/44** 個 workload 都比 `NATIVE_GROUPED`（cuBLAS）慢，慢 **2.38×–21.3×**（geomean 0.14×，表 2b）。
-3. **AUTO 不是模擬的加速**：44 列中有 38 列 fallback = G。其餘 6 列（MoE decode）的 fallback 數等於非空問題數，剩下的是 m_e = 0 的空問題；44 列的 `moduli_max` 都是 0。也就是說，**AUTO 在 bench 中沒有任何一題用模擬計算**。AUTO 相對 native_grouped 的 geomean 是 1.03×（tables.md 標為「all-native」）。
+3. **AUTO 不是模擬的加速**：44 列中有 38 列 fallback = G。其餘 6 列（MoE decode）的 fallback 數等於非空問題數，剩下的是 m_e = 0 的空問題；44 列的 `moduli_max` 都是 0。也就是說，**AUTO 在 bench 中沒有任何一題用模擬計算**。AUTO 相對 native_grouped 的 geomean 是 1.03×（tables.md 標為「all-native」）。但這個 > 1 只是因為 6 列 MoE decode 的 native_grouped 被量測順序高估（§10.8），不代表 AUTO 比 native 快。
 4. **兩項修正已經實測**（§9.6）：
    - planner 的 per-call shape memo 修掉了 AUTO 全部 fallback 時的開銷 regression。例如 uni_G4096_s32 從 0.738 ms（590147）降到 0.2944 ms（590258），同列 native_grouped 是 0.2697 ms。
    - reconstruct 的計數器改成 warp + block 聚合後，repair sweep 的計數結果完全不變，時間 geomean 變成原來的 0.959 倍。
-5. **計時區沒有 host 配置**：590258 的 `bench.csv` 中 308 列的 `host_allocs_timed` 全部是 0。
-6. **正確性**：`test_grouped` 2955 passed / 0 failed（job 590256、590258，commit 1c39e40）；compute-sanitizer 在最終程式碼上（job 590498，commit a6b337d，`src/` 與 1c39e40 相同）四種工具全部 0 errors。
+5. **native／starter／最終版三方比較**（job 590633，同一個 job、同一張 GPU、同樣 44 個 workload）：
+   - 沒有官方 starter code，所以 starter = 我們第一個可用版本 v0（commit 5d8e2ad）。
+   - v0 的 starter-like 路徑 EMU_LOOP 相對最終版 EMU_GROUPED 的時間比，geomean **13.9×**（範圍 2.04×–91.2×，§7.0）。
+   - 最終版的 EMU_GROUPED 比 v0 的 EMU_GROUPED **慢 9%**（v0/final geomean 0.91×）。兩版用相同的 N、輸出逐位元相同；最終版多做了 abs plane 與逐 entry 認證，v0 沒有任何誤差認證。這 9% 是安全保證的代價（各部分的比例沒有分開量測）。
+   - 兩版都遠慢於 native_grouped（最終版 native_grouped/emu_grouped 的 geomean 0.135×）。
+6. **量測假象已經修正**：MoE decode 的 native_grouped 時間取決於它在同一個 process 裡是不是第一個被量。bench 矩陣中這幾列被高估約 1.6×，先前「AUTO 在 MoE decode 比 native 快」的說法是假象，已刪除（§10.8）。
+7. **計時區沒有 host 配置**：590258 的 `bench.csv` 中 308 列的 `host_allocs_timed` 全部是 0。
+8. **正確性**：`test_grouped` 2955 passed / 0 failed（job 590256、590258，commit 1c39e40）；compute-sanitizer 在最終程式碼上（job 590498，commit a6b337d，`src/` 與 1c39e40 相同）四種工具全部 0 errors。
 
 §10 列出全部的負面結果。
 
@@ -171,7 +177,9 @@ bench／test 對各路徑使用的設定不同（`tests/test_grouped.cu: cfg_for
 | 5 | EMU_GROUPED_REUSE | 3 + operand reuse | normwise | COUNT | 0 | cert | 量 reuse 的增益 |
 | 4 | AUTO | 3 + planner | componentwise（`oz2_choose_num_moduli_cw`，ρ_budget 16） | **ON** | **1**（唯一允許 fallback 的路徑） | strict | 預設路徑；在 H200 上實質等於 native（§10.1） |
 
-**關於 starter**：沒有官方 starter code。`src/ggemm.cu` 第 614–615 行的註解寫明「Starter-like baseline (no starter source available to us, so we model the usual single-GEMM emulation)」。本報告說的「starter」baseline 就是自寫的 `EMU_LOOP`，以及更強的 `EMU_LOOP_BATCHED`。它們和最終版共用同一組 numerics kernel，只差在 launch 怎麼組織。
+**關於 starter**：沒有官方 starter code。`src/ggemm.cu` 第 614–615 行的註解寫明「Starter-like baseline (no starter source available to us, so we model the usual single-GEMM emulation)」。規格頁從叢集上連不到，GitHub 上也找不到官方 starter。因此本報告用兩種方式代表「starter」：
+- **starter = v0**：我們第一個可用的版本（commit 5d8e2ad）。v0 的公開 header 已經把 `GGEMM_PATH_EMU_LOOP` 標為「starter-like: single-GEMM INT8 emulation called per problem」（`git show 5d8e2ad:include/ggemm.h` 第 23 行）。v0 與最終版在同一個 job 內的比較見 §7.0。
+- **最終版內的 starter-like 路徑**：自寫的 `EMU_LOOP`，以及更強的 `EMU_LOOP_BATCHED`。它們和最終版共用同一組 numerics kernel，只差在 launch 怎麼組織（§7.1）。
 
 ---
 
@@ -369,9 +377,40 @@ N = 13 時，uni_G1024_s64 在 φ = 0／0.5／1／2 的重算比例分別是 99.
 
 Speedup 一律定義為 time(base)/time(path)，> 1 表示 path 比較快。凡是有 AUTO 的表格都會一併標出它的 fallback 比例（fallback 題數 / G）。**AUTO 相對任何 EMU 路徑的 speedup 都不能算成模擬的加速**，因為在 H200 上 AUTO 實際執行的是 cuBLAS。
 
+**量測順序效應（§10.8）**：在 MoE decode（E64、E128）上，native_grouped 的時間取決於它在同一個 bench process 裡是否第一個被量。bench 矩陣中排在其他路徑後面的 native_grouped 會被高估。本報告對這些列的 native baseline，改用「第一個量測位置」的數字（job 590956）。其他 workload 不受影響。
+
+**starter／最終版比較的條件**（job 590633，`scripts/final/starter_vs_final.slurm`，`results/v0final_590633/compare.md`）：
+- v0（5d8e2ad）與最終版在同一個 job 內編譯，並在同一張 GPU（25a-hgpn038）上執行。
+- 兩版用同樣 44 個 workload，reps 20、warmup 5。
+- v0 與最終版交替各跑 2 次，取 2 次的 median。
+- 最終版 binary 的 commit 是 e20a669；它的 `src/`、`include/` 與 1c39e40 相同（`git diff 1c39e40 e20a669 -- src include` 為空）。
+
 ---
 
 ## 7. 效能結果
+
+### 7.0 native、starter（v0）、最終版的三方比較（job 590633）
+
+v0/final 的 geomean（44 列，> 1 表示最終版比較快；`compare.md` 的「Geomean speedup per path」）：
+
+| path | geomean v0/final | min | max | 說明 |
+|---|---|---|---|---|
+| auto | 1.20× | 0.96× | 2.37× | v0 的 AUTO 同樣全部 fallback，加速來自 planner shape memo（§9.6） |
+| emu_loop（starter-like） | 1.14× | 0.87× | 1.63× | 主要來自 prep split-K |
+| emu_grouped | **0.91×** | 0.76× | 1.35× | **最終版慢 9%**，見下面說明 |
+| native_grouped | 0.95× | 0.62× | 1.09× | 不是 regression：MoE decode 列（0.62×–0.82×）是量測順序假象，§10.8 |
+| native_loop | 0.99× | 0.94× | 1.02× | 兩版都直接呼叫 cuBLAS |
+
+**同一個問題上的 starter 與最終版**（`compare.md` 最後一張表；比值由表中數字計算）：
+- v0 EMU_LOOP（starter-like）÷ 最終版 EMU_GROUPED 的 geomean 是 **13.86×**，範圍 2.04×–91.2×。各家族 geomean：uniform 58.9×、MoE 6.78×、hetero 6.32×、LoRA 9.49×。
+- 最終版 native_grouped ÷ 最終版 EMU_GROUPED 的 geomean 是 0.135×。也就是說，不論 starter 或最終版，模擬在 H200 上都比 native 慢。
+
+**為什麼最終版 EMU_GROUPED 比 v0 慢 9%**：
+- 兩版選的 N 相同。44 列的 `err_max` 逐位元相同（`compare.md` 的 v0 err_max 欄與 final err_max 欄）。
+- 最終版每題多算一份 abs plane，也就是 N+1 份 INT8 GEMM；N = 15 時 INT8 工作量多 1/15 ≈ 6.7%。
+- 最終版還做逐 entry 的誤差認證（§2.5）。v0 沒有任何誤差認證，所以**無法偵測不準的輸出**；例如 φ = 2 時純模擬的 err/gamma 可以到 175.9（§5.3），v0 不會回報。
+- 所以這 9% 是**安全保證的代價**。abs plane 與認證各占多少，**沒有分開量測**（上面的 6.7% 只是工作量推論）。
+- 例外：lora shrink 與 moe_E8_prefill_down 上最終版較快（1.05×–1.35×），與 prep split-K 有關（推論，未分開量測）。
 
 ### 7.1 Full bench set 的 E2E（正式 job 590258，φ = 0.5，adaptive N，ms）
 
@@ -445,7 +484,7 @@ Speedup 一律定義為 time(base)/time(path)，> 1 表示 path 比較快。凡�
 - emu_loop → emu_loop_batched 是題內 batching 的增益；emu_loop_batched → emu_grouped 是跨題合併的增益，這是本作業的核心。**模擬的進步只看這兩步**，三者都是純模擬（COUNT）。
 - 表 2c 中 auto 相對 emu_loop_batched 是 37.55×（geomean，tables.md 標為 all-native n = 44）。但 AUTO 的 fallback 是 100% 的非空問題，所以這個數字量到的是 cuBLAS 對模擬，**不能**當成 planner 或模擬的加速。tables.md 中 AUTO「emu」那一組（AUTO 至少模擬一題的列）是 n = 0。
 - 6 列 MoE decode 的 auto fallback 小於 G（126/128、51/64、99/128）。差額是 m_e = 0 的空問題：native_loop 的 launch 數同樣是 126、51、99（表 3）。所以**沒有任何非空問題被模擬**。
-- AUTO 在 6 列 MoE decode（moe_E64_decode 的 4 列與 moe_E128_decode_z1.2 的 2 列）比 native_grouped 快 1.31–1.62 倍，例如 moe_E64_decode_z1.2_up 是 0.6507 對 1.052 ms。AUTO 在這些列沒有模擬任何問題，所以這個差異與模擬無關。確切原因沒有量測，不做推測。
+- **量測假象**：上表中 moe_E64_decode 的 4 列與 moe_E128_decode_z1.2 的 2 列，native_grouped（1.048–1.054 ms）被高估了。原因是 bench 的路徑順序先量 native_loop，native_grouped 不在第一個位置（§10.8）。同樣排在第二的 moe_E128_decode_z0.0 兩列（0.8671、0.8674 ms）沒有被高估，所以這個效應不是每一列都會出現。所以這 6 列「auto 相對 NG」的 1.31×–1.62× 是假象，**不是** AUTO 比 native 快。第一個量測位置的 native_grouped（job 590956）與 AUTO 相同，例如 moe_E64_decode_z1.2_up 是 0.644–0.650 ms，AUTO 是 0.6507 ms。這 6 列的「EG 相對 NG」也應該更低，例如 moe_E64_decode_z1.2_up 是 0.6507/4.436 ≈ 0.15×（以 AUTO 時間代替公平的 native），不是表中的 0.24×。
 - 590147 與 590258 的 launch 數逐列相同（308 列，由兩份 `bench.csv` 比對）。
 
 ### 7.2 Launch 數（`tables.md` 表 3，`ggemm_stats_t.kernel_launches`）
@@ -720,7 +759,7 @@ cfg2 提升 31.7%–53.0%，但 cfg0 下降 2.7%–4.2%，所以不採用。
 ### 10.1 H200 上 native FP64 全面勝出，AUTO 全部走 native，而且 AUTO 有開銷 regression
 
 **正式版**（job 590258，表 2a、2b、3）：
-- emu_grouped 在 **44/44** 列都比 native_grouped 慢，慢 2.38×（moe_E8_prefill_z0.0_down）到 21.3×（uni_G4096_s64），geomean 0.14×。
+- emu_grouped 在 **44/44** 列都比 native_grouped 慢，慢 2.38×（moe_E8_prefill_z0.0_down）到 21.3×（uni_G4096_s64），geomean 0.14×。這是以 bench 矩陣中的 native_grouped 計算的；其中 6 列 MoE decode 的 native_grouped 被量測順序高估了（§10.8），用公平的 native baseline 只會讓模擬**更**不利。例如 moe_E64_decode_z1.2_up 從表中的 4.22×（4.436 / 1.052）變成約 6.8×（4.436 / 0.650）。
 - AUTO 有 38/44 列 fallback = G；其餘 6 列 fallback = 非空題數；44 列的 `moduli_max` 都是 0。**AUTO 在整個 bench 中沒有模擬任何一題**。repair sweep 的 ρ_budget 掃描也一樣全部 fallback（§9.5）。
 - **AUTO 全部 fallback 時的開銷**：
   - 修正前（job 590147）有 14/44 列 AUTO 比 native_grouped 慢 5% 以上，例如 uni_G4096_s32 是 0.7375 對 0.2727 ms（2.7 倍）、uni_G1024_s32 是 0.1845 對 0.06827 ms（2.7 倍）。
@@ -811,6 +850,35 @@ job 511062 回報的問題都出在測試程式或摘要腳本，不是 library 
 | 511002、511003 | `ggemm.cu` 編譯失敗（`oz2_read_counters` 介面不一致，6 個 error） | 對齊介面後重跑（511065、511066） |
 | 511061 | repair sweep 出現 `ar: unable to copy file .../build/libggemm.a`；511061／511062／511064 在同一分鐘啟動，共用同一個 `build/` 目錄 | final runner 改為每個 job 用自己的 build 目錄；repair sweep 由 590148 重跑完成 |
 
+### 10.8 量測假象：MoE decode 上 native_grouped 的時間取決於量測位置
+
+**現象**（job 590956，`scripts/analysis/path_order.slurm`，`results/order_590956/summary.txt`；moe_E64_decode 4 個 workload，6 種路徑順序，每種跑 2 次）：
+
+| 情況 | native_grouped（ms） |
+|---|---|
+| 只量 native_grouped | 0.644–0.860 |
+| native_grouped 排第一（其後是其他路徑） | 0.645–0.864 |
+| 同一個 process 連量兩次 native_grouped：第一次 | 0.644–0.867 |
+| 同上：第二次 | 1.034–1.049（有一次是 0.849） |
+| 排在其他路徑之後 | 多數是 1.027–1.049；少數仍快，例如 0.647、0.652、0.849、0.954 |
+| AUTO（cuBLAS 呼叫參數相同），任何位置 | 0.647–0.871，不受影響 |
+
+**排除過的原因與診斷**：
+- v0 與最終版的 cuBLAS handle 設定相同（`cublasSetWorkspace`、`cublasSetStream`、`cublasSetPointerMode`、`cublasSetMathMode`）。
+- job 590953（`results/ndiag_590953/`）把 native_grouped 的分組改回 v0 的「每題一個 size-1 group」，**沒有效果**：
+  - moe_E64_decode 仍是約 1.04–1.05 ms，例如 z1.2_up 是 1.0484／1.0494／1.0476 ms。
+  - moe_E128_decode 反而變慢，例如 z1.2_up 從 0.7277／0.7294／0.7265 ms 變成 0.8854／1.0475／1.0486 ms。
+  - 所以這個修改**沒有採用**。
+- 在 nsys 底下只跑 native_grouped 和 auto 兩條路徑時，兩者時間相同：moe_E64_decode_z1.2_up 是 0.659 對 0.662 ms（`nsys_base_bench.csv`）。
+- 其他 workload 不受影響。590953 中 moe_E8 與 moe_E64 prefill 的數字在兩個版本都一致，例如 moe_E64_prefill_z1.2_up native_grouped 是 1.5729–1.5826 對 1.5753–1.5825 ms。
+- **根因在 cuBLAS grouped GEMM 內部，未查明。**
+
+**影響與修正**：
+1. bench 矩陣（590258、590147）中 MoE decode 的 native_grouped 被高估約 1.6×（1.052 對 0.650 ms），只出現在 moe_E64_decode 的 4 列與 moe_E128_decode_z1.2 的 2 列。公平的 native baseline 用第一個量測位置的值（上表），或用同一列的 AUTO 時間（cuBLAS 呼叫參數相同、不受位置影響）。
+2. 先前報告中「AUTO 在 MoE decode 比 native_grouped 快 1.31–1.62×」是這個假象，已在 §7.1 改寫。AUTO 與 native 實際上一樣快。
+3. v0→final 的 native_grouped 0.95×（§7.0）也是同一個假象：受影響的 MoE decode 列 v0 是 0.65–0.82 ms，final 是 0.88–1.05 ms。**不是** regression，兩版呼叫 cuBLAS 的方式相同。
+4. 改用公平的 native baseline 之後，模擬相對 native 的結論只會**更不利**（§10.1）。
+
 ### 10.7 其他已知限制（摘自 README）
 - 不支援轉置。
 - Kp 上限 131040。
@@ -884,12 +952,15 @@ sbatch scripts/profile.slurm
 sbatch bench/app/run_app.slurm
 sbatch bench/calib/run_calib.slurm     # 重新校正 → bench/calib/params_<gpu>.json
 sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i8_cfg2sep.slurm; sbatch scripts/run_i8_unit.slurm
+sbatch scripts/final/starter_vs_final.slurm  # starter（v0 = 5d8e2ad）與最終版，同一個 job → results/v0final_<jobid>/compare.md
+sbatch scripts/analysis/path_order.slurm     # MoE decode 的量測順序效應 → results/order_<jobid>/summary.txt
 ```
 
-對應的程式版本是 commit b56631d。核心程式碼逐段說明、profiling 的解讀，以及「改參數時的預測」整理在 `docs/qa_prep.md`（口試準備）。
+正式版本的程式是 commit 1c39e40（見下面的版本說明）。核心程式碼逐段說明、profiling 的解讀，以及「改參數時的預測」整理在 `docs/qa_prep.md`（口試準備）。
 
 **版本說明**：
 - **正式版本是 commit 1c39e40，job 590258**（`results/final_590258/`，35 步全部 PASS），以 `sbatch scripts/final/run_final.slurm` 產生。
+- starter 與最終版的比較是 590633（v0 5d8e2ad 對最終版 e20a669；e20a669 的 `src/`、`include/` 與 1c39e40 相同）。量測順序假象的診斷是 590956 與 590953（§10.8）。
 - 修正前後的對照用：job 590147（b56631d，修正前）、590224（a48eb3e，只加 shape memo）（§9.6）。
 - repair sweep 是 590257（1c39e40），對照 590148（b56631d）。
 - 測試是 590256（1c39e40），planner 單元測試是 590223（a48eb3e），sanitizer 是 590161（b56631d，dirty=8，只修改了 tests／scripts）。之後在最終程式碼上重跑 sanitizer：job 590498（commit a6b337d，`src/` 與 1c39e40 相同），四個 GPU 測試在 memcheck／racecheck／initcheck／synccheck 全部 0，test_operand_reuse 為 host-only（n/a），直接執行 0 錯（§10.3）。
@@ -901,6 +972,9 @@ sbatch scripts/i8_ablation.slurm; sbatch scripts/i8_cfg2.slurm; sbatch scripts/i
 | job | 種類 | commit（dirty） | 用於 | 檔案 |
 |---|---|---|---|---|
 | **590258** | **正式 final matrix（35 步全部 PASS）** | 1c39e40 (6，只有文件檔) | §0、§2、§3、§5、§6、§7、§8.3、§8.4、§9、§10 | `results/final_590258/tables.md`、`bench.csv` 等 |
+| 590633 | starter（v0）與最終版比較 | v0 5d8e2ad；final e20a669（dirty=2，`src/` 與 1c39e40 相同） | §0、§2.9、§6.2、§7.0、§10.8 | `results/v0final_590633/compare.md` |
+| 590956 | 路徑順序效應 | c8463fc (4) | §6.2、§7.1、§10.1、§10.8 | `results/order_590956/summary.txt` |
+| 590953 | native_grouped 分組診斷 + nsys | c8463fc (5) | §10.8 | `results/ndiag_590953/summary.md`、`nsys_base_bench.csv` |
 | 590256 | test_grouped | 1c39e40 (6) | §0、§5.2 | `results/test_590256/`、`slurm-ggemm-test-590256.out` |
 | 590257 | repair sweep（正式） | 1c39e40 (6) | §5.3、§9.1、§9.5、§9.6、§10.5 | `results/repair_590257/plots/repair_summary.md`、`emu_repair.csv` |
 | 590224 | final matrix（只加 shape memo，對照用） | a48eb3e (4) | §9.6 | `results/final_590224/bench.csv` |
