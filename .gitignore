@@ -14,3 +14,4 @@ results/**/build/
 *.ncu-rep
 *.o
 *_trace.csv
+scripts/final/testdata/final_synth/logs/
