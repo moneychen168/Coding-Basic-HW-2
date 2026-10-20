@@ -2,6 +2,21 @@
 
 > 註記：10/07 時以為 nano4 是 RTX 5090；實際為 H200，見 README。
 
+## 10/07 實際報告內容對照（影片版）
+
+本檔下方是會前寫的大綱，刻意不放數字。10/07 實際報告用的是影片
+`docs/video/report_1007.mp4`（4:50，投影片原始內容在 `docs/video/slides.json`），其中的數字都標了 job id。
+討論報告要求的三項內容在影片中的位置：
+
+| 要求 | 影片投影片 | 內容摘要（數字為 10/07 當時的實測） |
+|---|---|---|
+| 初步結果 | 4、5、6、7、8、10 | 平台校正（H200、launch 約 2.07 µs）；正確性 2955/0（job 511059）、Graph 63/63、reuse 30/30、planner 1607/1607；EMU_LOOP_BATCHED→EMU_GROUPED 加速（job 510998）；H200 上 native 比 emulation 快（MoE up 1.58 vs 6.19 ms，job 510894） |
+| 目前問題 | 9、10 | INT8 kernel 第二輪 ablation 退步約 10%，改回 r1；split-K 拆成第二個 kernel 時 small256 慢 31%，預設關閉；H200 上 AUTO 全部 fallback 到 native，emulation 沒有贏 native 的 case；repair 比例與成本尚未量測 |
+| 最後一週計畫 | 11 | 量測 repair 比例與成本、調 ρ_budget；端到端應用 bench；nsys／ncu profiling 證據；補完報告與 README，10/14 交件 |
+
+10/07 影片中的加速倍數（8.4×／5.2×／6.4×、reuse 1.015–1.079×）來自舊 commit，已被最終版本的數字取代，
+見 `docs/report.md` §10.5b。計畫的執行結果見 `docs/report.md`（repair 比例 §5.3、應用 §7.3、profiling §8、ρ_budget §10.5c）。
+
 > 說明：本大綱不含任何實測效能數字；所有尚未量測或查證的項目都標「待查證」或「待量測」。
 > 評分對應：正確性與安全性 30%、效能與 profiling 30%、library 與可重現性 20%、結果分析與 scope 10%、討論與理解 10%。
 
