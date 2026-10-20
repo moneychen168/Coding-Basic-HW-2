@@ -17,7 +17,7 @@
    - planner 的 per-call shape memo 修掉了 AUTO 全部 fallback 時的開銷 regression。例如 uni_G4096_s32 從 0.738 ms（590147）降到 0.2944 ms（590258），同列 native_grouped 是 0.2697 ms。
    - reconstruct 的計數器改成 warp + block 聚合後，repair sweep 的計數結果完全不變，時間 geomean 變成原來的 0.959 倍。
 5. **native／starter／最終版三方比較**（job 590633，同一個 job、同一張 GPU、同樣 44 個 workload）：
-   - 沒有官方 starter code，所以 starter = 我們第一個可用版本 v0（commit 5d8e2ad）。
+   - 本延伸題課程沒有提供 starter code，所以 starter = 我們第一個可用版本 v0（commit 5d8e2ad）。
    - v0 的 starter-like 路徑 EMU_LOOP 相對最終版 EMU_GROUPED 的時間比，geomean **13.9×**（範圍 2.04×–91.2×，§7.0）。
    - 最終版的 EMU_GROUPED 比 v0 的 EMU_GROUPED **慢 9%**（v0/final geomean 0.91×）。兩版用相同的 N、輸出逐位元相同；最終版多做了 abs plane 與逐 entry 認證，v0 沒有任何誤差認證。這 9% 是安全保證的代價（各部分的比例沒有分開量測）。
    - 兩版都遠慢於 native_grouped（最終版 native_grouped/emu_grouped 的 geomean 0.135×）。
@@ -177,7 +177,7 @@ bench／test 對各路徑使用的設定不同（`tests/test_grouped.cu: cfg_for
 | 5 | EMU_GROUPED_REUSE | 3 + operand reuse | normwise | COUNT | 0 | cert | 量 reuse 的增益 |
 | 4 | AUTO | 3 + planner | componentwise（`oz2_choose_num_moduli_cw`，ρ_budget 16） | **ON** | **1**（唯一允許 fallback 的路徑） | strict | 預設路徑；在 H200 上實質等於 native（§10.1） |
 
-**關於 starter**：沒有官方 starter code。`src/ggemm.cu` 第 614–615 行的註解寫明「Starter-like baseline (no starter source available to us, so we model the usual single-GEMM emulation)」。規格頁從叢集上連不到，GitHub 上也找不到官方 starter。因此本報告用兩種方式代表「starter」：
+**關於 starter**：沒有官方 starter code。`src/ggemm.cu` 第 614–615 行的註解寫明「Starter-like baseline (no starter source available to us, so we model the usual single-GEMM emulation)」。本延伸題課程沒有提供 starter code（作者確認）。因此本報告用兩種方式代表「starter」：
 - **starter = v0**：我們第一個可用的版本（commit 5d8e2ad）。v0 的公開 header 已經把 `GGEMM_PATH_EMU_LOOP` 標為「starter-like: single-GEMM INT8 emulation called per problem」（`git show 5d8e2ad:include/ggemm.h` 第 23 行）。v0 與最終版在同一個 job 內的比較見 §7.0。
 - **最終版內的 starter-like 路徑**：自寫的 `EMU_LOOP`，以及更強的 `EMU_LOOP_BATCHED`。它們和最終版共用同一組 numerics kernel，只差在 launch 怎麼組織（§7.1）。
 
