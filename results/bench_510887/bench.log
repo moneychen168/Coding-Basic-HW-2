@@ -1,0 +1,14 @@
+device: P
+mZþ (sm_00), reps=20 warmup=5
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: uni_G1024_s32
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: moe_E64_prefill_z1.2_up
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: moe_E64_prefill_z1.2_down
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: het_G256_16-2048
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: lora_G64_rmix_shrink
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/workloads.cu:269
+alloc failed: lora_G64_rmix_expand

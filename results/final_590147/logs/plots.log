@@ -1,0 +1,3 @@
+# cmd: source '/home/money168/hw2_grouped_gemm/scripts/env.sh'; plot_results '/home/money168/hw2_grouped_gemm/results/final_590147/bench.csv' '/home/money168/hw2_grouped_gemm/results/final_590147/plots'
+# start: 2026-10-20T22:09:36+08:00
+[plot] wrote /home/money168/hw2_grouped_gemm/results/final_590147/plots

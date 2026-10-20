@@ -1,0 +1,45 @@
+========= COMPUTE-SANITIZER
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200 (sm_90)  reps=1
+
+workload                         path         variant launch | host_issue_us    wall_us     gpu_us     lat_us | make_plan_ms
+[tiny64x(32,32,64) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                EMU_GROUPED   direct      3 |       401.79    2972.22    2882.72    2976.85 |        0.000
+tiny64x(32,32,64)                EMU_GROUPED    graph      3 |       331.69    2947.36    2858.40    2946.18 |        0.165
+[tiny64x(32,32,64) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=64, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                AUTO          direct      1 |       140.15     552.88     513.34     542.61 |        0.000
+tiny64x(32,32,64)                AUTO           graph      1 |       117.20     530.90     496.96     520.26 |        0.121
+[moe32(m~U[16,512],n=256,k=512) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED   direct      3 |       378.28   34006.21   33915.04   32693.15 |        0.000
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED    graph      3 |       575.73   35100.14   35012.54   33541.05 |        0.142
+[moe32(m~U[16,512],n=256,k=512) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=32, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   AUTO          direct      1 |       140.21    7453.86    7419.07    7431.32 |        0.000
+moe32(m~U[16,512],n=256,k=512)   AUTO           graph      1 |       121.15    7426.90    7390.59    7423.21 |        0.120
+[mixed16(+empty,+k0) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=4 graph=4, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              EMU_GROUPED   direct      4 |       393.66    8998.19    8909.63    8719.60 |        0.000
+mixed16(+empty,+k0)              EMU_GROUPED    graph      4 |       345.93    9139.10    9051.04    9293.74 |        0.144
+[mixed16(+empty,+k0) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=14, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              AUTO          direct      1 |      2089.19   10537.91   10148.64   10435.40 |        0.000
+mixed16(+empty,+k0)              AUTO           graph      1 |      1842.55   10065.86    9668.51    9994.76 |        0.280
+
+test_graph: 63 passed, 0 failed
+========= LEAK SUMMARY: 0 bytes leaked in 0 allocations
+========= ERROR SUMMARY: 0 errors

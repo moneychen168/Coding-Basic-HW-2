@@ -1,0 +1,9 @@
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=1024 E=8 topk=2 d=256 f=512 zipf=1.00  loads max/min=642/100 active=8
+native_loop     total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+native_grouped  total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_loop        total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_grouped     total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+auto            total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_grouped_reuse total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_loop_batched total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed

@@ -1,0 +1,35 @@
+device: NVIDIA H200  sm_90  SMs=132
+
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6264     404.99        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6255     405.55         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6317     401.61        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9867     257.11        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.8524     136.95        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3053     110.04         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4820     499.05        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4812     499.88         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4819     499.13        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8067     298.14        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.5160     158.66        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3487     689.76         -
+small256 (m,n<=200, kp<=512)       auto             0.0300      44.32        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0280      47.52         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0298      44.70        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0354      37.53        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0757      17.57        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2571       0.59         -
+single 8192^3                      auto             2.0083     547.47        ok
+single 8192^3                      auto-launch      2.0172     545.07         -
+single 8192^3                      cfg0             2.0260     542.71        ok
+single 8192^3                      cfg1             3.1919     344.46        ok
+single 8192^3                      cfg2             5.0353     218.36        ok
+single 8192^3                      cuBLASLt-loop     0.7498    1466.35         -
+single 4096x4096x16384             auto             0.9988     550.44        ok
+single 4096x4096x16384             auto-launch      0.9990     550.30         -
+single 4096x4096x16384             cfg0             0.9999     549.78        ok
+single 4096x4096x16384             cfg1             1.5332     358.56        ok
+single 4096x4096x16384             cfg2             2.0446     268.88        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3583    1534.32         -
+TOPS = 2*m*n*kp / time. RTX 5090 dense INT8 peak = 838 TOPS (see src comment).
+ALL PASS

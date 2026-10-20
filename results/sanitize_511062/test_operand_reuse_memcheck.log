@@ -1,0 +1,3 @@
+========= COMPUTE-SANITIZER
+operand_reuse: all passed
+========= Error: Target application terminated before first instrumented API call

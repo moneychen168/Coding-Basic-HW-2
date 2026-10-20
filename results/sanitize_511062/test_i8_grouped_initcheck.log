@@ -1,0 +1,617 @@
+========= COMPUTE-SANITIZER
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000000 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000020 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000040 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000060 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000080 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690000a0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690000c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690000e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000500 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000520 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000540 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000560 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000580 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690005a0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690005c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690005e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000a00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000a20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000a40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000a60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000a80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000aa0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000ac0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169000ae0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690013c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690013e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011c00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011c20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011c40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011c60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011c80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011ca0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011cc0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169011ce0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169031700 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169031720 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169031740 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169031760 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169031780 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690317a0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690317c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690317e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035820 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035840 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035860 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035880 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690358a0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690358c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690358e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035900 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035920 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035940 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035960 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035980 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690359a0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690359c0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c1690359e0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035a00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035a20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035a40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035a60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035a80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035aa0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ac0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ae0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035b00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035b20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035b40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035b60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035b80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ba0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035bc0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035be0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035c00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035c20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035c40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035c60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035c80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ca0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035cc0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ce0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035d00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035d20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035d40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035d60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035d80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035da0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035dc0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035de0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035e00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035e20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035e40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035e60 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035e80 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ea0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ec0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035ee0 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035f00 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035f20 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+========= Host API memory access error at host access to 0x14c169000000 of size 4,303,360 bytes
+=========     Uninitialized access to 0x14c169035f40 on access by cudaMemcpy source
+=========     Saved host backtrace up to driver entry point at error
+=========         Host Frame: check_vs_lt(Group const&, std::vector<char, std::allocator<char> > const&) [0x9b78] in test_i8_grouped
+=========         Host Frame: main [0x8958] in test_i8_grouped
+========= 
+device: NVIDIA H200  sm_90  SMs=132
+hetero 19 probs, bit-exact, cfg0 128x128 [launches=1]      PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg1 64x64 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg2 32x32 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg3 32x32 splitK [launches=1] PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto [launches=1]              PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto+splitK(kp>=0) [launches=2] PASS (0 mismatches)
+hetero 19 probs, bit-exact, mixed cfg i%4 [launches=2]     PASS (0 mismatches)
+split path, 2nd launch w/o re-upload (counter reset)       PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), auto              PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), cfg3 splitK       PASS (0 mismatches)
+cuBLASLt refused 0 / 19 hetero problems (empty ones not submitted)
+cuBLASLt vs ours (auto), supported problems                PASS (0 mismatches)
+ALL PASS
+========= ERROR SUMMARY: 19090 errors
+========= ERROR SUMMARY: 18990 errors were not printed. Use --print-limit option to adjust the number of printed errors

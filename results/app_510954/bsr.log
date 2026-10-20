@@ -1,0 +1,2 @@
+device: à'Mƒý  atoms=128 basis=dz N=1180 blocks=6900 (53.9/row) nnz=589326 (42.324%) maxK=621 nrhs=32
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/app/block_sparse_fp64.cu:180

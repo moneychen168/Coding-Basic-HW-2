@@ -1,0 +1,45 @@
+device: NVIDIA H200 (sm_90), reps=20 warmup=5
+shapes -> /home/money168/hw2_grouped_gemm/results/bench_511065/shapes.csv
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+uni_G1024_s32                      native_loop       N=0  rm=default phi=0.5     7.2653 ms        9.2 GFLOPS  launches=1024   fb=0    err=6.83e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      native_grouped    N=0  rm=default phi=0.5     0.0735 ms      913.0 GFLOPS  launches=1      fb=0    err=6.83e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      emu_loop          N=0  rm=default phi=0.5   116.4347 ms        0.6 GFLOPS  launches=18432  fb=0    err=1.89e-16 (x0.28 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      emu_grouped       N=0  rm=default phi=0.5     1.2533 ms       53.5 GFLOPS  launches=3      fb=0    err=1.89e-16 (x0.28 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      auto              N=0  rm=default phi=0.5     0.1855 ms      361.7 GFLOPS  launches=1      fb=1024 err=6.83e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      emu_grouped_reuse N=0  rm=default phi=0.5     1.3966 ms       48.1 GFLOPS  launches=3      fb=0    err=1.89e-16 (x0.28 native) uncert=-1 repaired=-1 ok
+uni_G1024_s32                      emu_loop_batched  N=0  rm=default phi=0.5    37.3012 ms        1.8 GFLOPS  launches=3072   fb=0    err=1.89e-16 (x0.28 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=0.5     1.6544 ms    21417.1 GFLOPS  launches=64     fb=0    err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            native_grouped    N=0  rm=default phi=0.5     1.5684 ms    22592.6 GFLOPS  launches=1      fb=0    err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_loop          N=0  rm=default phi=0.5    57.3313 ms      618.0 GFLOPS  launches=1152   fb=0    err=2.20e-17 (x0.022 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_grouped       N=0  rm=default phi=0.5     6.7115 ms     5279.6 GFLOPS  launches=3      fb=0    err=2.20e-17 (x0.022 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=default phi=0.5     1.5762 ms    22480.7 GFLOPS  launches=1      fb=64   err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_grouped_reuse N=0  rm=default phi=0.5     6.6035 ms     5365.8 GFLOPS  launches=3      fb=0    err=2.20e-17 (x0.022 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_loop_batched  N=0  rm=default phi=0.5    36.3008 ms      976.1 GFLOPS  launches=192    fb=0    err=2.20e-17 (x0.022 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          native_loop       N=0  rm=default phi=0.5     1.5966 ms    22193.0 GFLOPS  launches=64     fb=0    err=7.67e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          native_grouped    N=0  rm=default phi=0.5     1.5887 ms    22302.9 GFLOPS  launches=1      fb=0    err=8.83e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          emu_loop          N=0  rm=default phi=0.5    42.8143 ms      827.6 GFLOPS  launches=1152   fb=0    err=3.18e-17 (x0.041 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          emu_grouped       N=0  rm=default phi=0.5     6.8264 ms     5190.7 GFLOPS  launches=3      fb=0    err=3.18e-17 (x0.041 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          auto              N=0  rm=default phi=0.5     1.5970 ms    22188.1 GFLOPS  launches=1      fb=64   err=8.83e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          emu_grouped_reuse N=0  rm=default phi=0.5     6.9449 ms     5102.1 GFLOPS  launches=3      fb=0    err=3.18e-17 (x0.041 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_down          emu_loop_batched  N=0  rm=default phi=0.5    26.8510 ms     1319.6 GFLOPS  launches=192    fb=0    err=3.18e-17 (x0.041 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   native_loop       N=0  rm=default phi=0.5     3.0708 ms    13896.7 GFLOPS  launches=256    fb=0    err=8.23e-16 (x1 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   native_grouped    N=0  rm=default phi=0.5     1.9709 ms    21652.0 GFLOPS  launches=1      fb=0    err=9.84e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_loop          N=0  rm=default phi=0.5    72.1637 ms      591.3 GFLOPS  launches=4580   fb=0    err=7.37e-16 (x0.9 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_grouped       N=0  rm=default phi=0.5     9.7146 ms     4392.7 GFLOPS  launches=3      fb=0    err=7.37e-16 (x0.9 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=default phi=0.5     2.0079 ms    21252.9 GFLOPS  launches=1      fb=256  err=9.84e-16 (x1.2 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_grouped_reuse N=0  rm=default phi=0.5    10.6656 ms     4001.0 GFLOPS  launches=3      fb=0    err=7.37e-16 (x0.9 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_loop_batched  N=0  rm=default phi=0.5    37.0613 ms     1151.4 GFLOPS  launches=768    fb=0    err=7.37e-16 (x0.9 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               native_loop       N=0  rm=default phi=0.5     0.8442 ms      511.9 GFLOPS  launches=64     fb=0    err=7.69e-17 (x1 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               native_grouped    N=0  rm=default phi=0.5     0.1658 ms     2607.0 GFLOPS  launches=1      fb=0    err=4.63e-16 (x6 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               emu_loop          N=0  rm=default phi=0.5    93.8520 ms        4.6 GFLOPS  launches=1152   fb=0    err=2.31e-17 (x0.3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               emu_grouped       N=0  rm=default phi=0.5     2.1083 ms      205.0 GFLOPS  launches=3      fb=0    err=2.31e-17 (x0.3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               auto              N=0  rm=default phi=0.5     0.1723 ms     2508.3 GFLOPS  launches=1      fb=64   err=4.63e-16 (x6 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               emu_grouped_reuse N=0  rm=default phi=0.5     2.0925 ms      206.5 GFLOPS  launches=3      fb=0    err=2.31e-17 (x0.3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_shrink               emu_loop_batched  N=0  rm=default phi=0.5    56.7866 ms        7.6 GFLOPS  launches=192    fb=0    err=2.31e-17 (x0.3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               native_loop       N=0  rm=default phi=0.5     0.4445 ms      972.2 GFLOPS  launches=64     fb=0    err=6.42e-16 (x1 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               native_grouped    N=0  rm=default phi=0.5     0.1176 ms     3674.7 GFLOPS  launches=1      fb=0    err=6.42e-16 (x1 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               emu_loop          N=0  rm=default phi=0.5     9.0700 ms       47.6 GFLOPS  launches=1122   fb=0    err=1.96e-15 (x3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               emu_grouped       N=0  rm=default phi=0.5     2.1440 ms      201.6 GFLOPS  launches=3      fb=0    err=1.96e-15 (x3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               auto              N=0  rm=default phi=0.5     0.1214 ms     3559.0 GFLOPS  launches=1      fb=64   err=6.42e-16 (x1 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               emu_grouped_reuse N=0  rm=default phi=0.5     2.8365 ms      152.4 GFLOPS  launches=3      fb=0    err=1.96e-15 (x3 native) uncert=-1 repaired=-1 ok
+lora_G64_rmix_expand               emu_loop_batched  N=0  rm=default phi=0.5     3.9840 ms      108.5 GFLOPS  launches=192    fb=0    err=1.96e-15 (x3 native) uncert=-1 repaired=-1 ok

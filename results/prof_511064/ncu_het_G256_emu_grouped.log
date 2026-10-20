@@ -1,0 +1,26 @@
+==PROF== Connected to process 1346526 (/home/money168/hw2_grouped_gemm/build/bench_grouped)
+device: NVIDIA H200 (sm_90), reps=1 warmup=1
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "oz2_prep_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "i8_grouped_persistent_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_reconstruct_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_prep_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "i8_grouped_persistent_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_reconstruct_kernel": 0%....50%....100% - 38 passes
+het_G256_16-2048                   emu_grouped       N=0  rm=default phi=0.5  9653.2676 ms        4.4 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+==PROF== Disconnected from process 1346526
+==PROF== Report: /home/money168/hw2_grouped_gemm/results/prof_511064/ncu_het_G256_emu_grouped.ncu-rep
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176, in exec_module
+  File "<frozen site>", line 635, in <module>
+  File "<frozen site>", line 621, in main
+  File "<frozen site>", line 364, in addusersitepackages
+  File "<frozen site>", line 247, in addsitedir
+  File "<frozen site>", line 190, in addpackage
+LookupError: unknown encoding: utf-8-sig

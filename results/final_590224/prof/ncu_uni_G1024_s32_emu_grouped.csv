@@ -1,0 +1,2 @@
+workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma,repair_mode,rho_budget,total_entries,num_safety_fallback,host_allocs_timed
+uni_G1024_s32,emu_grouped,1024,6.710886e+07,6523.301270,0.010,3,nan,0,uniform,0.50,0,6523.301270,6523.417835,nan,nan,nan,15,15,1,NVIDIA H200,ok,-1,-1,-1,default,default,1048576,-1,0

@@ -1,0 +1,42 @@
+# cmd: rm -f '/home/money168/hw2_grouped_gemm/results/final_590224/moe_ffn_fp64.csv'
+    for z in 0.0 1.0 1.5; do
+      '/home/money168/hw2_grouped_gemm/results/final_590224/build/moe_ffn_fp64' --tokens 4096 --experts 16 --topk 2 --d-model 1024 --d-ff 2048 --zipf $z         --paths 'native_loop,native_grouped,emu_loop,emu_loop_batched,emu_grouped,emu_grouped_reuse,auto' --reps 10 --warmup 3 --csv '/home/money168/hw2_grouped_gemm/results/final_590224/moe_ffn_fp64.csv' --append || exit 1
+    done
+    '/home/money168/hw2_grouped_gemm/results/final_590224/build/moe_ffn_fp64' --tokens 16384 --experts 8 --topk 1 --d-model 256 --d-ff 256 --zipf 1.2       --paths 'native_loop,native_grouped,emu_loop,emu_loop_batched,emu_grouped,emu_grouped_reuse,auto' --reps 10 --warmup 3 --csv '/home/money168/hw2_grouped_gemm/results/final_590224/moe_ffn_fp64.csv' --append
+# start: 2026-10-20T22:22:14+08:00
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=4096 E=16 topk=2 d=1024 f=2048 zipf=0.00  loads max/min=555/484 active=16
+native_loop     total     2.139 ms ( 32127.0 GFLOPS) route  1.6% gather  3.3% up 43.5% act  3.8% down 45.9% scatter  2.0%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+native_grouped  total     2.629 ms ( 26137.7 GFLOPS) route  1.3% gather  2.6% up 45.5% act  3.1% down 46.0% scatter  1.6%  err_up=8.70e-16 err_y=2.77e-17 (x6.1e-05 bound) ok
+emu_loop        total    19.699 ms (  3488.5 GFLOPS) route  0.2% gather  0.4% up 42.6% act  0.4% down 56.2% scatter  0.2%  err_up=7.65e-16 err_y=2.00e-17 (x4.4e-05 bound) ok
+emu_loop_batched total    11.845 ms (  5801.7 GFLOPS) route  0.3% gather  0.6% up 48.4% act  0.7% down 49.7% scatter  0.4%  err_up=7.65e-16 err_y=2.00e-17 (x4.4e-05 bound) ok
+emu_grouped     total     6.521 ms ( 10538.1 GFLOPS) route  0.5% gather  1.1% up 50.0% act  1.2% down 46.6% scatter  0.6%  err_up=7.65e-16 err_y=2.00e-17 (x4.4e-05 bound) ok
+emu_grouped_reuse total     6.159 ms ( 11157.8 GFLOPS) route  0.6% gather  1.1% up 51.6% act  1.3% down 44.6% scatter  0.7%  err_up=7.65e-16 err_y=2.00e-17 (x4.4e-05 bound) ok
+auto            total     2.636 ms ( 26067.2 GFLOPS) route  1.3% gather  2.6% up 45.5% act  3.0% down 46.0% scatter  1.6%  err_up=8.70e-16 err_y=2.77e-17 (x6.1e-05 bound) ok
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=4096 E=16 topk=2 d=1024 f=2048 zipf=1.00  loads max/min=2151/155 active=16
+native_loop     total     2.125 ms ( 32339.4 GFLOPS) route  1.7% gather  2.7% up 44.1% act  3.8% down 45.8% scatter  1.9%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+native_grouped  total     2.661 ms ( 25827.9 GFLOPS) route  1.4% gather  2.2% up 46.5% act  3.0% down 45.4% scatter  1.5%  err_up=6.96e-16 err_y=2.39e-17 (x5.2e-05 bound) ok
+emu_loop        total    20.296 ms (  3385.9 GFLOPS) route  0.2% gather  0.3% up 43.5% act  0.4% down 55.4% scatter  0.2%  err_up=8.46e-16 err_y=2.29e-17 (x5e-05 bound) ok
+emu_loop_batched total    11.707 ms (  5870.2 GFLOPS) route  0.3% gather  0.5% up 47.4% act  0.7% down 50.7% scatter  0.4%  err_up=8.46e-16 err_y=2.29e-17 (x5e-05 bound) ok
+emu_grouped     total     6.633 ms ( 10360.7 GFLOPS) route  0.5% gather  0.9% up 50.1% act  1.2% down 46.7% scatter  0.6%  err_up=8.46e-16 err_y=2.29e-17 (x5e-05 bound) ok
+emu_grouped_reuse total     6.287 ms ( 10930.6 GFLOPS) route  0.6% gather  0.9% up 51.8% act  1.3% down 44.8% scatter  0.6%  err_up=8.46e-16 err_y=2.29e-17 (x5e-05 bound) ok
+auto            total     2.665 ms ( 25783.7 GFLOPS) route  1.4% gather  2.2% up 46.5% act  3.0% down 45.5% scatter  1.5%  err_up=6.96e-16 err_y=2.39e-17 (x5.2e-05 bound) ok
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=4096 E=16 topk=2 d=1024 f=2048 zipf=1.50  loads max/min=3052/75 active=16
+native_loop     total     2.000 ms ( 34351.8 GFLOPS) route  2.0% gather  2.7% up 44.1% act  4.0% down 45.2% scatter  2.0%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+native_grouped  total     2.657 ms ( 25861.0 GFLOPS) route  1.5% gather  2.0% up 46.5% act  3.0% down 45.5% scatter  1.5%  err_up=7.20e-16 err_y=2.14e-17 (x4.7e-05 bound) ok
+emu_loop        total    19.879 ms (  3457.0 GFLOPS) route  0.2% gather  0.3% up 42.9% act  0.4% down 56.1% scatter  0.2%  err_up=8.19e-16 err_y=2.30e-17 (x5e-05 bound) ok
+emu_loop_batched total    11.354 ms (  6052.3 GFLOPS) route  0.4% gather  0.5% up 46.4% act  0.7% down 51.7% scatter  0.4%  err_up=8.19e-16 err_y=2.30e-17 (x5e-05 bound) ok
+emu_grouped     total     6.519 ms ( 10540.8 GFLOPS) route  0.7% gather  0.8% up 49.7% act  1.2% down 47.0% scatter  0.6%  err_up=8.19e-16 err_y=2.30e-17 (x5e-05 bound) ok
+emu_grouped_reuse total     6.151 ms ( 11173.0 GFLOPS) route  0.7% gather  0.9% up 51.5% act  1.3% down 45.0% scatter  0.6%  err_up=8.19e-16 err_y=2.30e-17 (x5e-05 bound) ok
+auto            total     2.664 ms ( 25798.7 GFLOPS) route  1.6% gather  2.0% up 46.5% act  3.0% down 45.5% scatter  1.5%  err_up=7.20e-16 err_y=2.14e-17 (x4.7e-05 bound) ok
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=16384 E=8 topk=1 d=256 f=256 zipf=1.20  loads max/min=7123/528 active=8
+native_loop     total     0.358 ms ( 12001.4 GFLOPS) route 13.3% gather  8.5% up 31.0% act  6.9% down 31.8% scatter  8.5%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+native_grouped  total     0.321 ms ( 13391.0 GFLOPS) route 15.0% gather  9.3% up 29.6% act  7.3% down 29.2% scatter  9.6%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+emu_loop        total     3.865 ms (  1111.1 GFLOPS) route  1.3% gather  0.8% up 48.1% act  0.7% down 48.3% scatter  0.8%  err_up=7.07e-16 err_y=5.41e-17 (x0.00093 bound) ok
+emu_loop_batched total     2.091 ms (  2054.4 GFLOPS) route  2.4% gather  1.4% up 46.5% act  1.2% down 46.9% scatter  1.5%  err_up=7.07e-16 err_y=5.41e-17 (x0.00093 bound) ok
+emu_grouped     total     1.568 ms (  2738.4 GFLOPS) route  3.1% gather  1.9% up 45.7% act  1.5% down 45.8% scatter  1.9%  err_up=7.07e-16 err_y=5.41e-17 (x0.00093 bound) ok
+emu_grouped_reuse total     1.588 ms (  2704.2 GFLOPS) route  3.1% gather  1.9% up 45.9% act  1.5% down 45.8% scatter  1.9%  err_up=7.07e-16 err_y=5.41e-17 (x0.00093 bound) ok
+auto            total     0.322 ms ( 13321.2 GFLOPS) route 15.1% gather  9.4% up 29.4% act  7.3% down 29.2% scatter  9.6%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok

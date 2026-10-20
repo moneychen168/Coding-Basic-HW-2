@@ -1,0 +1,57 @@
+# cmd: rm -f '/home/money168/hw2_grouped_gemm/results/final_590147/block_sparse_fp64.csv'
+    for cfg in '1024 dz 128' '512 tz 256' '256 qz 256'; do
+      set -- $cfg
+      '/home/money168/hw2_grouped_gemm/results/final_590147/build/block_sparse_fp64' --atoms $1 --cutoff 6 --basis $2 --nrhs $3 --mode both --paths 'native_loop,native_grouped,emu_loop,emu_loop_batched,emu_grouped,emu_grouped_reuse,auto'         --reps 5 --warmup 2 --csv '/home/money168/hw2_grouped_gemm/results/final_590147/block_sparse_fp64.csv' --append || exit 1
+    done
+# start: 2026-10-20T22:04:25+08:00
+device: NVIDIA H200  atoms=1024 basis=dz N=9683 blocks=93822 (91.6/row) nnz=8399751 (8.959%) maxK=1098 nrhs=128
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+[block] native_loop     G=93822  total   613.652 ms (     3.5 GFLOPS) pre  0.0% gemm 99.9% post  0.1% launches=93822 fb=0 err=0.00e+00 (x0 bound) ok
+[block] native_grouped  G=93822  total    16.085 ms (   133.7 GFLOPS) pre  0.0% gemm 97.7% post  2.3% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[ggemm] GGEMM_ERR_WORKSPACE: residue/shift workspace exceeded (smallest emulated k = 5, handle min_k = 32; Kp = round_up(k,32) inflates residues for k < 32 -> create with ggemm_create_ex(..., min_k <= 5))
+[block] emu_loop        G=93822  total       nan ms (     nan GFLOPS) pre  nan% gemm  nan% post  nan% launches=0 fb=0 err=nan (xnan bound) call_failed
+[ggemm] GGEMM_ERR_WORKSPACE: residue/shift workspace exceeded (smallest emulated k = 5, handle min_k = 32; Kp = round_up(k,32) inflates residues for k < 32 -> create with ggemm_create_ex(..., min_k <= 5))
+[block] emu_loop_batched G=93822  total       nan ms (     nan GFLOPS) pre  nan% gemm  nan% post  nan% launches=0 fb=0 err=nan (xnan bound) call_failed
+[ggemm] GGEMM_ERR_WORKSPACE: residue/shift workspace exceeded (smallest emulated k = 5, handle min_k = 32; Kp = round_up(k,32) inflates residues for k < 32 -> create with ggemm_create_ex(..., min_k <= 5))
+[block] emu_grouped     G=93822  total       nan ms (     nan GFLOPS) pre  nan% gemm  nan% post  nan% launches=0 fb=0 err=nan (xnan bound) call_failed
+[block] emu_grouped_reuse G=93822  total       nan ms (     nan GFLOPS) pre  nan% gemm  nan% post  nan% launches=0 fb=0 err=nan (xnan bound) call_failed
+[block] auto            G=93822  total    16.726 ms (   128.6 GFLOPS) pre  0.0% gemm 97.8% post  2.2% launches=1 fb=93822 err=0.00e+00 (x0 bound) ok
+[panel] native_loop     G=1024   total    14.356 ms (   149.8 GFLOPS) pre  3.1% gemm 96.9% post  0.0% launches=1024 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] native_grouped  G=1024   total     0.971 ms (  2215.6 GFLOPS) pre 45.9% gemm 53.8% post  0.3% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] emu_loop        G=1024   total   260.256 ms (     8.3 GFLOPS) pre  0.2% gemm 99.8% post  0.0% launches=18432 fb=0 err=1.12e-15 (x0.0041 bound) ok
+[panel] emu_loop_batched G=1024   total    77.739 ms (    27.7 GFLOPS) pre  0.6% gemm 99.4% post  0.0% launches=3072 fb=0 err=1.12e-15 (x0.0041 bound) ok
+[panel] emu_grouped     G=1024   total     5.305 ms (   405.3 GFLOPS) pre  8.4% gemm 91.5% post  0.1% launches=3 fb=0 err=1.12e-15 (x0.0041 bound) ok
+[panel] emu_grouped_reuse G=1024   total     5.489 ms (   391.8 GFLOPS) pre  8.1% gemm 91.8% post  0.1% launches=3 fb=0 err=1.12e-15 (x0.0041 bound) ok
+[panel] auto            G=1024   total     0.980 ms (  2193.3 GFLOPS) pre 45.7% gemm 54.0% post  0.3% launches=1 fb=1024 err=0.00e+00 (x0 bound) ok
+device: NVIDIA H200  atoms=512 basis=tz N=11200 blocks=46894 (91.6/row) nnz=22555320 (17.981%) maxK=2640 nrhs=256
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+[block] native_loop     G=46894  total   341.185 ms (    33.8 GFLOPS) pre  0.0% gemm 99.8% post  0.2% launches=46894 fb=0 err=0.00e+00 (x0 bound) ok
+[block] native_grouped  G=46894  total     8.846 ms (  1305.4 GFLOPS) pre  0.0% gemm 92.6% post  7.4% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[block] emu_loop        G=46894  total  5430.761 ms (     2.1 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=820368 fb=0 err=1.63e-16 (x0.00027 bound) ok
+[block] emu_loop_batched G=46894  total  1882.793 ms (     6.1 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=140682 fb=0 err=1.63e-16 (x0.00027 bound) ok
+[block] emu_grouped     G=46894  total   151.917 ms (    76.0 GFLOPS) pre  0.0% gemm 99.6% post  0.4% launches=3 fb=0 err=1.63e-16 (x0.00027 bound) ok
+[block] emu_grouped_reuse G=46894  total   134.668 ms (    85.8 GFLOPS) pre  0.0% gemm 99.5% post  0.5% launches=3 fb=0 err=1.63e-16 (x0.00027 bound) ok
+[block] auto            G=46894  total    11.672 ms (   989.4 GFLOPS) pre  0.0% gemm 94.4% post  5.6% launches=1 fb=46894 err=0.00e+00 (x0 bound) ok
+[panel] native_loop     G=512    total     5.831 ms (  1980.6 GFLOPS) pre 16.7% gemm 83.3% post  0.1% launches=512 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] native_grouped  G=512    total     3.158 ms (  3657.4 GFLOPS) pre 32.1% gemm 67.8% post  0.1% launches=1 fb=0 err=1.19e-15 (x0.0019 bound) ok
+[panel] emu_loop        G=512    total   247.122 ms (    46.7 GFLOPS) pre  0.4% gemm 99.6% post  0.0% launches=9216 fb=0 err=2.62e-16 (x0.00043 bound) ok
+[panel] emu_loop_batched G=512    total    83.672 ms (   138.0 GFLOPS) pre  1.1% gemm 98.9% post  0.0% launches=1536 fb=0 err=2.62e-16 (x0.00043 bound) ok
+[panel] emu_grouped     G=512    total     9.929 ms (  1163.1 GFLOPS) pre  9.7% gemm 90.3% post  0.0% launches=3 fb=0 err=2.62e-16 (x0.00043 bound) ok
+[panel] emu_grouped_reuse G=512    total     9.810 ms (  1177.2 GFLOPS) pre  9.7% gemm 90.2% post  0.0% launches=3 fb=0 err=2.62e-16 (x0.00043 bound) ok
+[panel] auto            G=512    total     3.154 ms (  3662.0 GFLOPS) pre 32.1% gemm 67.8% post  0.1% launches=1 fb=512 err=1.19e-15 (x0.0019 bound) ok
+device: NVIDIA H200  atoms=256 basis=qz N=10805 blocks=23380 (91.3/row) nnz=41733875 (35.747%) maxK=4765 nrhs=256
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+[block] native_loop     G=23380  total   171.900 ms (   124.3 GFLOPS) pre  0.0% gemm 99.6% post  0.3% launches=23380 fb=0 err=0.00e+00 (x0 bound) ok
+[block] native_grouped  G=23380  total     5.349 ms (  3994.8 GFLOPS) pre  0.1% gemm 89.4% post 10.6% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[block] emu_loop        G=23380  total  2943.204 ms (     7.3 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=420840 fb=0 err=1.31e-16 (x0.00012 bound) ok
+[block] emu_loop_batched G=23380  total   997.082 ms (    21.4 GFLOPS) pre  0.0% gemm 99.9% post  0.1% launches=70140 fb=0 err=1.31e-16 (x0.00012 bound) ok
+[block] emu_grouped     G=23380  total    86.972 ms (   245.7 GFLOPS) pre  0.0% gemm 99.4% post  0.6% launches=3 fb=0 err=1.31e-16 (x0.00012 bound) ok
+[block] emu_grouped_reuse G=23380  total    77.359 ms (   276.2 GFLOPS) pre  0.0% gemm 99.3% post  0.7% launches=3 fb=0 err=1.31e-16 (x0.00012 bound) ok
+[block] auto            G=23380  total     7.981 ms (  2677.4 GFLOPS) pre  0.0% gemm 92.9% post  7.1% launches=1 fb=23380 err=0.00e+00 (x0 bound) ok
+[panel] native_loop     G=256    total     4.520 ms (  4727.3 GFLOPS) pre 21.0% gemm 78.9% post  0.1% launches=256 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] native_grouped  G=256    total     2.105 ms ( 10151.6 GFLOPS) pre 40.8% gemm 59.0% post  0.1% launches=1 fb=0 err=1.19e-15 (x0.0011 bound) ok
+[panel] emu_loop        G=256    total   216.332 ms (    98.8 GFLOPS) pre  0.4% gemm 99.6% post  0.0% launches=4608 fb=0 err=3.12e-16 (x0.00029 bound) ok
+[panel] emu_loop_batched G=256    total    74.257 ms (   287.8 GFLOPS) pre  1.2% gemm 98.8% post  0.0% launches=768 fb=0 err=3.12e-16 (x0.00029 bound) ok
+[panel] emu_grouped     G=256    total    10.151 ms (  2105.0 GFLOPS) pre  8.8% gemm 91.1% post  0.0% launches=3 fb=0 err=3.12e-16 (x0.00029 bound) ok
+[panel] emu_grouped_reuse G=256    total     9.599 ms (  2225.9 GFLOPS) pre  9.2% gemm 90.8% post  0.0% launches=3 fb=0 err=3.12e-16 (x0.00029 bound) ok
+[panel] auto            G=256    total     2.100 ms ( 10177.0 GFLOPS) pre 44.9% gemm 54.9% post  0.1% launches=1 fb=256 err=1.19e-15 (x0.0011 bound) ok

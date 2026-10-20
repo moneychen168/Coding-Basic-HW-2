@@ -1,0 +1,29 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(619): error: argument of type "std::nullptr_t" is incompatible with parameter of type "int"
+        if (h->stats_repair && oz2_read_counters(nullptr, nullptr, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                                          ^
+
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(619): error: argument of type "int" is incompatible with parameter of type "cudaStream_t" (aka "CUstream_st *")
+        if (h->stats_repair && oz2_read_counters(nullptr, nullptr, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                                                   ^
+
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(619): error: too many arguments in function call
+        if (h->stats_repair && oz2_read_counters(nullptr, nullptr, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                                                      ^
+
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(623): error: argument of type "unsigned long long *" is incompatible with parameter of type "int"
+          if (oz2_read_counters(nullptr, &rep, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                         ^
+
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(623): error: argument of type "int" is incompatible with parameter of type "cudaStream_t" (aka "CUstream_st *")
+          if (oz2_read_counters(nullptr, &rep, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                               ^
+
+/home/money168/hw2_grouped_gemm/src/ggemm.cu(623): error: too many arguments in function call
+          if (oz2_read_counters(nullptr, &rep, 1, h->stream)) return GGEMM_ERR_NUMERICS;
+                                                  ^
+
+6 errors detected in the compilation of "/home/money168/hw2_grouped_gemm/src/ggemm.cu".

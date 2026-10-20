@@ -1,0 +1,14 @@
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN60_GLOBAL__N__785d17e9_27_round1_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_90'
+ptxas info    : Function properties for _ZN60_GLOBAL__N__785d17e9_27_round1_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 128 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 90.761 ms
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN60_GLOBAL__N__785d17e9_27_round1_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_120'
+ptxas info    : Function properties for _ZN60_GLOBAL__N__785d17e9_27_round1_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 118 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 71.169 ms

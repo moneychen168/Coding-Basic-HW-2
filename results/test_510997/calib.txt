@@ -1,0 +1,1 @@
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')

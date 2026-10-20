@@ -1,0 +1,9 @@
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=1024 E=8 topk=2 d=256 f=512 zipf=1.00  loads max/min=642/100 active=8
+native_loop     total     0.183 ms (  5859.0 GFLOPS) route 15.0% gather  4.9% up 34.9% act  5.0% down 35.9% scatter  4.3%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+native_grouped  total     0.144 ms (  7471.5 GFLOPS) route 18.6% gather  6.1% up 29.1% act  6.4% down 34.2% scatter  5.5%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+emu_loop        total     3.534 ms (   303.9 GFLOPS) route  0.8% gather  0.3% up 43.9% act  0.3% down 54.6% scatter  0.2%  err_up=5.99e-16 err_y=3.29e-17 (x0.00029 bound) ok
+emu_grouped     total     0.502 ms (  2137.4 GFLOPS) route  5.3% gather  1.8% up 47.7% act  1.9% down 41.7% scatter  1.6%  err_up=5.99e-16 err_y=3.29e-17 (x0.00029 bound) ok
+auto            total     0.147 ms (  7318.3 GFLOPS) route 19.6% gather  6.2% up 28.5% act  6.4% down 33.9% scatter  5.4%  err_up=0.00e+00 err_y=0.00e+00 (x0 bound) ok
+emu_grouped_reuse total     0.531 ms (  2020.7 GFLOPS) route  5.1% gather  1.7% up 44.3% act  1.8% down 45.7% scatter  1.5%  err_up=5.99e-16 err_y=3.29e-17 (x0.00029 bound) ok
+emu_loop_batched total     1.209 ms (   888.1 GFLOPS) route  2.3% gather  0.7% up 43.6% act  0.8% down 51.9% scatter  0.7%  err_up=5.99e-16 err_y=3.29e-17 (x0.00029 bound) ok

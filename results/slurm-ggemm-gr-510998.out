@@ -1,0 +1,101 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=build_gr
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: build_gr/libggemm.a
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_LOOP_BATCHED’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+/home/money168/hw2_grouped_gemm/bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_LOOP_BATCHED’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+[build] OK: build_gr/test_graph
+[build] OK: build_gr/test_reuse_e2e
+device: NVIDIA H200 (sm_90)  reps=200
+
+workload                         path         variant launch | host_issue_us    wall_us     gpu_us     lat_us | make_plan_ms
+[tiny64x(32,32,64) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                EMU_GROUPED   direct      3 |        90.04      90.78      90.75     134.91 |        0.000
+tiny64x(32,32,64)                EMU_GROUPED    graph      3 |         1.87      80.36      80.33      85.28 |        0.091
+[tiny64x(32,32,64) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=64, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                AUTO          direct      1 |        18.40      18.47      18.45      28.64 |        0.000
+tiny64x(32,32,64)                AUTO           graph      1 |        10.41      12.08      12.05      14.90 |        0.060
+[moe32(m~U[16,512],n=256,k=512) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED   direct      3 |       827.16     835.38     835.35     854.89 |        0.000
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED    graph      3 |         1.83     822.72     822.67     830.21 |        0.086
+[moe32(m~U[16,512],n=256,k=512) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=32, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   AUTO          direct      1 |        99.25     100.22     100.19     112.84 |        0.000
+moe32(m~U[16,512],n=256,k=512)   AUTO           graph      1 |        86.90     100.97     100.94     104.06 |        0.073
+[mixed16(+empty,+k0) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=4 graph=4, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              EMU_GROUPED   direct      4 |       342.84     346.20     346.17     350.86 |        0.000
+mixed16(+empty,+k0)              EMU_GROUPED    graph      4 |         1.81     333.90     333.87     339.42 |        0.087
+[mixed16(+empty,+k0) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=14, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              AUTO          direct      1 |       103.17     103.24     103.21     113.23 |        0.000
+mixed16(+empty,+k0)              AUTO           graph      1 |         1.82      73.91      73.88      79.03 |        0.181
+
+test_graph: 63 passed, 0 failed
+test_reuse_e2e: reps=20 policy=EXACT_N
+[lora] G=16 m=16 n=256 k=4096 shareA=0 shareB=1
+  EMU_LOOP_BATCHED   stats: probs=16 fallback=0 launches=48 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=0
+  EMU_GROUPED        stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=0
+  EMU_GROUPED_REUSE  stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=16 uB=1 promoted=0 repaired=0
+  AUTO               stats: probs=16 fallback=16 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=0
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=13894.1  EMU_GROUPED=1656.3  REUSE=1537.1  AUTO=224.6  speedup REUSE/EMU=1.078x
+[tp] G=8 m=256 n=512 k=4096 shareA=1 shareB=0
+  EMU_LOOP_BATCHED   stats: probs=8 fallback=0 launches=24 moduli=[15,15] reuse=0 uA=8 uB=8 promoted=0 repaired=0
+  EMU_GROUPED        stats: probs=8 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=8 uB=8 promoted=0 repaired=0
+  EMU_GROUPED_REUSE  stats: probs=8 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=1 uB=8 promoted=0 repaired=0
+  AUTO               stats: probs=8 fallback=8 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=0
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=8148.0  EMU_GROUPED=1582.0  REUSE=1480.3  AUTO=369.3  speedup REUSE/EMU=1.069x
+[none] G=16 m=256 n=256 k=1024 shareA=0 shareB=0
+  EMU_LOOP_BATCHED   stats: probs=16 fallback=0 launches=48 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=0
+  EMU_GROUPED        stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=0
+  EMU_GROUPED_REUSE  stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=16 uB=16 promoted=0 repaired=0
+  AUTO               stats: probs=16 fallback=16 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=0
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=4160.6  EMU_GROUPED=648.2  REUSE=635.8  AUTO=160.8  speedup REUSE/EMU=1.019x
+test_reuse_e2e: 30 passed, 0 failed
+test_reuse_e2e: reps=20 policy=PROMOTE
+[lora] G=16 m=16 n=256 k=4096 shareA=0 shareB=1
+  EMU_LOOP_BATCHED   stats: probs=16 fallback=0 launches=48 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=-1
+  EMU_GROUPED        stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=-1
+  EMU_GROUPED_REUSE  stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=16 uB=1 promoted=0 repaired=-1
+  AUTO               stats: probs=16 fallback=16 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=-1
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=13806.5  EMU_GROUPED=1580.9  REUSE=1464.9  AUTO=152.4  speedup REUSE/EMU=1.079x
+[tp] G=8 m=256 n=512 k=4096 shareA=1 shareB=0
+  EMU_LOOP_BATCHED   stats: probs=8 fallback=0 launches=24 moduli=[15,15] reuse=0 uA=8 uB=8 promoted=0 repaired=-1
+  EMU_GROUPED        stats: probs=8 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=8 uB=8 promoted=0 repaired=-1
+  EMU_GROUPED_REUSE  stats: probs=8 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=1 uB=8 promoted=0 repaired=-1
+  AUTO               stats: probs=8 fallback=8 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=-1
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=8073.1  EMU_GROUPED=1512.4  REUSE=1411.9  AUTO=291.2  speedup REUSE/EMU=1.071x
+[none] G=16 m=256 n=256 k=1024 shareA=0 shareB=0
+  EMU_LOOP_BATCHED   stats: probs=16 fallback=0 launches=48 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=-1
+  EMU_GROUPED        stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=0 uA=16 uB=16 promoted=0 repaired=-1
+  EMU_GROUPED_REUSE  stats: probs=16 fallback=0 launches=3 moduli=[15,15] reuse=1 uA=16 uB=16 promoted=0 repaired=-1
+  AUTO               stats: probs=16 fallback=16 launches=1 moduli=[0,0] reuse=0 uA=0 uB=0 promoted=0 repaired=-1
+  bit-exact REUSE vs EMU_GROUPED: yes (0 differing entries)
+  time/call (us): EMU_LOOP_BATCHED=4026.1  EMU_GROUPED=576.1  REUSE=567.7  AUTO=82.8  speedup REUSE/EMU=1.015x
+test_reuse_e2e: 30 passed, 0 failed

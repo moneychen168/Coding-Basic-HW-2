@@ -1,0 +1,17 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build/libggemm.a
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu: In function ‘int main(int, char**)’:
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu:220:253: warning: ‘kind’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+  220 |           CHECK(st.num_fallback == 0 && gate_ok(p, c, e, st, &kind), "%s bigk no-fallback [%s]: fb=%d err/gamma=%.3e "
+      |                                                                                                                                                                                                                                                             ^                                                                                                                                                                                  
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu:219:13: note: ‘kind’ was declared here
+  219 |           const char* kind;
+      |             ^~~~
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_grouped
+[build] OK: /home/money168/hw2_grouped_gemm/build/bench_grouped
+device: NVIDIA H200 (sm_90), reps=20 warmup=5
+shapes -> /home/money168/hw2_grouped_gemm/results/prof_511064/shapes.csv
+results: /home/money168/hw2_grouped_gemm/results/prof_511064

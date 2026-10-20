@@ -1,0 +1,44 @@
+# cmd: '/home/money168/hw2_grouped_gemm/results/final_590258/build/test_graph'
+# start: 2026-10-20T22:22:11+08:00
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200 (sm_90)  reps=200
+
+workload                         path         variant launch | host_issue_us    wall_us     gpu_us     lat_us | make_plan_ms
+[tiny64x(32,32,64) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                EMU_GROUPED   direct      3 |        85.92      86.56      86.53     121.53 |        0.000
+tiny64x(32,32,64)                EMU_GROUPED    graph      3 |         1.96      68.93      68.90      74.17 |        0.097
+[tiny64x(32,32,64) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=64, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                AUTO          direct      1 |        17.37      17.52      17.48      22.64 |        0.000
+tiny64x(32,32,64)                AUTO           graph      1 |         9.68      11.20      11.17      14.37 |        0.060
+[moe32(m~U[16,512],n=256,k=512) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED   direct      3 |       606.97     612.92     612.89     641.36 |        0.000
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED    graph      3 |         1.95     600.43     600.39     607.99 |        0.111
+[moe32(m~U[16,512],n=256,k=512) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=32, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   AUTO          direct      1 |        99.26     100.23     100.20     114.04 |        0.000
+moe32(m~U[16,512],n=256,k=512)   AUTO           graph      1 |        86.48     100.40     100.37     103.93 |        0.089
+[mixed16(+empty,+k0) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=4 graph=4, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              EMU_GROUPED   direct      4 |       215.39     217.50     217.47     224.88 |        0.000
+mixed16(+empty,+k0)              EMU_GROUPED    graph      4 |         1.96     204.08     204.04     211.37 |        0.078
+[mixed16(+empty,+k0) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=14, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              AUTO          direct      1 |       108.34     108.40     108.37     116.29 |        0.000
+mixed16(+empty,+k0)              AUTO           graph      1 |         1.95      73.81      73.78      79.26 |        0.184
+
+test_graph: 63 passed, 0 failed

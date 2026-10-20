@@ -1,0 +1,6 @@
+workload,path,rho_budget,route,num_moduli,problems,entries
+uni_G1024_s64,auto,4,5,0,1024,4194304
+uni_G256_s256,auto,4,5,0,256,16777216
+moe_E64_prefill_z1.2_up,auto,4,5,0,64,8650752
+het_G256_16-2048,auto,4,4,0,3,1668
+het_G256_16-2048,auto,4,5,0,253,46592337

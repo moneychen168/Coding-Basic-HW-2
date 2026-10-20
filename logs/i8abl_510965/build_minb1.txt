@@ -1,0 +1,26 @@
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+/home/money168/hw2_grouped_gemm/src/int8_grouped_gemm.cu(128): warning #177-D: function "<unnamed>::cp_async16_zf" was declared but never referenced
+  __attribute__((device)) __inline__ __attribute__((always_inline)) void cp_async16_zf(uint32_t dst, const void* src, bool pred) {
+                                                                         ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_90'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 186 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 260.261 ms
+/home/money168/hw2_grouped_gemm/src/int8_grouped_gemm.cu(128): warning #177-D: function "<unnamed>::cp_async16_zf" was declared but never referenced
+  __attribute__((device)) __inline__ __attribute__((always_inline)) void cp_async16_zf(uint32_t dst, const void* src, bool pred) {
+                                                                         ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_120'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_34e782ed28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 181 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 189.944 ms

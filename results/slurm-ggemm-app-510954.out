@@ -1,0 +1,8 @@
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build/libggemm.a
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/app/moe_ffn_fp64.cu:218
+device: à'Mƒý  atoms=128 basis=dz N=1180 blocks=6900 (53.9/row) nnz=589326 (42.324%) maxK=621 nrhs=32
+CUDA no CUDA-capable device is detected at /home/money168/hw2_grouped_gemm/bench/app/block_sparse_fp64.cu:180
+results: /home/money168/hw2_grouped_gemm/results/app_510954

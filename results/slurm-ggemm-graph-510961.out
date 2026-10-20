@@ -1,0 +1,69 @@
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=build_graph
+Build cuda_13.0.r13.0/compiler.36260728_0
+/home/money168/hw2_grouped_gemm/src/int8_grouped_gemm.cu(128): warning #177-D: function "<unnamed>::cp_async16_zf" was declared but never referenced
+  __attribute__((device)) __inline__ __attribute__((always_inline)) void cp_async16_zf(uint32_t dst, const void* src, bool pred) {
+                                                                         ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/money168/hw2_grouped_gemm/src/int8_grouped_gemm.cu(128): warning #177-D: function "<unnamed>::cp_async16_zf" was declared but never referenced
+  __attribute__((device)) __inline__ __attribute__((always_inline)) void cp_async16_zf(uint32_t dst, const void* src, bool pred) {
+                                                                         ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+[build] library: build_graph/libggemm.a
+/home/money168/hw2_grouped_gemm/bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_GROUPED_REUSE’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+[build] OK: build_graph/test_graph
+device: NVIDIA H200 (sm_90)  reps=200
+
+workload                         path         variant launch | host_issue_us    wall_us     gpu_us     lat_us | make_plan_ms
+[tiny64x(32,32,64) EMU_GROUPED]
+  T1 handle-stream    : bit-exact  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                EMU_GROUPED   direct      3 |       121.84     122.88     122.85     159.07 |        0.000
+tiny64x(32,32,64)                EMU_GROUPED    graph      3 |         2.00     107.59     107.55     113.19 |        0.088
+[tiny64x(32,32,64) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=64, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+tiny64x(32,32,64)                AUTO          direct      1 |        19.18      19.25      19.22      29.75 |        0.000
+tiny64x(32,32,64)                AUTO           graph      1 |        10.99      12.77      12.73      15.60 |        0.061
+[moe32(m~U[16,512],n=256,k=512) EMU_GROUPED]
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:183: eq -- T1 bit-exact (rc=0 first diff at 4296)
+  T1 handle-stream    : MISMATCH  (launches direct=3 graph=3, fallback=0, moduli 15-15)
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:201: eq -- T2 bit-exact (rc=0 first diff at 1390)
+  T2 other stream     : MISMATCH
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:217: eq -- T3a update bit-exact (rc=0 first diff at 855)
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:225: eq2 -- T3b update-back bit-exact (rc=0 first diff at 1295)
+  T3 update_pointers  : MISMATCH / MISMATCH
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED   direct      3 |      2592.05    2618.01    2617.97    2644.30 |        0.000
+moe32(m~U[16,512],n=256,k=512)   EMU_GROUPED    graph      3 |         1.95    2603.74    2603.63    2610.22 |        0.097
+[moe32(m~U[16,512],n=256,k=512) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=32, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+moe32(m~U[16,512],n=256,k=512)   AUTO          direct      1 |        99.84     100.82     100.79     114.70 |        0.000
+moe32(m~U[16,512],n=256,k=512)   AUTO           graph      1 |        87.71     101.82     101.78     105.00 |        0.091
+[mixed16(+empty,+k0) EMU_GROUPED]
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:183: eq -- T1 bit-exact (rc=0 first diff at 12144)
+  T1 handle-stream    : MISMATCH  (launches direct=4 graph=4, fallback=0, moduli 15-15)
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:201: eq -- T2 bit-exact (rc=0 first diff at 12860)
+  T2 other stream     : MISMATCH
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:217: eq -- T3a update bit-exact (rc=0 first diff at 13934)
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_graph.cu:225: eq2 -- T3b update-back bit-exact (rc=0 first diff at 12144)
+  T3 update_pointers  : MISMATCH / MISMATCH
+mixed16(+empty,+k0)              EMU_GROUPED   direct      4 |       600.13     606.07     606.04     611.35 |        0.000
+mixed16(+empty,+k0)              EMU_GROUPED    graph      4 |         1.95     596.69     596.65     604.51 |        0.084
+[mixed16(+empty,+k0) AUTO]
+  T1 handle-stream    : bit-exact  (launches direct=1 graph=1, fallback=14, moduli 0-0)
+  T2 other stream     : bit-exact
+  T3 update_pointers  : bit-exact / bit-exact
+mixed16(+empty,+k0)              AUTO          direct      1 |       106.74     106.81     106.78     116.27 |        0.000
+mixed16(+empty,+k0)              AUTO           graph      1 |         1.97      73.98      73.95      79.66 |        0.198
+
+test_graph: 55 passed, 8 failed

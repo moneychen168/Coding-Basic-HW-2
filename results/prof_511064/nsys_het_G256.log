@@ -1,0 +1,23 @@
+device: NVIDIA H200 (sm_90), reps=5 warmup=2
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+het_G256_16-2048                   native_loop       N=0  rm=default phi=0.5     3.0145 ms    14156.1 GFLOPS  launches=256    fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   native_grouped    N=0  rm=default phi=0.5     1.9898 ms    21445.9 GFLOPS  launches=1      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_loop          N=0  rm=default phi=0.5    73.1405 ms      583.4 GFLOPS  launches=4580   fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_grouped       N=0  rm=default phi=0.5     9.8624 ms     4326.9 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=default phi=0.5     2.0198 ms    21127.5 GFLOPS  launches=1      fb=256  err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_grouped_reuse N=0  rm=default phi=0.5    10.7283 ms     3977.7 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   emu_loop_batched  N=0  rm=default phi=0.5    37.1756 ms     1147.9 GFLOPS  launches=768    fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+Collecting data...
+Generating '/home/money168/tmp/nsys-report-cef8.qdstrm'
+[1/1] [0%                          ] nsys_het_G256.nsys-rep[1/1] [0%                          ] nsys_het_G256.nsys-rep[1/1] [7%                          ] nsys_het_G256.nsys-rep[1/1] [10%                         ] nsys_het_G256.nsys-rep[1/1] [14%                         ] nsys_het_G256.nsys-rep[1/1] [=17%                        ] nsys_het_G256.nsys-rep[1/1] [===22%                      ] nsys_het_G256.nsys-rep[1/1] [====28%                     ] nsys_het_G256.nsys-rep[1/1] [======33%                   ] nsys_het_G256.nsys-rep[1/1] [=======39%                  ] nsys_het_G256.nsys-rep[1/1] [=========45%                ] nsys_het_G256.nsys-rep[1/1] [===========50%              ] nsys_het_G256.nsys-rep[1/1] [============56%             ] nsys_het_G256.nsys-rep[1/1] [==============62%           ] nsys_het_G256.nsys-rep[1/1] [================68%         ] nsys_het_G256.nsys-rep[1/1] [================69%         ] nsys_het_G256.nsys-rep[1/1] [==================77%       ] nsys_het_G256.nsys-rep[1/1] [========================100%] nsys_het_G256.nsys-rep[1/1] [========================100%] nsys_het_G256.nsys-rep
+Generated:
+	/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.nsys-rep
+Generating SQLite file /home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.sqlite from /home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.nsys-rep
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_gpu_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256_cuda_gpu_trace.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_api_sum.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256_cuda_api_sum.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_api_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256_cuda_api_trace.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/nvtx_pushpop_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_het_G256_nvtx_pushpop_trace.csv]... PROCESSED
+

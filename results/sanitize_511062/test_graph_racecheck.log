@@ -1,0 +1,2 @@
+========= COMPUTE-SANITIZER
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json

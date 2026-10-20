@@ -1,0 +1,2 @@
+GPU 0: NVIDIA H200 (UUID: GPU-00ec9678-0486-674f-c233-2e57b56f1040)
+CUDA cudaGetDeviceProperties(&prop, 0) at tests/test_i8_grouped.cu:154: no CUDA-capable device is detected

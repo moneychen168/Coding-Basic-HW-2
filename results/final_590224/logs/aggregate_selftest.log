@@ -1,0 +1,35 @@
+# cmd: python3 -I '/home/money168/hw2_grouped_gemm/scripts/final/selftest.py'
+# start: 2026-10-20T22:27:45+08:00
+wrote /home/money168/tmp/tmphlxhl7go/tables.md
+wrote /home/money168/tmp/tmphlxhl7go/empty/tables.md
+wrote /home/money168/hw2_grouped_gemm/scripts/final/testdata/final_synth
+  ok   tables.md written
+  ok   tests.csv emu_grouped pass/fail/worst: ['emu_grouped', '3', '2', '1', '1.500', '2.000', '0', '0']
+  ok   tests.csv auto fallback sum: ['auto', '3', '3', '0', '0.3000', '1.000', '0', '3']
+  ok   suite test_grouped: ['test_grouped', 'FAIL', '1', '20', '1']
+  ok   suite test_i8_grouped: ['test_i8_grouped', 'PASS', '0', 'n/a', '0']
+  ok   reuse repairs emu_grouped: ['emu_grouped', '2', '2', '7']
+  ok   reuse repairs auto unmeasured: ['auto', '1', '0', 'n/a']
+  ok   numerics sweep: ['per-shape x N sweep', '2', '2', '0', '0.7000', '5']
+  ok   numerics grouped repairs: ['grouped launch', 'n/a', 'n/a', 'n/a', 'n/a', '11']
+  ok   time row (phi=1.0 duplicate filtered): ['uni_G64_s32', 'uniform', '64', '2.000', '1.000', '4.000', '0.5000', '0.2500', '0.2000', '0.1250']
+  ok   failed cell shows status: ['moe_E8_prefill_z1.2_up', 'moe', '8', '4.000', '2.000', 'call_failed', '1.000', '0.5000', '0.4000', '0.2500']
+  ok   speedup vs NG (+auto fb, repair frac): ['uni_G64_s32', '0.50x', '0.25x', '2.00x', '4.00x', '5.00x', '8.00x fb=2/64', '0.391% (16/4096)']
+  ok   speedup of failed cell is n/a; all-native auto fb=8/8, repairs unmeasured: ['moe_E8_prefill_z1.2_up', '0.50x', 'n/a', '2.00x', '4.00x', '5.00x', '8.00x fb=8/8', 'n/a']
+  ok   geomean vs NG (auto split emu / all-native): ['**geomean all** (2)', '0.50x', '0.25x', '2.00x', '4.00x', '5.00x', 'emu 8.00x (n=1); all-native 8.00x (n=1)', '']
+  ok   speedup vs ELB: ['uni_G64_s32', '0.25x', '0.50x', '0.12x', '2.00x', '2.50x', '4.00x fb=2/64', '0.391% (16/4096)']
+  ok   timing kind labelled E2E
+  ok   host_allocs_timed summary
+  ok   host_allocs_timed offender row: ['moe_E8_prefill_z1.2_up', 'emu_grouped', '0.5', '1']
+  ok   launch row: ['uni_G64_s32', '64', '64', '1', '1920', '192', '3', '3', '4', '2', '14-17']
+  ok   moe first row: ['T=4096 E=16 topk=2 d_model=1024 d_ff=2048 zipf=1.0', 'native_loop', '20.00', '0.50x', '0.25x', '80.0', '128', '0', '0.01000', 'ok']
+  ok   moe auto speedups: ['| T=4096 E=16 topk=2 d_model=1024 d_ff=2048 zipf=1.0 | auto | 1.250 | 8.00x | 4.00x | 80.0 | 8 | 0 | 0.01000 | ok |']
+  ok   bsr row-mode auto speedups: ['| mode=row atoms=1024 basis=dz nrhs=128 G=500 | auto | 0.3750 | 8.00x | 4.00x | 0.2500 | 4 | 0 | 0.02000 | ok |']
+  ok   nsys row: ['uni_G64_s32', 'native_grouped', '5', '1.00', '100.0', '90.00', '10.0', '20.00', 'cublas 100%']
+  ok   nsys emu row: ['| uni_G64_s32 | emu_grouped | 5 | 3.00 | 50.00 | 40.00 | 20.0 | 8.000 | i8_gemm 62.5% |']
+  ok   ncu row: ['uni_G64_s32_emu_grouped', 'i8_gemm', '`i8_grouped_gemm_kernel<128,128>`', '1', '25.00', '55.5', '40.0', '60.0', '30.0', '128', 'long_scoreboard 35.00%']
+  ok   roofline row: ['| final | emu_grouped | 2 | 60.0 | 70.0 | compute 1, memory 1 |']
+  ok   failed steps listed
+  ok   empty run dir handled
+
+ALL OK

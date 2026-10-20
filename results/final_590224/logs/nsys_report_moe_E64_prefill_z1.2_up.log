@@ -1,0 +1,36 @@
+# cmd: uv run --quiet --no-project --with matplotlib python -I '/home/money168/hw2_grouped_gemm/scripts/analysis/nsys_report.py' '/home/money168/hw2_grouped_gemm/results/final_590224/prof/nsys_moe_E64_prefill_z1.2_up' -o '/home/money168/hw2_grouped_gemm/results/final_590224/analysis' --paths 'native_loop,native_grouped,emu_loop,emu_loop_batched,emu_grouped,emu_grouped_reuse,auto' --label 'moe_E64_prefill_z1.2_up'
+# start: 2026-10-20T22:27:32+08:00
+wrote: /home/money168/hw2_grouped_gemm/results/final_590224/analysis/nsys_summary_moe_E64_prefill_z1.2_up.md /home/money168/hw2_grouped_gemm/results/final_590224/analysis/nsys_summary_moe_E64_prefill_z1.2_up.csv /home/money168/hw2_grouped_gemm/results/final_590224/analysis/nsys_timeline_moe_E64_prefill_z1.2_up.png
+# nsys summary: moe_E64_prefill_z1.2_up
+Call detection: NVTX ranges ggemm:<path>; every value is the median over the timed calls of that path. Stage % = share of GPU busy time.
+
+| path | timed calls | kernels/call | memops/call | GPU span (us) | GPU busy (us) | launch gaps (us) | gap % of span | host API (us) | host plan (us) | host total (us) | prep (scale+residue) % | INT8 grouped GEMM % | reconstruct (CRT) % | cuBLAS FP64 % | memcpy/memset % | other kernels % |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| native_loop | 5 | 117 | 0 | 1667.8 | 1496.0 | 173.5 | 10.4 | 403.1 | 0.0 | 881.1 | 0.0 | 0.0 | 0.0 | 100.0 | 0.0 | 0.0 |
+| native_grouped | 5 | 2 | 1 | 1580.4 | 1568.0 | 12.4 | 0.8 | 13.7 | 0.0 | 23.6 | 0.0 | 0.0 | 0.0 | 99.9 | 0.1 | 0.0 |
+| emu_loop | 5 | 1152 | 1 | 43,074 | 41,435 | 1645.4 | 3.8 | 3809.7 | 434.9 | 5645.9 | 42.7 | 54.0 | 3.3 | 0.0 | 0.0 | 0.0 |
+| emu_grouped | 5 | 3 | 1 | 6762.7 | 6754.4 | 7.7 | 0.1 | 15.7 | 42.0 | 62.0 | 63.8 | 29.1 | 7.0 | 0.0 | 0.1 | 0.0 |
+| auto | 5 | 2 | 1 | 1575.4 | 1564.2 | 11.2 | 0.7 | 11.6 | 10.1 | 27.5 | 0.0 | 0.0 | 0.0 | 99.9 | 0.1 | 0.0 |
+| emu_grouped_reuse | 5 | 3 | 1 | 6679.6 | 6673.2 | 7.4 | 0.1 | 17.9 | 45.7 | 70.3 | 63.3 | 29.5 | 7.1 | 0.0 | 0.1 | 0.0 |
+| emu_loop_batched | 5 | 192 | 1 | 22,536 | 22,229 | 295.6 | 1.3 | 592.1 | 59.2 | 894.5 | 80.3 | 13.8 | 5.9 | 0.0 | 0.0 | 0.0 |
+
+## CUDA API summary (whole process, incl. setup)
+
+| API | calls | total (us) | avg (us) | % of API time |
+| --- | ---: | ---: | ---: | ---: |
+| cuLibraryLoadData | 2991 | 1,372,619 | 458.92 | 62.1 |
+| cudaEventSynchronize | 77 | 386,712 | 5022.23 | 17.5 |
+| cudaStreamCreateWithFlags | 1 | 154,893 | 154,893 | 7.0 |
+| cudaStreamSynchronize | 21 | 120,467 | 5736.53 | 5.5 |
+| cudaLaunchKernel | 9495 | 67,957 | 7.16 | 3.1 |
+| cudaFree | 85 | 46,774 | 550.28 | 2.1 |
+| cudaMalloc | 77 | 43,040 | 558.96 | 1.9 |
+| cudaHostAlloc | 7 | 7265.7 | 1037.96 | 0.3 |
+| cudaLaunchKernelExC_v11060 | 644 | 2418.8 | 3.76 | 0.1 |
+| cudaDeviceSynchronize | 33 | 2293.6 | 69.50 | 0.1 |
+| cudaFreeHost | 7 | 2125.7 | 303.67 | 0.1 |
+| cuKernelGetName | 9495 | 633.4 | 0.07 | 0.0 |
+| cudaEventRecord | 126 | 370.0 | 2.94 | 0.0 |
+| cudaMemcpyAsync | 56 | 367.9 | 6.57 | 0.0 |
+| cudaMemsetAsync | 119 | 340.3 | 2.86 | 0.0 |
+

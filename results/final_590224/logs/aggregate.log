@@ -1,0 +1,3 @@
+# cmd: python3 -I '/home/money168/hw2_grouped_gemm/scripts/final/aggregate.py' '/home/money168/hw2_grouped_gemm/results/final_590224' -o '/home/money168/hw2_grouped_gemm/results/final_590224/tables.md'
+# start: 2026-10-20T22:27:45+08:00
+wrote /home/money168/hw2_grouped_gemm/results/final_590224/tables.md

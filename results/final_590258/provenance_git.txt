@@ -1,0 +1,19 @@
+commit: 1c39e40015976d74d7f4f9487374b671bbce1a50
+branch: master
+subject: numerics: warp+block aggregate repair/uncert/safety counters before global atomicAdd (was one same-address atomic per thread); prep NONFINITE count via ballot; fix path-count comment
+date: 2026-10-20T22:20:41+08:00
+
+== git status --porcelain
+ M DESIGN.md
+ M README.md
+ M docs/discussion_1007.md
+ M docs/related_work.md
+?? docs/report.md
+?? scripts/analysis/__pycache__/
+
+== git diff --stat HEAD
+ DESIGN.md               |  4 ++--
+ README.md               | 24 +++++++++++++-----------
+ docs/discussion_1007.md |  4 +++-
+ docs/related_work.md    |  2 +-
+ 4 files changed, 19 insertions(+), 15 deletions(-)

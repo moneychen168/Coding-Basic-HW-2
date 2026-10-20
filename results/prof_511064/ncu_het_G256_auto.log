@@ -1,0 +1,23 @@
+==PROF== Connected to process 1347312 (/home/money168/hw2_grouped_gemm/build/bench_grouped)
+device: NVIDIA H200 (sm_90), reps=1 warmup=1
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "Kernel2": 0%....50%....100% - 38 passes
+==PROF== Profiling "Kernel2": 0%....50%....100% - 38 passes
+het_G256_16-2048                   auto              N=0  rm=default phi=0.5  3250.0122 ms       13.1 GFLOPS  launches=1      fb=256  err=nan (xnan native) uncert=-1 repaired=-1 ok
+==PROF== Disconnected from process 1347312
+==WARNING== No source files were imported. Check that the target application was compiled with -lineinfo.
+==PROF== Report: /home/money168/hw2_grouped_gemm/results/prof_511064/ncu_het_G256_auto.ncu-rep
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176, in exec_module
+  File "<frozen site>", line 635, in <module>
+  File "<frozen site>", line 621, in main
+  File "<frozen site>", line 364, in addusersitepackages
+  File "<frozen site>", line 247, in addsitedir
+  File "<frozen site>", line 190, in addpackage
+LookupError: unknown encoding: utf-8-sig

@@ -1,0 +1,16 @@
+========= COMPUTE-SANITIZER
+device: NVIDIA H200  sm_90  SMs=132
+hetero 19 probs, bit-exact, cfg0 128x128 [launches=1]      PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg1 64x64 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg2 32x32 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg3 32x32 splitK [launches=1] PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto [launches=1]              PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto+splitK(kp>=0) [launches=2] PASS (0 mismatches)
+hetero 19 probs, bit-exact, mixed cfg i%4 [launches=2]     PASS (0 mismatches)
+split path, 2nd launch w/o re-upload (counter reset)       PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), auto              PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), cfg3 splitK       PASS (0 mismatches)
+cuBLASLt refused 0 / 19 hetero problems (empty ones not submitted)
+cuBLASLt vs ours (auto), supported problems                PASS (0 mismatches)
+ALL PASS
+========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)

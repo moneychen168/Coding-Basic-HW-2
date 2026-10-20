@@ -1,0 +1,50 @@
+# cmd: '/usr/local/cuda-13.0/bin/ncu' --set 'full' -k 'regex:^(?!k_fill)' -c '12'           --import-source yes -f -o '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped'           '/home/money168/hw2_grouped_gemm/results/final_590224/build/bench_grouped' --set 'bench' --only 'moe_E64_prefill_z1.2_up' --paths 'emu_grouped' --phis '0.5' --reps 1           --warmup 1 --no-check --csv '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped.csv'         && '/usr/local/cuda-13.0/bin/ncu' --import '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped.ncu-rep' --page details --csv > '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped_details.csv'         && '/usr/local/cuda-13.0/bin/ncu' --import '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped.ncu-rep' --page raw --csv > '/home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped_raw.csv'
+# start: 2026-10-20T22:25:49+08:00
+==PROF== Connected to process 2195910 (/home/money168/hw2_grouped_gemm/results/final_590224/build/bench_grouped)
+device: NVIDIA H200 (sm_90), reps=1 warmup=1
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "oz2_prep_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "i8_grouped_persistent_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_reconstruct_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_prep_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "i8_grouped_persistent_kernel": 0%....50%....100% - 38 passes
+==PROF== Profiling "oz2_reconstruct_kernel": 0%....50%....100% - 38 passes
+moe_E64_prefill_z1.2_up            emu_grouped       N=0  rm=default phi=0.5  9542.4756 ms        3.7 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+==PROF== Disconnected from process 2195910
+==PROF== Report: /home/money168/hw2_grouped_gemm/results/final_590224/prof/ncu_moe_E64_prefill_z1.2_up_emu_grouped.ncu-rep
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176, in exec_module
+  File "<frozen site>", line 635, in <module>
+  File "<frozen site>", line 621, in main
+  File "<frozen site>", line 364, in addusersitepackages
+  File "<frozen site>", line 247, in addsitedir
+  File "<frozen site>", line 190, in addpackage
+LookupError: unknown encoding: utf-8-sig
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176, in exec_module
+  File "<frozen site>", line 635, in <module>
+  File "<frozen site>", line 621, in main
+  File "<frozen site>", line 364, in addusersitepackages
+  File "<frozen site>", line 247, in addsitedir
+  File "<frozen site>", line 190, in addpackage
+LookupError: unknown encoding: utf-8-sig
+Traceback (most recent call last):
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1176, in exec_module
+  File "<frozen site>", line 635, in <module>
+  File "<frozen site>", line 621, in main
+  File "<frozen site>", line 364, in addusersitepackages
+  File "<frozen site>", line 247, in addsitedir
+  File "<frozen site>", line 190, in addpackage
+LookupError: unknown encoding: utf-8-sig

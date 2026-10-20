@@ -1,0 +1,31 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build/libggemm.a
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200  T=1024 E=8 topk=2 d=256 f=512 zipf=1.00  loads max/min=642/100 active=8
+native_loop     total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+native_grouped  total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_loop        total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_grouped     total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+auto            total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_grouped_reuse total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+emu_loop_batched total       nan ms (     nan GFLOPS) route  nan% gather  nan% up  nan% act  nan% down  nan% scatter  nan%  err_up=nan err_y=nan (xnan bound) call_failed
+device: NVIDIA H200  atoms=128 basis=dz N=1180 blocks=6900 (53.9/row) nnz=589326 (42.324%) maxK=621 nrhs=32
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+[block] native_loop     G=6900   total    47.149 ms (     0.8 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=6900 fb=0 err=0.00e+00 (x0 bound) ok
+[block] native_grouped  G=6900   total     0.838 ms (    45.0 GFLOPS) pre  0.4% gemm 98.0% post  1.6% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[block] emu_loop        G=6900   total   655.683 ms (     0.1 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=117300 fb=0 err=2.14e-16 (x0.0014 bound) ok
+[block] emu_grouped     G=6900   total     9.229 ms (     4.1 GFLOPS) pre  0.0% gemm 99.7% post  0.2% launches=3 fb=0 err=2.14e-16 (x0.0014 bound) ok
+[block] auto            G=6900   total     0.864 ms (    43.7 GFLOPS) pre  0.4% gemm 98.1% post  1.5% launches=1 fb=6900 err=0.00e+00 (x0 bound) ok
+[block] emu_grouped_reuse G=6900   total     9.137 ms (     4.1 GFLOPS) pre  0.0% gemm 99.7% post  0.2% launches=3 fb=0 err=2.14e-16 (x0.0014 bound) ok
+[block] emu_loop_batched G=6900   total   179.504 ms (     0.2 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=20700 fb=0 err=2.14e-16 (x0.0014 bound) ok
+[panel] native_loop     G=128    total     0.914 ms (    41.3 GFLOPS) pre  1.6% gemm 98.1% post  0.3% launches=128 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] native_grouped  G=128    total     0.072 ms (   520.8 GFLOPS) pre 20.1% gemm 75.4% post  4.5% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] emu_loop        G=128    total    32.546 ms (     1.2 GFLOPS) pre  0.0% gemm 99.9% post  0.0% launches=2304 fb=0 err=6.61e-16 (x0.0043 bound) ok
+[panel] emu_grouped     G=128    total     0.438 ms (    86.0 GFLOPS) pre  3.4% gemm 95.9% post  0.7% launches=3 fb=0 err=6.61e-16 (x0.0043 bound) ok
+[panel] auto            G=128    total     0.075 ms (   502.6 GFLOPS) pre 18.7% gemm 77.3% post  4.0% launches=1 fb=128 err=0.00e+00 (x0 bound) ok
+[panel] emu_grouped_reuse G=128    total     0.409 ms (    92.2 GFLOPS) pre  3.6% gemm 95.7% post  0.8% launches=3 fb=0 err=6.61e-16 (x0.0043 bound) ok
+[panel] emu_loop_batched G=128    total    15.728 ms (     2.4 GFLOPS) pre  0.1% gemm 99.9% post  0.0% launches=384 fb=0 err=6.61e-16 (x0.0043 bound) ok
+results: /home/money168/hw2_grouped_gemm/results/app_511066

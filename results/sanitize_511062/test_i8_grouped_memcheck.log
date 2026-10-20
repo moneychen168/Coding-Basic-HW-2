@@ -1,0 +1,32 @@
+========= COMPUTE-SANITIZER
+device: NVIDIA H200  sm_90  SMs=132
+hetero 19 probs, bit-exact, cfg0 128x128 [launches=1]      PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg1 64x64 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg2 32x32 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg3 32x32 splitK [launches=1] PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto [launches=1]              PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto+splitK(kp>=0) [launches=2] PASS (0 mismatches)
+hetero 19 probs, bit-exact, mixed cfg i%4 [launches=2]     PASS (0 mismatches)
+split path, 2nd launch w/o re-upload (counter reset)       PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), auto              PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), cfg3 splitK       PASS (0 mismatches)
+cuBLASLt refused 0 / 19 hetero problems (empty ones not submitted)
+cuBLASLt vs ours (auto), supported problems                PASS (0 mismatches)
+ALL PASS
+========= Leaked 67,108,864 bytes at 0x150f08000000
+=========     Saved host backtrace up to driver entry point at allocation time
+=========         Host Frame: cudaMalloc [0x51bc6] in test_i8_grouped
+=========         Host Frame: main [0x5045] in test_i8_grouped
+========= 
+========= Leaked 32,872 bytes at 0x150f0da00000
+=========     Saved host backtrace up to driver entry point at allocation time
+=========         Host Frame: cudaMalloc [0x51bc6] in test_i8_grouped
+=========         Host Frame: main [0x5071] in test_i8_grouped
+========= 
+========= Leaked 32,872 bytes at 0x150f0dc00000
+=========     Saved host backtrace up to driver entry point at allocation time
+=========         Host Frame: cudaMallocHost [0x51dc6] in test_i8_grouped
+=========         Host Frame: main [0x50c5] in test_i8_grouped
+========= 
+========= LEAK SUMMARY: 67174608 bytes leaked in 3 allocations
+========= ERROR SUMMARY: 3 errors

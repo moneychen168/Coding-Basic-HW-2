@@ -1,0 +1,32 @@
+# nsys summary: uni_G1024_s32
+Call detection: NVTX ranges ggemm:<path>; every value is the median over the timed calls of that path. Stage % = share of GPU busy time.
+
+| path | timed calls | kernels/call | memops/call | GPU span (us) | GPU busy (us) | launch gaps (us) | gap % of span | host API (us) | host plan (us) | host total (us) | prep (scale+residue) % | INT8 grouped GEMM % | reconstruct (CRT) % | cuBLAS FP64 % | memcpy/memset % | other kernels % |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| native_loop | 5 | 1024 | 0 | 10,734 | 2094.9 | 8636.9 | 80.5 | 3128.3 | 0.0 | 10,745 | 0.0 | 0.0 | 0.0 | 100.0 | 0.0 | 0.0 |
+| native_grouped | 5 | 2 | 1 | 32.2 | 23.6 | 8.3 | 25.9 | 13.3 | 0.0 | 54.3 | 0.0 | 0.0 | 0.0 | 89.7 | 10.3 | 0.0 |
+| emu_loop | 5 | 18,432 | 1 | 115,067 | 95,163 | 19,902 | 17.3 | 85,322 | 6466.7 | 115,176 | 13.4 | 71.7 | 14.8 | 0.0 | 0.1 | 0.0 |
+| emu_grouped | 5 | 3 | 1 | 606.4 | 595.0 | 11.2 | 1.8 | 21.4 | 590.2 | 618.2 | 34.2 | 50.4 | 9.2 | 0.0 | 6.2 | 0.0 |
+| auto | 5 | 2 | 1 | 32.1 | 23.5 | 8.4 | 26.2 | 12.7 | 42.3 | 61.1 | 0.0 | 0.0 | 0.0 | 89.8 | 10.2 | 0.0 |
+| emu_grouped_reuse | 5 | 3 | 1 | 702.0 | 692.4 | 9.3 | 1.3 | 22.2 | 633.7 | 660.9 | 43.2 | 43.0 | 7.8 | 0.0 | 5.9 | 0.0 |
+| emu_loop_batched | 5 | 3072 | 1 | 35,931 | 32,410 | 3523.2 | 9.8 | 20,545 | 745.1 | 24,750 | 39.3 | 16.1 | 44.4 | 0.0 | 0.2 | 0.0 |
+
+## CUDA API summary (whole process, incl. setup)
+
+| API | calls | total (us) | avg (us) | % of API time |
+| --- | ---: | ---: | ---: | ---: |
+| cuLibraryLoadData | 2991 | 1,401,847 | 468.69 | 56.0 |
+| cudaLaunchKernel | 150,587 | 736,957 | 4.89 | 29.4 |
+| cudaStreamCreateWithFlags | 1 | 160,383 | 160,383 | 6.4 |
+| cudaEventSynchronize | 77 | 98,043 | 1273.28 | 3.9 |
+| cudaHostAlloc | 7 | 29,479 | 4211.25 | 1.2 |
+| cudaLaunchKernelExC_v11060 | 7168 | 22,206 | 3.10 | 0.9 |
+| cudaStreamSynchronize | 21 | 19,715 | 938.83 | 0.8 |
+| cuKernelGetName | 150,587 | 9716.2 | 0.06 | 0.4 |
+| cudaFreeHost | 7 | 8845.6 | 1263.66 | 0.4 |
+| cudaFree | 85 | 8605.2 | 101.24 | 0.3 |
+| cudaMalloc | 77 | 6812.9 | 88.48 | 0.3 |
+| cudaMemcpyAsync | 56 | 489.4 | 8.74 | 0.0 |
+| cudaEventRecord | 126 | 303.5 | 2.41 | 0.0 |
+| cuGetProcAddress_v2 | 880 | 183.6 | 0.21 | 0.0 |
+| cudaDeviceSynchronize | 33 | 143.2 | 4.34 | 0.0 |

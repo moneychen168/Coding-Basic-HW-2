@@ -1,0 +1,104 @@
+# cmd: '/home/money168/hw2_grouped_gemm/results/final_590147/build/test_i8_grouped'
+# start: 2026-10-20T22:01:09+08:00
+device: NVIDIA H200  sm_90  SMs=132
+hetero 19 probs, bit-exact, cfg0 128x128 [launches=1]      PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg1 64x64 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg2 32x32 [launches=1]        PASS (0 mismatches)
+hetero 19 probs, bit-exact, cfg3 32x32 splitK [launches=1] PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto [launches=1]              PASS (0 mismatches)
+hetero 19 probs, bit-exact, auto+splitK(kp>=0) [launches=2] PASS (0 mismatches)
+hetero 19 probs, bit-exact, mixed cfg i%4 [launches=2]     PASS (0 mismatches)
+split path, 2nd launch w/o re-upload (counter reset)       PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), auto              PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge), cfg3 splitK       PASS (0 mismatches)
+cuBLASLt refused 0 / 19 hetero problems (empty ones not submitted)
+cuBLASLt vs ours (auto), supported problems                PASS (0 mismatches)
+
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.5783     438.68        ok
+  (launches auto [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.5770     439.64         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.5735     442.33        ok
+  (launches cfg0 [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     cfg1             0.8741     290.23        ok
+  (launches cfg1 [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     cfg2             1.9665     129.00        ok
+  (launches cfg2 [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     cfg3             1.3882     182.73        ok
+  (launches cfg3 [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     auto-sk          0.5791     438.02        ok
+  (launches auto-sk [random64 (m,n<=2048, kp<=4096)]: 1)
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.2987     110.36         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4427     543.26        ok
+  (launches auto [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4411     545.21         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4423     543.77        ok
+  (launches cfg0 [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7131     337.30        ok
+  (launches cfg1 [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      cfg2             1.7011     141.39        ok
+  (launches cfg2 [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      cfg3             1.1679     205.94        ok
+  (launches cfg3 [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      auto-sk          0.4428     543.21        ok
+  (launches auto-sk [ozaki-like 2048^3 x 14 moduli]: 1)
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3470     693.06         -
+small256 (m,n<=200, kp<=512)       auto             0.0240      55.35        ok
+  (launches auto [small256 (m,n<=200, kp<=512)]: 1)
+small256 (m,n<=200, kp<=512)       auto-launch      0.0219      60.65         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0264      50.38        ok
+  (launches cfg0 [small256 (m,n<=200, kp<=512)]: 1)
+small256 (m,n<=200, kp<=512)       cfg1             0.0258      51.61        ok
+  (launches cfg1 [small256 (m,n<=200, kp<=512)]: 1)
+small256 (m,n<=200, kp<=512)       cfg2             0.0456      29.18        ok
+  (launches cfg2 [small256 (m,n<=200, kp<=512)]: 1)
+small256 (m,n<=200, kp<=512)       cfg3             0.0433      30.71        ok
+  (launches cfg3 [small256 (m,n<=200, kp<=512)]: 1)
+small256 (m,n<=200, kp<=512)       auto-sk          0.0316      42.15        ok
+  (launches auto-sk [small256 (m,n<=200, kp<=512)]: 2)
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2848       0.58         -
+mix 8x2048^3 + 64 skinny kp4096    auto             0.3379     422.04        ok
+  (launches auto [mix 8x2048^3 + 64 skinny kp4096]: 1)
+mix 8x2048^3 + 64 skinny kp4096    auto-launch      0.3374     422.68         -
+mix 8x2048^3 + 64 skinny kp4096    cfg0             0.3506     406.68        ok
+  (launches cfg0 [mix 8x2048^3 + 64 skinny kp4096]: 1)
+mix 8x2048^3 + 64 skinny kp4096    cfg1             0.4931     289.21        ok
+  (launches cfg1 [mix 8x2048^3 + 64 skinny kp4096]: 1)
+mix 8x2048^3 + 64 skinny kp4096    cfg2             1.0571     134.89        ok
+  (launches cfg2 [mix 8x2048^3 + 64 skinny kp4096]: 1)
+mix 8x2048^3 + 64 skinny kp4096    cfg3             0.7503     190.05        ok
+  (launches cfg3 [mix 8x2048^3 + 64 skinny kp4096]: 1)
+mix 8x2048^3 + 64 skinny kp4096    auto-sk          0.3477     410.08        ok
+  (launches auto-sk [mix 8x2048^3 + 64 skinny kp4096]: 2)
+mix 8x2048^3 + 64 skinny kp4096    cuBLASLt-loop     2.5479      55.97         -
+single 8192^3                      auto             1.7618     624.09        ok
+  (launches auto [single 8192^3]: 1)
+single 8192^3                      auto-launch      1.7666     622.37         -
+single 8192^3                      cfg0             1.8547     592.83        ok
+  (launches cfg0 [single 8192^3]: 1)
+single 8192^3                      cfg1             2.9743     369.68        ok
+  (launches cfg1 [single 8192^3]: 1)
+single 8192^3                      cfg2             6.6340     165.74        ok
+  (launches cfg2 [single 8192^3]: 1)
+single 8192^3                      cfg3             4.9961     220.08        ok
+  (launches cfg3 [single 8192^3]: 1)
+single 8192^3                      auto-sk          1.7806     617.50        ok
+  (launches auto-sk [single 8192^3]: 1)
+single 8192^3                      cuBLASLt-loop     0.7470    1471.93         -
+single 4096x4096x16384             auto             0.9071     606.08        ok
+  (launches auto [single 4096x4096x16384]: 1)
+single 4096x4096x16384             auto-launch      0.9064     606.50         -
+single 4096x4096x16384             cfg0             0.9068     606.23        ok
+  (launches cfg0 [single 4096x4096x16384]: 1)
+single 4096x4096x16384             cfg1             1.4785     371.82        ok
+  (launches cfg1 [single 4096x4096x16384]: 1)
+single 4096x4096x16384             cfg2             3.1943     172.11        ok
+  (launches cfg2 [single 4096x4096x16384]: 1)
+single 4096x4096x16384             cfg3             2.1084     260.75        ok
+  (launches cfg3 [single 4096x4096x16384]: 1)
+single 4096x4096x16384             auto-sk          0.9400     584.85        ok
+  (launches auto-sk [single 4096x4096x16384]: 1)
+single 4096x4096x16384             cuBLASLt-loop     0.3609    1523.25         -
+host scratch growths after reserve: 0 (ok)
+TOPS = 2*m*n*kp / time. RTX 5090 dense INT8 peak = 838 TOPS (see src comment).
+ALL PASS

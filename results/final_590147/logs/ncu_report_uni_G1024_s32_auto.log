@@ -1,0 +1,10 @@
+# cmd: uv run --quiet --no-project --with matplotlib python -I '/home/money168/hw2_grouped_gemm/scripts/analysis/ncu_report.py' '/home/money168/hw2_grouped_gemm/results/final_590147/prof/ncu_uni_G1024_s32_auto_details.csv' '/home/money168/hw2_grouped_gemm/results/final_590147/prof/ncu_uni_G1024_s32_auto_raw.csv' -o '/home/money168/hw2_grouped_gemm/results/final_590147/analysis' --label 'uni_G1024_s32_auto'
+# start: 2026-10-20T22:09:31+08:00
+wrote: /home/money168/hw2_grouped_gemm/results/final_590147/analysis/ncu_summary_uni_G1024_s32_auto.md /home/money168/hw2_grouped_gemm/results/final_590147/analysis/ncu_summary_uni_G1024_s32_auto.csv
+# ncu summary: uni_G1024_s32_auto
+
+Median over launches of each kernel. INT8 tensor pipe metric: . Stall source:  (share of all stall reasons, `selected` excluded).
+
+| stage | kernel | launches | duration (us) | INT8 tensor pipe % | DRAM thru % | SM thru % | achieved occ % | theor. occ % | regs/thread | smem/block (B) | block limit reg/smem/warp | top-3 stalls (% of stall) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+

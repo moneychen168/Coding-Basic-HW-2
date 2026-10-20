@@ -1,0 +1,34 @@
+device: NVIDIA H200 (sm_90), reps=10 warmup=3
+[ggemm] calib fp64_flops=6.13e+13(json) int8_ops=1.68e+15(json) mem_bw=3.94e+12(json) tiny_mnk=3.28e+04(default) json=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+uni_G1024_s64                      native_loop       N=0  rm=default phi=0.0     7.1992 ms       74.6 GFLOPS  launches=1024   fb=0    err=5.31e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s64                      auto              N=0  rm=on      phi=0.0     0.2028 ms     2647.3 GFLOPS  launches=1      fb=1024 err=5.31e-16 (x1 native) uncert=0 repaired=0 ok
+uni_G1024_s64                      native_loop       N=0  rm=default phi=0.5     7.2127 ms       74.4 GFLOPS  launches=1024   fb=0    err=6.69e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s64                      auto              N=0  rm=on      phi=0.5     0.2028 ms     2646.9 GFLOPS  launches=1      fb=1024 err=6.69e-16 (x1 native) uncert=0 repaired=0 ok
+uni_G1024_s64                      native_loop       N=0  rm=default phi=1.0     7.2117 ms       74.4 GFLOPS  launches=1024   fb=0    err=1.12e-15 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s64                      auto              N=0  rm=on      phi=1.0     0.2024 ms     2652.1 GFLOPS  launches=1      fb=1024 err=1.12e-15 (x1 native) uncert=0 repaired=0 ok
+uni_G1024_s64                      native_loop       N=0  rm=default phi=2.0     7.2190 ms       74.4 GFLOPS  launches=1024   fb=0    err=1.67e-15 (x1 native) uncert=-1 repaired=-1 ok
+uni_G1024_s64                      auto              N=0  rm=on      phi=2.0     0.2025 ms     2651.5 GFLOPS  launches=1      fb=1024 err=1.67e-15 (x1 native) uncert=0 repaired=0 ok
+uni_G256_s256                      native_loop       N=0  rm=default phi=0.0     1.8000 ms     4772.2 GFLOPS  launches=256    fb=0    err=6.22e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G256_s256                      auto              N=0  rm=on      phi=0.0     0.3798 ms    22617.5 GFLOPS  launches=1      fb=256  err=6.22e-16 (x1 native) uncert=0 repaired=0 ok
+uni_G256_s256                      native_loop       N=0  rm=default phi=0.5     1.8031 ms     4763.9 GFLOPS  launches=256    fb=0    err=8.73e-16 (x1 native) uncert=-1 repaired=-1 ok
+uni_G256_s256                      auto              N=0  rm=on      phi=0.5     0.3807 ms    22565.2 GFLOPS  launches=1      fb=256  err=8.73e-16 (x1 native) uncert=0 repaired=0 ok
+uni_G256_s256                      native_loop       N=0  rm=default phi=1.0     1.8096 ms     4746.9 GFLOPS  launches=256    fb=0    err=2.23e-15 (x1 native) uncert=-1 repaired=-1 ok
+uni_G256_s256                      auto              N=0  rm=on      phi=1.0     0.3794 ms    22643.2 GFLOPS  launches=1      fb=256  err=2.23e-15 (x1 native) uncert=0 repaired=0 ok
+uni_G256_s256                      native_loop       N=0  rm=default phi=2.0     1.8181 ms     4724.6 GFLOPS  launches=256    fb=0    err=3.87e-15 (x1 native) uncert=-1 repaired=-1 ok
+uni_G256_s256                      auto              N=0  rm=on      phi=2.0     0.3791 ms    22657.6 GFLOPS  launches=1      fb=256  err=3.87e-15 (x1 native) uncert=0 repaired=0 ok
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=0.0     1.6511 ms    21460.1 GFLOPS  launches=64     fb=0    err=5.20e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=on      phi=0.0     1.5905 ms    22278.3 GFLOPS  launches=1      fb=64   err=5.82e-16 (x1.1 native) uncert=0 repaired=0 ok
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=0.5     1.6495 ms    21481.9 GFLOPS  launches=64     fb=0    err=9.80e-16 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=on      phi=0.5     1.5916 ms    22262.8 GFLOPS  launches=1      fb=64   err=9.80e-16 (x1 native) uncert=0 repaired=0 ok
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=1.0     1.6589 ms    21360.1 GFLOPS  launches=64     fb=0    err=2.91e-15 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=on      phi=1.0     1.5903 ms    22280.5 GFLOPS  launches=1      fb=64   err=3.18e-15 (x1.1 native) uncert=0 repaired=0 ok
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=2.0     1.6501 ms    21473.6 GFLOPS  launches=64     fb=0    err=8.05e-15 (x1 native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=on      phi=2.0     1.5927 ms    22247.8 GFLOPS  launches=1      fb=64   err=8.62e-15 (x1.1 native) uncert=0 repaired=0 ok
+het_G256_16-2048                   native_loop       N=0  rm=default phi=0.0     3.0593 ms    13948.8 GFLOPS  launches=256    fb=0    err=6.66e-16 (x1 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=on      phi=0.0     2.0096 ms    21234.6 GFLOPS  launches=1      fb=256  err=6.66e-16 (x1 native) uncert=0 repaired=0 ok
+het_G256_16-2048                   native_loop       N=0  rm=default phi=0.5     3.0632 ms    13930.8 GFLOPS  launches=256    fb=0    err=8.23e-16 (x1 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=on      phi=0.5     2.0097 ms    21233.8 GFLOPS  launches=1      fb=256  err=9.84e-16 (x1.2 native) uncert=0 repaired=0 ok
+het_G256_16-2048                   native_loop       N=0  rm=default phi=1.0     3.0630 ms    13932.0 GFLOPS  launches=256    fb=0    err=2.56e-15 (x1 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=on      phi=1.0     2.0110 ms    21220.3 GFLOPS  launches=1      fb=256  err=3.13e-15 (x1.2 native) uncert=0 repaired=0 ok
+het_G256_16-2048                   native_loop       N=0  rm=default phi=2.0     3.0678 ms    13910.2 GFLOPS  launches=256    fb=0    err=6.70e-15 (x1 native) uncert=-1 repaired=-1 ok
+het_G256_16-2048                   auto              N=0  rm=on      phi=2.0     2.0096 ms    21234.6 GFLOPS  launches=1      fb=256  err=8.06e-15 (x1.2 native) uncert=0 repaired=0 ok

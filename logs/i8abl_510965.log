@@ -1,0 +1,645 @@
+date: 2026-10-07T20:57:52+08:00
+host: 25a-hgpn016
+job: 510965
+git: 5d8e2ad1242176fb590c0b10b5a5b6f41864be0d dirty=18
+Build cuda_13.0.r13.0/compiler.36260728_0
+NVIDIA H200, 580.65.06, 143771 MiB, 1980 MHz, 700.00 W
+[build] variants -> /home/money168/hw2_grouped_gemm/build/abl
+== ptxas (registers / spills; first line sm_90, second sm_120)
+r1:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 118 registers, used 1 barriers, 128 bytes smem
+r2:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 126 registers, used 1 barriers, 128 bytes smem
+no_po:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 127 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 120 registers, used 1 barriers, 128 bytes smem
+zfill:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 127 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 126 registers, used 1 barriers, 128 bytes smem
+dec_end:  8 bytes stack frame, 12 bytes spill stores, 16 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 8 bytes cumulative stack size, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 127 registers, used 1 barriers, 128 bytes smem
+dec_every4:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 128 bytes smem
+no_splitk:  8 bytes stack frame, 4 bytes spill stores, 8 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 8 bytes cumulative stack size, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 124 registers, used 1 barriers, 128 bytes smem
+minb1:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 186 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 181 registers, used 1 barriers, 128 bytes smem
+revert_all:  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 128 registers, used 1 barriers, 128 bytes smem  0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads ptxas info : Used 122 registers, used 1 barriers, 128 bytes smem
+name, clocks.current.sm [MHz], clocks.max.sm [MHz], temperature.gpu, power.draw [W]
+NVIDIA H200, 345 MHz, 1980 MHz, 36, 76.90 W
+
+== correctness (--quick)
+r2: exit=0 ALL PASS
+no_po: exit=0 ALL PASS
+zfill: exit=0 ALL PASS
+dec_end: exit=0 ALL PASS
+dec_every4: exit=0 ALL PASS
+no_splitk: exit=0 ALL PASS
+minb1: exit=0 ALL PASS
+revert_all: exit=0 ALL PASS
+
+== perf pass 1 variant r1  (20:58:33, 1980 MHz, 38)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6276     404.19        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6272     404.46         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.5756     440.75        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.8735     290.41        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.9678     128.92        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3069     109.96         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4438     541.95        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4416     544.64         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4422     543.87        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7134     337.13        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.7041     141.14        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3501     686.98         -
+small256 (m,n<=200, kp<=512)       auto             0.0255      52.14        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0236      56.32         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0259      51.44        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0257      51.83        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0455      29.25        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2670       0.59         -
+single 8192^3                      auto             1.7951     612.49        ok
+single 8192^3                      auto-launch      1.8195     604.29         -
+single 8192^3                      cfg0             1.8836     583.73        ok
+single 8192^3                      cfg1             3.0543     359.99        ok
+single 8192^3                      cfg2             6.6701     164.84        ok
+single 8192^3                      cuBLASLt-loop     0.7500    1466.00         -
+single 4096x4096x16384             auto             0.8980     612.22        ok
+single 4096x4096x16384             auto-launch      0.8979     612.30         -
+single 4096x4096x16384             cfg0             0.9131     602.09        ok
+single 4096x4096x16384             cfg1             1.4583     376.99        ok
+single 4096x4096x16384             cfg2             3.1721     173.31        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3584    1533.79         -
+
+== perf pass 1 variant r2  (20:58:42, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6421     395.05        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6408     395.88         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6471     392.03        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9782     259.34        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.7003     149.19        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3073     109.95         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4994     481.65        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4992     481.84         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.5009     480.13        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7887     304.94        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3373     179.86        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3451     697.05         -
+small256 (m,n<=200, kp<=512)       auto             0.0289      46.00        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0268      49.56         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0290      45.89        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0347      38.32        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0724      18.36        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2473       0.59         -
+single 8192^3                      auto             2.0476     536.99        ok
+single 8192^3                      auto-launch      2.0653     532.39         -
+single 8192^3                      cfg0             2.0674     531.82        ok
+single 8192^3                      cfg1             3.2983     333.36        ok
+single 8192^3                      cfg2             5.0875     216.12        ok
+single 8192^3                      cuBLASLt-loop     0.7515    1463.11         -
+single 4096x4096x16384             auto             1.0250     536.34        ok
+single 4096x4096x16384             auto-launch      1.0253     536.21         -
+single 4096x4096x16384             cfg0             1.0261     535.77        ok
+single 4096x4096x16384             cfg1             1.6146     340.49        ok
+single 4096x4096x16384             cfg2             2.2262     246.95        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3574    1538.36         -
+
+== perf pass 1 variant no_po  (20:58:51, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6289     403.40        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6284     403.68         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6367     398.44        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9678     262.11        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.6405     154.64        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.2947     110.55         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4873     493.54        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4864     494.53         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4875     493.35        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7962     302.10        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3082     183.85        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3492     688.72         -
+small256 (m,n<=200, kp<=512)       auto             0.0291      45.74        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0271      49.10         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0290      45.93        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0356      37.39        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0693      19.20        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2583       0.59         -
+single 8192^3                      auto             2.0367     539.85        ok
+single 8192^3                      auto-launch      2.0493     536.52         -
+single 8192^3                      cfg0             2.0593     533.91        ok
+single 8192^3                      cfg1             3.2833     334.88        ok
+single 8192^3                      cfg2             5.1184     214.82        ok
+single 8192^3                      cuBLASLt-loop     0.7628    1441.36         -
+single 4096x4096x16384             auto             1.0208     538.58        ok
+single 4096x4096x16384             auto-launch      1.0203     538.81         -
+single 4096x4096x16384             cfg0             1.0220     537.92        ok
+single 4096x4096x16384             cfg1             1.6288     337.52        ok
+single 4096x4096x16384             cfg2             2.2309     246.42        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3575    1537.95         -
+
+== perf pass 1 variant zfill  (20:59:00, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6497     390.48        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6499     390.31         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6541     387.80        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0069     251.95        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.7436     145.50        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3230     109.20         -
+ozaki-like 2048^3 x 14 moduli      auto             0.5022     478.96        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.5011     480.02         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.5019     479.25        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8129     295.87        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3862     173.51        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3511     685.00         -
+small256 (m,n<=200, kp<=512)       auto             0.0294      45.28        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0273      48.76         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0297      44.80        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0351      37.85        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0734      18.13        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2965       0.58         -
+single 8192^3                      auto             2.0779     529.15        ok
+single 8192^3                      auto-launch      2.0916     525.67         -
+single 8192^3                      cfg0             2.0885     526.47        ok
+single 8192^3                      cfg1             3.3569     327.54        ok
+single 8192^3                      cfg2             5.2352     210.02        ok
+single 8192^3                      cuBLASLt-loop     0.7698    1428.31         -
+single 4096x4096x16384             auto             1.0480     524.56        ok
+single 4096x4096x16384             auto-launch      1.0478     524.68         -
+single 4096x4096x16384             cfg0             1.0488     524.17        ok
+single 4096x4096x16384             cfg1             1.6465     333.90        ok
+single 4096x4096x16384             cfg2             2.2990     239.13        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3589    1531.79         -
+
+== perf pass 1 variant dec_end  (20:59:09, 1965 MHz, 45)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6779     374.19        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6769     374.75         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6821     371.93        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0248     247.53        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.9725     128.61        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3202     109.34         -
+ozaki-like 2048^3 x 14 moduli      auto             0.5310     452.91        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.5303     453.55         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.5310     452.94        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8207     293.08        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.5889     151.37        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3508     685.63         -
+small256 (m,n<=200, kp<=512)       auto             0.0313      42.51        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0295      45.02         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0307      43.27        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0377      35.31        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0786      16.92        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2962       0.58         -
+single 8192^3                      auto             2.1201     518.60        ok
+single 8192^3                      auto-launch      2.1243     517.58         -
+single 8192^3                      cfg0             2.1249     517.44        ok
+single 8192^3                      cfg1             3.1381     350.38        ok
+single 8192^3                      cfg2             5.2593     209.06        ok
+single 8192^3                      cuBLASLt-loop     0.7495    1466.93         -
+single 4096x4096x16384             auto             1.0653     516.05        ok
+single 4096x4096x16384             auto-launch      1.0645     516.42         -
+single 4096x4096x16384             cfg0             1.0660     515.71        ok
+single 4096x4096x16384             cfg1             1.4741     372.93        ok
+single 4096x4096x16384             cfg2             2.1089     260.69        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3582    1534.60         -
+
+== perf pass 1 variant dec_every4  (20:59:18, 1965 MHz, 46)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6264     404.97        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6251     405.80         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6314     401.80        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9837     257.89        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.8473     137.32        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3113     109.76         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4819     499.12        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4812     499.79         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4816     499.38        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8058     298.50        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.5159     158.66        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3495     688.08         -
+small256 (m,n<=200, kp<=512)       auto             0.0300      44.38        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0280      47.51         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0297      44.81        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0356      37.31        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0757      17.57        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2596       0.59         -
+single 8192^3                      auto             2.0014     549.38        ok
+single 8192^3                      auto-launch      1.9928     551.73         -
+single 8192^3                      cfg0             2.0313     541.27        ok
+single 8192^3                      cfg1             3.2052     343.04        ok
+single 8192^3                      cfg2             5.0155     219.22        ok
+single 8192^3                      cuBLASLt-loop     0.7496    1466.79         -
+single 4096x4096x16384             auto             0.9989     550.35        ok
+single 4096x4096x16384             auto-launch      0.9977     551.00         -
+single 4096x4096x16384             cfg0             0.9991     550.25        ok
+single 4096x4096x16384             cfg1             1.5319     358.87        ok
+single 4096x4096x16384             cfg2             2.0999     261.80        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3581    1535.22         -
+
+== perf pass 1 variant no_splitk  (20:59:28, 1965 MHz, 43)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6184     410.20        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6114     414.89         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6200     409.15        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9689     261.83        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.3554     107.70        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3216     109.27         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4757     505.61        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4750     506.33         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4757     505.62        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7862     305.93        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.9363     124.21        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3508     685.57         -
+small256 (m,n<=200, kp<=512)       auto             0.0288      46.20        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0268      49.66         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0288      46.15        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0354      37.62        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0746      17.84        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2956       0.58         -
+single 8192^3                      auto             1.9593     561.18        ok
+single 8192^3                      auto-launch      1.9735     557.13         -
+single 8192^3                      cfg0             2.0153     545.58        ok
+single 8192^3                      cfg1             3.2473     338.59        ok
+single 8192^3                      cfg2             7.2576     151.50        ok
+single 8192^3                      cuBLASLt-loop     0.7519    1462.29         -
+single 4096x4096x16384             auto             0.9853     557.97        ok
+single 4096x4096x16384             auto-launch      0.9851     558.09         -
+single 4096x4096x16384             cfg0             0.9861     557.51        ok
+single 4096x4096x16384             cfg1             1.5878     346.23        ok
+single 4096x4096x16384             cfg2             3.5839     153.39        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3587    1532.56         -
+
+== perf pass 1 variant minb1  (20:59:37, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.8328     304.60        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.8318     304.98         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.8376     302.86        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.5158     167.36        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.7553      92.07        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3185     109.42         -
+ozaki-like 2048^3 x 14 moduli      auto             0.6382     376.85        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.6372     377.44         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.6379     377.05        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             1.2057     199.49        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             2.1155     113.69        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3506     685.93         -
+small256 (m,n<=200, kp<=512)       auto             0.0406      32.77        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0387      34.33         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0361      36.84        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0525      25.31        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.1213      10.97        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2583       0.59         -
+single 8192^3                      auto             2.6123     420.91        ok
+single 8192^3                      auto-launch      2.6115     421.02         -
+single 8192^3                      cfg0             2.5894     424.61        ok
+single 8192^3                      cfg1             4.7904     229.52        ok
+single 8192^3                      cfg2             7.0815     155.27        ok
+single 8192^3                      cuBLASLt-loop     0.7639    1439.34         -
+single 4096x4096x16384             auto             1.2768     430.57        ok
+single 4096x4096x16384             auto-launch      1.2766     430.63         -
+single 4096x4096x16384             cfg0             1.2775     430.33        ok
+single 4096x4096x16384             cfg1             2.3927     229.76        ok
+single 4096x4096x16384             cfg2             3.3477     164.22        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3581    1535.26         -
+
+== perf pass 1 variant revert_all  (20:59:46, 1980 MHz, 43)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6281     403.91        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6277     404.14         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6315     401.68        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0170     249.43        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.4931     101.75        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3222     109.24         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4866     494.25        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4856     495.27         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4871     493.77        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8122     296.13        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             2.0723     116.06        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3475     692.07         -
+small256 (m,n<=200, kp<=512)       auto             0.0292      45.59        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0273      48.78         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0284      46.81        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0368      36.11        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0714      18.64        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2851       0.58         -
+single 8192^3                      auto             1.9427     565.98        ok
+single 8192^3                      auto-launch      1.9421     566.16         -
+single 8192^3                      cfg0             1.9848     553.96        ok
+single 8192^3                      cfg1             3.1300     351.28        ok
+single 8192^3                      cfg2             7.0865     155.16        ok
+single 8192^3                      cuBLASLt-loop     0.7659    1435.53         -
+single 4096x4096x16384             auto             1.0638     516.80        ok
+single 4096x4096x16384             auto-launch      1.0612     518.04         -
+single 4096x4096x16384             cfg0             1.0622     517.55        ok
+single 4096x4096x16384             cfg1             1.4941     367.94        ok
+single 4096x4096x16384             cfg2             3.4127     161.09        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3586    1533.12         -
+
+== perf pass 2 variant revert_all  (20:59:56, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6284     403.71        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6272     404.46         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6296     402.95        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0086     251.52        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.4719     102.62        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3007     110.26         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4869     493.93        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4855     495.44         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4865     494.43        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8126     295.99        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             2.0565     116.95        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3468     693.63         -
+small256 (m,n<=200, kp<=512)       auto             0.0293      45.47        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0272      48.94         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0284      46.90        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0369      36.07        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0714      18.64        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2978       0.58         -
+single 8192^3                      auto             1.9309     569.44        ok
+single 8192^3                      auto-launch      1.9394     566.92         -
+single 8192^3                      cfg0             1.9798     555.36        ok
+single 8192^3                      cfg1             3.1452     349.58        ok
+single 8192^3                      cfg2             7.0772     155.36        ok
+single 8192^3                      cuBLASLt-loop     0.7558    1454.76         -
+single 4096x4096x16384             auto             1.0614     517.93        ok
+single 4096x4096x16384             auto-launch      1.0612     518.07         -
+single 4096x4096x16384             cfg0             1.0619     517.71        ok
+single 4096x4096x16384             cfg1             1.5029     365.79        ok
+single 4096x4096x16384             cfg2             3.4135     161.05        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3586    1533.13         -
+
+== perf pass 2 variant minb1  (21:00:05, 1980 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.8329     304.57        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.8326     304.68         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.8391     302.34        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.5181     167.11        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.7554      92.06        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3223     109.24         -
+ozaki-like 2048^3 x 14 moduli      auto             0.6380     377.00        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.6373     377.43         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.6386     376.62        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             1.2058     199.47        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             2.1105     113.96        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3508     685.60         -
+small256 (m,n<=200, kp<=512)       auto             0.0406      32.75        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0387      34.33         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0363      36.68        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0526      25.30        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.1213      10.97        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2617       0.59         -
+single 8192^3                      auto             2.6036     422.31        ok
+single 8192^3                      auto-launch      2.5854     425.28         -
+single 8192^3                      cfg0             2.5889     424.70        ok
+single 8192^3                      cfg1             4.7888     229.60        ok
+single 8192^3                      cfg2             7.0821     155.25        ok
+single 8192^3                      cuBLASLt-loop     0.7644    1438.31         -
+single 4096x4096x16384             auto             1.2767     430.60        ok
+single 4096x4096x16384             auto-launch      1.2763     430.74         -
+single 4096x4096x16384             cfg0             1.2772     430.43        ok
+single 4096x4096x16384             cfg1             2.3926     229.78        ok
+single 4096x4096x16384             cfg2             3.3471     164.25        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3584    1534.07         -
+
+== perf pass 2 variant no_splitk  (21:00:15, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6189     409.88        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6194     409.58         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6222     407.74        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9690     261.80        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             2.3576     107.60        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3134     109.65         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4748     506.54        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4746     506.81         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4745     506.90        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7859     306.03        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.9383     124.09        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3489     689.42         -
+small256 (m,n<=200, kp<=512)       auto             0.0288      46.21        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0268      49.59         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0287      46.39        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0352      37.76        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0746      17.83        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2643       0.59         -
+single 8192^3                      auto             1.9758     556.48        ok
+single 8192^3                      auto-launch      1.9743     556.91         -
+single 8192^3                      cfg0             2.0061     548.09        ok
+single 8192^3                      cfg1             3.2335     340.03        ok
+single 8192^3                      cfg2             7.2562     151.53        ok
+single 8192^3                      cuBLASLt-loop     0.7595    1447.65         -
+single 4096x4096x16384             auto             0.9841     558.62        ok
+single 4096x4096x16384             auto-launch      0.9851     558.04         -
+single 4096x4096x16384             cfg0             0.9852     558.00        ok
+single 4096x4096x16384             cfg1             1.5737     349.33        ok
+single 4096x4096x16384             cfg2             3.5828     153.44        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3585    1533.30         -
+
+== perf pass 2 variant dec_every4  (21:00:24, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6264     404.99        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6255     405.55         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6317     401.61        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9867     257.11        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.8524     136.95        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3053     110.04         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4820     499.05        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4812     499.88         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4819     499.13        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8067     298.14        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.5160     158.66        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3487     689.76         -
+small256 (m,n<=200, kp<=512)       auto             0.0300      44.32        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0280      47.52         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0298      44.70        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0354      37.53        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0757      17.57        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2571       0.59         -
+single 8192^3                      auto             2.0083     547.47        ok
+single 8192^3                      auto-launch      2.0172     545.07         -
+single 8192^3                      cfg0             2.0260     542.71        ok
+single 8192^3                      cfg1             3.1919     344.46        ok
+single 8192^3                      cfg2             5.0353     218.36        ok
+single 8192^3                      cuBLASLt-loop     0.7498    1466.35         -
+single 4096x4096x16384             auto             0.9988     550.44        ok
+single 4096x4096x16384             auto-launch      0.9990     550.30         -
+single 4096x4096x16384             cfg0             0.9999     549.78        ok
+single 4096x4096x16384             cfg1             1.5332     358.56        ok
+single 4096x4096x16384             cfg2             2.0446     268.88        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3583    1534.32         -
+
+== perf pass 2 variant dec_end  (21:00:33, 1965 MHz, 43)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6723     377.31        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6708     378.18         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6759     375.31        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0131     250.40        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.9503     130.07        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3022     110.19         -
+ozaki-like 2048^3 x 14 moduli      auto             0.5264     456.93        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.5254     457.74         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.5260     457.22        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8142     295.42        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.5705     153.15        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3486     689.97         -
+small256 (m,n<=200, kp<=512)       auto             0.0311      42.74        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0294      45.25         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0305      43.58        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0375      35.45        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0784      16.97        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2875       0.58         -
+single 8192^3                      auto             2.1060     522.10        ok
+single 8192^3                      auto-launch      2.1283     516.62         -
+single 8192^3                      cfg0             2.1215     518.26        ok
+single 8192^3                      cfg1             3.1447     349.64        ok
+single 8192^3                      cfg2             5.2482     209.50        ok
+single 8192^3                      cuBLASLt-loop     0.7660    1435.44         -
+single 4096x4096x16384             auto             1.0652     516.10        ok
+single 4096x4096x16384             auto-launch      1.0649     516.23         -
+single 4096x4096x16384             cfg0             1.0663     515.59        ok
+single 4096x4096x16384             cfg1             1.4792     371.65        ok
+single 4096x4096x16384             cfg2             2.1220     259.08        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3577    1536.99         -
+
+== perf pass 2 variant zfill  (21:00:42, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6498     390.39        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6494     390.66         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6540     387.89        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             1.0043     252.59        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.7408     145.72        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3257     109.08         -
+ozaki-like 2048^3 x 14 moduli      auto             0.5019     479.19        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.5009     480.20         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.5021     479.00        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.8130     295.84        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3841     173.77        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3507     685.89         -
+small256 (m,n<=200, kp<=512)       auto             0.0293      45.40        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0273      48.73         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0296      44.94        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0350      38.05        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0732      18.18        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2910       0.58         -
+single 8192^3                      auto             2.0813     528.29        ok
+single 8192^3                      auto-launch      2.0906     525.94         -
+single 8192^3                      cfg0             2.0847     527.41        ok
+single 8192^3                      cfg1             3.3520     328.01        ok
+single 8192^3                      cfg2             5.2030     211.32        ok
+single 8192^3                      cuBLASLt-loop     0.7681    1431.40         -
+single 4096x4096x16384             auto             1.0484     524.37        ok
+single 4096x4096x16384             auto-launch      1.0469     525.11         -
+single 4096x4096x16384             cfg0             1.0487     524.21        ok
+single 4096x4096x16384             cfg1             1.6435     334.50        ok
+single 4096x4096x16384             cfg2             2.3307     235.88        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3577    1536.91         -
+
+== perf pass 2 variant no_po  (21:00:51, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6288     403.40        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6278     404.10         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6358     399.00        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9763     259.83        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.6618     152.66        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3232     109.19         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4876     493.23        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4862     494.67         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4872     493.69        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7963     302.03        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3086     183.80        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3509     685.38         -
+small256 (m,n<=200, kp<=512)       auto             0.0293      45.42        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0272      48.87         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0294      45.17        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0358      37.14        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0695      19.14        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2909       0.58         -
+single 8192^3                      auto             2.0306     541.48        ok
+single 8192^3                      auto-launch      2.0476     536.97         -
+single 8192^3                      cfg0             2.0576     534.36        ok
+single 8192^3                      cfg1             3.2744     335.79        ok
+single 8192^3                      cfg2             5.1097     215.18        ok
+single 8192^3                      cuBLASLt-loop     0.7546    1457.14         -
+single 4096x4096x16384             auto             1.0212     538.35        ok
+single 4096x4096x16384             auto-launch      1.0209     538.52         -
+single 4096x4096x16384             cfg0             1.0220     537.92        ok
+single 4096x4096x16384             cfg1             1.6169     340.00        ok
+single 4096x4096x16384             cfg2             2.2253     247.04        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3576    1537.16         -
+
+== perf pass 2 variant r2  (21:01:00, 1965 MHz, 44)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6431     394.44        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6416     395.40         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.6473     391.91        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.9678     262.13        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.6823     150.79        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3033     110.14         -
+ozaki-like 2048^3 x 14 moduli      auto             0.5010     480.08        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4987     482.33         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4995     481.55        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7887     304.95        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.3365     179.96        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3492     688.79         -
+small256 (m,n<=200, kp<=512)       auto             0.0291      45.67        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0272      48.98         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0291      45.77        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0349      38.08        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0725      18.34        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2876       0.58         -
+single 8192^3                      auto             2.0507     536.17        ok
+single 8192^3                      auto-launch      2.0617     533.29         -
+single 8192^3                      cfg0             2.0564     534.67        ok
+single 8192^3                      cfg1             3.3320     329.99        ok
+single 8192^3                      cfg2             5.0935     215.87        ok
+single 8192^3                      cuBLASLt-loop     0.7498    1466.43         -
+single 4096x4096x16384             auto             1.0266     535.49        ok
+single 4096x4096x16384             auto-launch      1.0290     534.26         -
+single 4096x4096x16384             cfg0             1.0252     536.23        ok
+single 4096x4096x16384             cfg1             1.6059     342.34        ok
+single 4096x4096x16384             cfg2             2.2221     247.41        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3586    1533.07         -
+
+== perf pass 2 variant r1  (21:01:10, 1965 MHz, 45)
+set                                variant              ms       TOPS     check
+random64 (m,n<=2048, kp<=4096)     auto             0.6281     403.88        ok
+random64 (m,n<=2048, kp<=4096)     auto-launch      0.6274     404.30         -
+random64 (m,n<=2048, kp<=4096)     cfg0             0.5763     440.17        ok
+random64 (m,n<=2048, kp<=4096)     cfg1             0.8747     290.02        ok
+random64 (m,n<=2048, kp<=4096)     cfg2             1.9683     128.88        ok
+random64 (m,n<=2048, kp<=4096)     cuBLASLt-loop     2.3202     109.33         -
+ozaki-like 2048^3 x 14 moduli      auto             0.4430     542.90        ok
+ozaki-like 2048^3 x 14 moduli      auto-launch      0.4419     544.23         -
+ozaki-like 2048^3 x 14 moduli      cfg0             0.4426     543.40        ok
+ozaki-like 2048^3 x 14 moduli      cfg1             0.7140     336.88        ok
+ozaki-like 2048^3 x 14 moduli      cfg2             1.7023     141.29        ok
+ozaki-like 2048^3 x 14 moduli      cuBLASLt-loop     0.3504     686.46         -
+small256 (m,n<=200, kp<=512)       auto             0.0258      51.52        ok
+small256 (m,n<=200, kp<=512)       auto-launch      0.0238      55.89         -
+small256 (m,n<=200, kp<=512)       cfg0             0.0258      51.49        ok
+small256 (m,n<=200, kp<=512)       cfg1             0.0257      51.78        ok
+small256 (m,n<=200, kp<=512)       cfg2             0.0456      29.15        ok
+small256 (m,n<=200, kp<=512)       cuBLASLt-loop     2.2961       0.58         -
+single 8192^3                      auto             1.7773     618.63        ok
+single 8192^3                      auto-launch      1.8178     604.86         -
+single 8192^3                      cfg0             1.8768     585.84        ok
+single 8192^3                      cfg1             3.0231     363.71        ok
+single 8192^3                      cfg2             6.6821     164.55        ok
+single 8192^3                      cuBLASLt-loop     0.7621    1442.74         -
+single 4096x4096x16384             auto             0.8998     610.97        ok
+single 4096x4096x16384             auto-launch      0.9003     610.61         -
+single 4096x4096x16384             cfg0             0.9048     607.59        ok
+single 4096x4096x16384             cfg1             1.4636     375.63        ok
+single 4096x4096x16384             cfg2             3.1668     173.60        ok
+single 4096x4096x16384             cuBLASLt-loop     0.3579    1536.21         -
+
+== summary (TOPS; small256 in ms)
+variant     pass   rnd_cfg0  rnd_auto   oz_cfg0 sq8k_cfg0 k16k_cfg0 sm256_auto sm256_cfg2
+r1          1        440.75    404.19    543.87    583.73    602.09    0.0255    0.0455
+r1          2        440.17    403.88    543.40    585.84    607.59    0.0258    0.0456
+r2          1        392.03    395.05    480.13    531.82    535.77    0.0289    0.0724
+r2          2        391.91    394.44    481.55    534.67    536.23    0.0291    0.0725
+no_po       1        398.44    403.40    493.35    533.91    537.92    0.0291    0.0693
+no_po       2        399.00    403.40    493.69    534.36    537.92    0.0293    0.0695
+zfill       1        387.80    390.48    479.25    526.47    524.17    0.0294    0.0734
+zfill       2        387.89    390.39    479.00    527.41    524.21    0.0293    0.0732
+dec_end     1        371.93    374.19    452.94    517.44    515.71    0.0313    0.0786
+dec_end     2        375.31    377.31    457.22    518.26    515.59    0.0311    0.0784
+dec_every4  1        401.80    404.97    499.38    541.27    550.25    0.0300    0.0757
+dec_every4  2        401.61    404.99    499.13    542.71    549.78    0.0300    0.0757
+no_splitk   1        409.15    410.20    505.62    545.58    557.51    0.0288    0.0746
+no_splitk   2        407.74    409.88    506.90    548.09    558.00    0.0288    0.0746
+minb1       1        302.86    304.60    377.05    424.61    430.33    0.0406    0.1213
+minb1       2        302.34    304.57    376.62    424.70    430.43    0.0406    0.1213
+revert_all  1        401.68    403.91    493.77    553.96    517.55    0.0292    0.0714
+revert_all  2        402.95    403.71    494.43    555.36    517.71    0.0293    0.0714
+results: /home/money168/hw2_grouped_gemm/logs/i8abl_510965

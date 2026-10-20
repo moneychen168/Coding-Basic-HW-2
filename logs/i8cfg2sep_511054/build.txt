@@ -1,0 +1,24 @@
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc24i8_grouped_splitk_kernelEPK10i8_problemPii' for 'sm_90'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc24i8_grouped_splitk_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 96 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 28.883 ms
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_90'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 128 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 90.989 ms
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc24i8_grouped_splitk_kernelEPK10i8_problemPii' for 'sm_120'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc24i8_grouped_splitk_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 108 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 24.251 ms
+ptxas info    : Compiling entry function '_ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc28i8_grouped_persistent_kernelEPK10i8_problemPii' for 'sm_120'
+ptxas info    : Function properties for _ZN53_GLOBAL__N__67524db5_20_int8_grouped_gemm_cu_90a411dc28i8_grouped_persistent_kernelEPK10i8_problemPii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 118 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 69.068 ms

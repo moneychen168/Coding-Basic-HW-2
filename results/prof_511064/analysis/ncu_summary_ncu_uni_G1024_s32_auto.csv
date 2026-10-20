@@ -1,0 +1,2 @@
+stage,kernel,launches,cc,duration_us,imma_pct,imma_metric,dram_pct,dram_GBps,sm_pct,occ_pct,occ_theo_pct,regs,smem_static_B,smem_dyn_B,lim_regs,lim_smem,lim_warps,stall_src,stall1,stall1_pct,stall2,stall2_pct,stall3,stall3_pct
+cublas,void Kernel2<cutlass_80_tensorop_d884gemm_grouped_64x64_16x4_align1>(Params),2,9.0,29.36,0.0,sm__pipe_tensor_op_imma_cycles_active.avg.pct_of_peak_sustained_active,12.0074465,576.6149350000001,37.640911,12.1678465,12.5,190.0,0.0,65552.0,2.0,2.0,16.0,cycles/issue,wait,38.23,math_pipe_throttle,16.21,short_scoreboard,15.18

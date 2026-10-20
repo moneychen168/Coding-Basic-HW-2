@@ -1,0 +1,316 @@
+# Roofline: final
+
+GPU NVIDIA H200: FP64 peak 61.33 TFLOPS, INT8 peak 1676 TOPS, DRAM 3.94 TB/s (calib JSON). Roof of a path = FP64 roof (native) or INT8 peak / N (emulated) capped by DRAM bandwidth x AI.
+
+| workload | path | N | AI (flop/B) | GFLOPS | roof GFLOPS | % of roof | bound |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| het_G256_16-2048 | native_loop | - | 36.06 | 14,105 | 61,326 | 23.0 | compute |
+| het_G256_16-2048 | native_grouped | - | 36.06 | 21,540 | 61,326 | 35.1 | compute |
+| het_G256_16-2048 | emu_loop | 15 | 5.11 | 722.0 | 20,174 | 3.6 | memory |
+| het_G256_16-2048 | emu_grouped | 15 | 5.11 | 4167.5 | 20,174 | 20.7 | memory |
+| het_G256_16-2048 | emu_grouped_reuse | 15 | 5.11 | 3754.3 | 20,174 | 18.6 | memory |
+| het_G256_16-2048 | emu_loop_batched | 15 | 5.11 | 1783.9 | 20,174 | 8.8 | memory |
+| het_G256_16-2048 | auto (all fallback) | - | 36.06 | 21,235 | 61,326 | 34.6 | compute |
+| het_G64_16-2048 | native_loop | - | 39.62 | 13,736 | 61,326 | 22.4 | compute |
+| het_G64_16-2048 | native_grouped | - | 39.62 | 20,397 | 61,326 | 33.3 | compute |
+| het_G64_16-2048 | emu_loop | 15 | 5.05 | 687.3 | 19,928 | 3.4 | memory |
+| het_G64_16-2048 | emu_grouped | 15 | 5.05 | 3782.4 | 19,928 | 19.0 | memory |
+| het_G64_16-2048 | emu_grouped_reuse | 15 | 5.05 | 3677.0 | 19,928 | 18.5 | memory |
+| het_G64_16-2048 | emu_loop_batched | 15 | 5.05 | 1737.5 | 19,928 | 8.7 | memory |
+| het_G64_16-2048 | auto (all fallback) | - | 39.62 | 19,858 | 61,326 | 32.4 | compute |
+| lora_G16_r16_expand | native_loop | - | 3.54 | 2627.2 | 13,978 | 18.8 | memory |
+| lora_G16_r16_expand | native_grouped | - | 3.54 | 4766.3 | 13,978 | 34.1 | memory |
+| lora_G16_r16_expand | emu_loop | 14 | 0.26 | 92.7 | 1013 | 9.1 | memory |
+| lora_G16_r16_expand | emu_grouped | 14 | 0.26 | 239.3 | 1013 | 23.6 | memory |
+| lora_G16_r16_expand | emu_grouped_reuse | 14 | 0.26 | 206.4 | 1013 | 20.4 | memory |
+| lora_G16_r16_expand | emu_loop_batched | 14 | 0.26 | 166.9 | 1013 | 16.5 | memory |
+| lora_G16_r16_expand | auto (all fallback) | - | 3.54 | 4748.7 | 13,978 | 34.0 | memory |
+| lora_G16_r16_shrink | native_loop | - | 3.54 | 1473.4 | 13,978 | 10.5 | memory |
+| lora_G16_r16_shrink | native_grouped | - | 3.54 | 1678.6 | 13,978 | 12.0 | memory |
+| lora_G16_r16_shrink | emu_loop | 15 | 1.21 | 19.1 | 4786 | 0.4 | memory |
+| lora_G16_r16_shrink | emu_grouped | 15 | 1.21 | 237.6 | 4786 | 5.0 | memory |
+| lora_G16_r16_shrink | emu_grouped_reuse | 15 | 1.21 | 172.3 | 4786 | 3.6 | memory |
+| lora_G16_r16_shrink | emu_loop_batched | 15 | 1.21 | 57.2 | 4786 | 1.2 | memory |
+| lora_G16_r16_shrink | auto (all fallback) | - | 3.54 | 1661.4 | 13,978 | 11.9 | memory |
+| lora_G64_rmix_expand | native_loop | - | 3.15 | 1007.3 | 12,444 | 8.1 | memory |
+| lora_G64_rmix_expand | native_grouped | - | 3.15 | 3679.2 | 12,444 | 29.6 | memory |
+| lora_G64_rmix_expand | emu_loop | 15 | 0.33 | 45.5 | 1299 | 3.5 | memory |
+| lora_G64_rmix_expand | emu_grouped | 15 | 0.33 | 183.6 | 1299 | 14.1 | memory |
+| lora_G64_rmix_expand | emu_grouped_reuse | 15 | 0.33 | 141.3 | 1299 | 10.9 | memory |
+| lora_G64_rmix_expand | emu_loop_batched | 15 | 0.33 | 96.3 | 1299 | 7.4 | memory |
+| lora_G64_rmix_expand | auto (all fallback) | - | 3.15 | 3572.6 | 12,444 | 28.7 | memory |
+| lora_G64_rmix_shrink | native_loop | - | 3.15 | 526.9 | 12,444 | 4.2 | memory |
+| lora_G64_rmix_shrink | native_grouped | - | 3.15 | 2610.8 | 12,444 | 21.0 | memory |
+| lora_G64_rmix_shrink | emu_loop | 15 | 1.08 | 8.0 | 4268 | 0.2 | memory |
+| lora_G64_rmix_shrink | emu_grouped | 15 | 1.08 | 249.5 | 4268 | 5.8 | memory |
+| lora_G64_rmix_shrink | emu_grouped_reuse | 15 | 1.08 | 249.6 | 4268 | 5.8 | memory |
+| lora_G64_rmix_shrink | emu_loop_batched | 15 | 1.08 | 24.9 | 4268 | 0.6 | memory |
+| lora_G64_rmix_shrink | auto (all fallback) | - | 3.15 | 2514.8 | 12,444 | 20.2 | memory |
+| moe_E128_decode_z0.0_down | native_loop | - | 0.99 | 1199.2 | 3917 | 30.6 | memory |
+| moe_E128_decode_z0.0_down | native_grouped | - | 0.99 | 1857.1 | 3917 | 47.4 | memory |
+| moe_E128_decode_z0.0_down | emu_loop | 15 | 0.34 | 41.4 | 1331 | 3.1 | memory |
+| moe_E128_decode_z0.0_down | emu_grouped | 15 | 0.34 | 265.9 | 1331 | 20.0 | memory |
+| moe_E128_decode_z0.0_down | emu_grouped_reuse | 15 | 0.34 | 244.9 | 1331 | 18.4 | memory |
+| moe_E128_decode_z0.0_down | emu_loop_batched | 15 | 0.34 | 91.7 | 1331 | 6.9 | memory |
+| moe_E128_decode_z0.0_up | native_loop | - | 0.99 | 1004.4 | 3917 | 25.6 | memory |
+| moe_E128_decode_z0.0_up | native_grouped | - | 0.99 | 1863.2 | 3917 | 47.6 | memory |
+| moe_E128_decode_z0.0_up | emu_loop | 15 | 0.34 | 24.1 | 1350 | 1.8 | memory |
+| moe_E128_decode_z0.0_up | emu_grouped | 15 | 0.34 | 272.1 | 1350 | 20.2 | memory |
+| moe_E128_decode_z0.0_up | emu_grouped_reuse | 15 | 0.34 | 276.9 | 1350 | 20.5 | memory |
+| moe_E128_decode_z0.0_up | emu_loop_batched | 15 | 0.34 | 62.7 | 1350 | 4.6 | memory |
+| moe_E128_decode_z1.2_down | native_loop | - | 0.99 | 1668.9 | 3917 | 42.6 | memory |
+| moe_E128_decode_z1.2_down | native_grouped | - | 0.99 | 1531.0 | 3917 | 39.1 | memory |
+| moe_E128_decode_z1.2_down | emu_loop | 15 | 0.34 | 52.6 | 1331 | 4.0 | memory |
+| moe_E128_decode_z1.2_down | emu_grouped | 15 | 0.34 | 332.6 | 1331 | 25.0 | memory |
+| moe_E128_decode_z1.2_down | emu_grouped_reuse | 15 | 0.34 | 308.2 | 1331 | 23.2 | memory |
+| moe_E128_decode_z1.2_down | emu_loop_batched | 15 | 0.34 | 116.5 | 1331 | 8.8 | memory |
+| moe_E128_decode_z1.2_up | native_loop | - | 0.99 | 1397.7 | 3917 | 35.7 | memory |
+| moe_E128_decode_z1.2_up | native_grouped | - | 0.99 | 1541.1 | 3917 | 39.3 | memory |
+| moe_E128_decode_z1.2_up | emu_loop | 15 | 0.34 | 30.6 | 1350 | 2.3 | memory |
+| moe_E128_decode_z1.2_up | emu_grouped | 15 | 0.34 | 337.1 | 1350 | 25.0 | memory |
+| moe_E128_decode_z1.2_up | emu_grouped_reuse | 15 | 0.34 | 349.5 | 1350 | 25.9 | memory |
+| moe_E128_decode_z1.2_up | emu_loop_batched | 15 | 0.34 | 79.6 | 1350 | 5.9 | memory |
+| moe_E128_prefill_z0.0_down | native_loop | - | 7.57 | 8466.1 | 29,850 | 28.4 | memory |
+| moe_E128_prefill_z0.0_down | native_grouped | - | 7.57 | 14,214 | 29,850 | 47.6 | memory |
+| moe_E128_prefill_z0.0_down | emu_loop | 15 | 2.23 | 312.0 | 8799 | 3.5 | memory |
+| moe_E128_prefill_z0.0_down | emu_grouped | 15 | 2.23 | 1928.5 | 8799 | 21.9 | memory |
+| moe_E128_prefill_z0.0_down | emu_grouped_reuse | 15 | 2.23 | 1790.6 | 8799 | 20.3 | memory |
+| moe_E128_prefill_z0.0_down | emu_loop_batched | 15 | 2.23 | 677.1 | 8799 | 7.7 | memory |
+| moe_E128_prefill_z0.0_down | auto (all fallback) | - | 7.57 | 14,158 | 29,850 | 47.4 | memory |
+| moe_E128_prefill_z0.0_up | native_loop | - | 7.57 | 6883.8 | 29,850 | 23.1 | memory |
+| moe_E128_prefill_z0.0_up | native_grouped | - | 7.57 | 14,685 | 29,850 | 49.2 | memory |
+| moe_E128_prefill_z0.0_up | emu_loop | 15 | 2.47 | 181.9 | 9726 | 1.9 | memory |
+| moe_E128_prefill_z0.0_up | emu_grouped | 15 | 2.47 | 2023.8 | 9726 | 20.8 | memory |
+| moe_E128_prefill_z0.0_up | emu_grouped_reuse | 15 | 2.47 | 2062.0 | 9726 | 21.2 | memory |
+| moe_E128_prefill_z0.0_up | emu_loop_batched | 15 | 2.47 | 455.7 | 9726 | 4.7 | memory |
+| moe_E128_prefill_z0.0_up | auto (all fallback) | - | 7.57 | 14,673 | 29,850 | 49.2 | memory |
+| moe_E128_prefill_z1.2_down | native_loop | - | 7.57 | 7886.1 | 29,850 | 26.4 | memory |
+| moe_E128_prefill_z1.2_down | native_grouped | - | 7.57 | 11,528 | 29,850 | 38.6 | memory |
+| moe_E128_prefill_z1.2_down | emu_loop | 15 | 2.23 | 314.4 | 8799 | 3.6 | memory |
+| moe_E128_prefill_z1.2_down | emu_grouped | 15 | 2.23 | 1829.3 | 8799 | 20.8 | memory |
+| moe_E128_prefill_z1.2_down | emu_grouped_reuse | 15 | 2.23 | 1698.7 | 8799 | 19.3 | memory |
+| moe_E128_prefill_z1.2_down | emu_loop_batched | 15 | 2.23 | 682.8 | 8799 | 7.8 | memory |
+| moe_E128_prefill_z1.2_down | auto (all fallback) | - | 7.57 | 11,470 | 29,850 | 38.4 | memory |
+| moe_E128_prefill_z1.2_up | native_loop | - | 7.57 | 6838.1 | 29,850 | 22.9 | memory |
+| moe_E128_prefill_z1.2_up | native_grouped | - | 7.57 | 12,035 | 29,850 | 40.3 | memory |
+| moe_E128_prefill_z1.2_up | emu_loop | 15 | 2.47 | 184.4 | 9726 | 1.9 | memory |
+| moe_E128_prefill_z1.2_up | emu_grouped | 15 | 2.47 | 1960.1 | 9726 | 20.2 | memory |
+| moe_E128_prefill_z1.2_up | emu_grouped_reuse | 15 | 2.47 | 1984.8 | 9726 | 20.4 | memory |
+| moe_E128_prefill_z1.2_up | emu_loop_batched | 15 | 2.47 | 469.0 | 9726 | 4.8 | memory |
+| moe_E128_prefill_z1.2_up | auto (all fallback) | - | 7.57 | 11,908 | 29,850 | 39.9 | memory |
+| moe_E64_decode_z0.0_down | native_loop | - | 1.49 | 2165.5 | 5875 | 36.9 | memory |
+| moe_E64_decode_z0.0_down | native_grouped | - | 1.49 | 2110.4 | 5875 | 35.9 | memory |
+| moe_E64_decode_z0.0_down | emu_loop | 15 | 0.51 | 72.5 | 2005 | 3.6 | memory |
+| moe_E64_decode_z0.0_down | emu_grouped | 15 | 0.51 | 407.3 | 2005 | 20.3 | memory |
+| moe_E64_decode_z0.0_down | emu_grouped_reuse | 15 | 0.51 | 400.8 | 2005 | 20.0 | memory |
+| moe_E64_decode_z0.0_down | emu_loop_batched | 15 | 0.51 | 151.0 | 2005 | 7.5 | memory |
+| moe_E64_decode_z0.0_down | auto (all fallback) | - | 1.49 | 2734.6 | 5875 | 46.5 | memory |
+| moe_E64_decode_z0.0_up | native_loop | - | 1.49 | 2150.2 | 5875 | 36.6 | memory |
+| moe_E64_decode_z0.0_up | native_grouped | - | 1.49 | 2105.5 | 5875 | 35.8 | memory |
+| moe_E64_decode_z0.0_up | emu_loop | 15 | 0.51 | 54.6 | 2017 | 2.7 | memory |
+| moe_E64_decode_z0.0_up | emu_grouped | 15 | 0.51 | 406.5 | 2017 | 20.2 | memory |
+| moe_E64_decode_z0.0_up | emu_grouped_reuse | 15 | 0.51 | 415.8 | 2017 | 20.6 | memory |
+| moe_E64_decode_z0.0_up | emu_loop_batched | 15 | 0.51 | 110.5 | 2017 | 5.5 | memory |
+| moe_E64_decode_z0.0_up | auto (all fallback) | - | 1.49 | 2564.6 | 5875 | 43.7 | memory |
+| moe_E64_decode_z1.2_down | native_loop | - | 1.49 | 2964.7 | 5875 | 50.5 | memory |
+| moe_E64_decode_z1.2_down | native_grouped | - | 1.49 | 2105.1 | 5875 | 35.8 | memory |
+| moe_E64_decode_z1.2_down | emu_loop | 15 | 0.51 | 90.9 | 2005 | 4.5 | memory |
+| moe_E64_decode_z1.2_down | emu_grouped | 15 | 0.51 | 503.4 | 2005 | 25.1 | memory |
+| moe_E64_decode_z1.2_down | emu_grouped_reuse | 15 | 0.51 | 498.2 | 2005 | 24.9 | memory |
+| moe_E64_decode_z1.2_down | emu_loop_batched | 15 | 0.51 | 188.7 | 2005 | 9.4 | memory |
+| moe_E64_decode_z1.2_up | native_loop | - | 1.49 | 2954.2 | 5875 | 50.3 | memory |
+| moe_E64_decode_z1.2_up | native_grouped | - | 1.49 | 2106.0 | 5875 | 35.8 | memory |
+| moe_E64_decode_z1.2_up | emu_loop | 15 | 0.51 | 68.3 | 2017 | 3.4 | memory |
+| moe_E64_decode_z1.2_up | emu_grouped | 15 | 0.51 | 498.2 | 2017 | 24.7 | memory |
+| moe_E64_decode_z1.2_up | emu_grouped_reuse | 15 | 0.51 | 517.3 | 2017 | 25.7 | memory |
+| moe_E64_decode_z1.2_up | emu_loop_batched | 15 | 0.51 | 137.6 | 2017 | 6.8 | memory |
+| moe_E64_prefill_z0.0_down | native_loop | - | 21.52 | 19,995 | 61,326 | 32.6 | compute |
+| moe_E64_prefill_z0.0_down | native_grouped | - | 21.52 | 22,220 | 61,326 | 36.2 | compute |
+| moe_E64_prefill_z0.0_down | emu_loop | 15 | 5.85 | 1045.9 | 23,089 | 4.5 | memory |
+| moe_E64_prefill_z0.0_down | emu_grouped | 15 | 5.85 | 5478.0 | 23,089 | 23.7 | memory |
+| moe_E64_prefill_z0.0_down | emu_grouped_reuse | 15 | 5.85 | 5416.3 | 23,089 | 23.5 | memory |
+| moe_E64_prefill_z0.0_down | emu_loop_batched | 15 | 5.85 | 2141.8 | 23,089 | 9.3 | memory |
+| moe_E64_prefill_z0.0_down | auto (all fallback) | - | 21.52 | 22,127 | 61,326 | 36.1 | compute |
+| moe_E64_prefill_z0.0_up | native_loop | - | 21.52 | 20,222 | 61,326 | 33.0 | compute |
+| moe_E64_prefill_z0.0_up | native_grouped | - | 21.52 | 22,499 | 61,326 | 36.7 | compute |
+| moe_E64_prefill_z0.0_up | emu_loop | 15 | 6.28 | 801.0 | 24,779 | 3.2 | memory |
+| moe_E64_prefill_z0.0_up | emu_grouped | 15 | 6.28 | 5609.2 | 24,779 | 22.6 | memory |
+| moe_E64_prefill_z0.0_up | emu_grouped_reuse | 15 | 6.28 | 5717.0 | 24,779 | 23.1 | memory |
+| moe_E64_prefill_z0.0_up | emu_loop_batched | 15 | 6.28 | 1616.2 | 24,779 | 6.5 | memory |
+| moe_E64_prefill_z0.0_up | auto (all fallback) | - | 21.52 | 22,358 | 61,326 | 36.5 | compute |
+| moe_E64_prefill_z1.2_down | native_loop | - | 21.52 | 22,399 | 61,326 | 36.5 | compute |
+| moe_E64_prefill_z1.2_down | native_grouped | - | 21.52 | 22,318 | 61,326 | 36.4 | compute |
+| moe_E64_prefill_z1.2_down | emu_loop | 15 | 5.85 | 1062.6 | 23,089 | 4.6 | memory |
+| moe_E64_prefill_z1.2_down | emu_grouped | 15 | 5.85 | 5096.9 | 23,089 | 22.1 | memory |
+| moe_E64_prefill_z1.2_down | emu_grouped_reuse | 15 | 5.85 | 5012.1 | 23,089 | 21.7 | memory |
+| moe_E64_prefill_z1.2_down | emu_loop_batched | 15 | 5.85 | 2047.3 | 23,089 | 8.9 | memory |
+| moe_E64_prefill_z1.2_down | auto (all fallback) | - | 21.52 | 22,204 | 61,326 | 36.2 | compute |
+| moe_E64_prefill_z1.2_up | native_loop | - | 21.52 | 21,629 | 61,326 | 35.3 | compute |
+| moe_E64_prefill_z1.2_up | native_grouped | - | 21.52 | 22,448 | 61,326 | 36.6 | compute |
+| moe_E64_prefill_z1.2_up | emu_loop | 15 | 6.28 | 816.5 | 24,779 | 3.3 | memory |
+| moe_E64_prefill_z1.2_up | emu_grouped | 15 | 6.28 | 5208.3 | 24,779 | 21.0 | memory |
+| moe_E64_prefill_z1.2_up | emu_grouped_reuse | 15 | 6.28 | 5271.3 | 24,779 | 21.3 | memory |
+| moe_E64_prefill_z1.2_up | emu_loop_batched | 15 | 6.28 | 1577.3 | 24,779 | 6.4 | memory |
+| moe_E64_prefill_z1.2_up | auto (all fallback) | - | 21.52 | 22,418 | 61,326 | 36.6 | compute |
+| moe_E8_decode_z0.0_down | native_loop | - | 3.92 | 6245.5 | 15,469 | 40.4 | memory |
+| moe_E8_decode_z0.0_down | native_grouped | - | 3.92 | 3613.1 | 15,469 | 23.4 | memory |
+| moe_E8_decode_z0.0_down | emu_loop | 15 | 1.34 | 127.1 | 5275 | 2.4 | memory |
+| moe_E8_decode_z0.0_down | emu_grouped | 15 | 1.34 | 604.4 | 5275 | 11.5 | memory |
+| moe_E8_decode_z0.0_down | emu_grouped_reuse | 15 | 1.34 | 741.0 | 5275 | 14.0 | memory |
+| moe_E8_decode_z0.0_down | emu_loop_batched | 15 | 1.34 | 290.0 | 5275 | 5.5 | memory |
+| moe_E8_decode_z0.0_down | auto (all fallback) | - | 3.92 | 3592.8 | 15,469 | 23.2 | memory |
+| moe_E8_decode_z0.0_up | native_loop | - | 3.92 | 7281.8 | 15,469 | 47.1 | memory |
+| moe_E8_decode_z0.0_up | native_grouped | - | 3.92 | 5894.4 | 15,469 | 38.1 | memory |
+| moe_E8_decode_z0.0_up | emu_loop | 15 | 1.27 | 266.3 | 5029 | 5.3 | memory |
+| moe_E8_decode_z0.0_up | emu_grouped | 15 | 1.27 | 895.3 | 5029 | 17.8 | memory |
+| moe_E8_decode_z0.0_up | emu_grouped_reuse | 15 | 1.27 | 952.8 | 5029 | 18.9 | memory |
+| moe_E8_decode_z0.0_up | emu_loop_batched | 15 | 1.27 | 465.3 | 5029 | 9.3 | memory |
+| moe_E8_decode_z0.0_up | auto (all fallback) | - | 3.92 | 5839.3 | 15,469 | 37.7 | memory |
+| moe_E8_decode_z1.2_down | native_loop | - | 3.92 | 6324.9 | 15,469 | 40.9 | memory |
+| moe_E8_decode_z1.2_down | native_grouped | - | 3.92 | 3619.6 | 15,469 | 23.4 | memory |
+| moe_E8_decode_z1.2_down | emu_loop | 15 | 1.34 | 127.8 | 5275 | 2.4 | memory |
+| moe_E8_decode_z1.2_down | emu_grouped | 15 | 1.34 | 600.9 | 5275 | 11.4 | memory |
+| moe_E8_decode_z1.2_down | emu_grouped_reuse | 15 | 1.34 | 731.5 | 5275 | 13.9 | memory |
+| moe_E8_decode_z1.2_down | emu_loop_batched | 15 | 1.34 | 293.9 | 5275 | 5.6 | memory |
+| moe_E8_decode_z1.2_down | auto (all fallback) | - | 3.92 | 3593.4 | 15,469 | 23.2 | memory |
+| moe_E8_decode_z1.2_up | native_loop | - | 3.92 | 7183.8 | 15,469 | 46.4 | memory |
+| moe_E8_decode_z1.2_up | native_grouped | - | 3.92 | 5860.9 | 15,469 | 37.9 | memory |
+| moe_E8_decode_z1.2_up | emu_loop | 15 | 1.27 | 266.7 | 5029 | 5.3 | memory |
+| moe_E8_decode_z1.2_up | emu_grouped | 15 | 1.27 | 879.6 | 5029 | 17.5 | memory |
+| moe_E8_decode_z1.2_up | emu_grouped_reuse | 15 | 1.27 | 954.0 | 5029 | 19.0 | memory |
+| moe_E8_decode_z1.2_up | emu_loop_batched | 15 | 1.27 | 467.7 | 5029 | 9.3 | memory |
+| moe_E8_decode_z1.2_up | auto (all fallback) | - | 3.92 | 5852.1 | 15,469 | 37.8 | memory |
+| moe_E8_prefill_z0.0_down | native_loop | - | 77.91 | 37,356 | 61,326 | 60.9 | compute |
+| moe_E8_prefill_z0.0_down | native_grouped | - | 77.91 | 26,936 | 61,326 | 43.9 | compute |
+| moe_E8_prefill_z0.0_down | emu_loop | 15 | 19.40 | 3374.4 | 76,529 | 4.4 | memory |
+| moe_E8_prefill_z0.0_down | emu_grouped | 15 | 19.40 | 11,337 | 76,529 | 14.8 | memory |
+| moe_E8_prefill_z0.0_down | emu_grouped_reuse | 15 | 19.40 | 12,266 | 76,529 | 16.0 | memory |
+| moe_E8_prefill_z0.0_down | emu_loop_batched | 15 | 19.40 | 6001.8 | 76,529 | 7.8 | memory |
+| moe_E8_prefill_z0.0_down | auto (all fallback) | - | 77.91 | 26,815 | 61,326 | 43.7 | compute |
+| moe_E8_prefill_z0.0_up | native_loop | - | 77.91 | 39,376 | 61,326 | 64.2 | compute |
+| moe_E8_prefill_z0.0_up | native_grouped | - | 77.91 | 27,427 | 61,326 | 44.7 | compute |
+| moe_E8_prefill_z0.0_up | emu_loop | 15 | 11.34 | 5777.1 | 44,743 | 12.9 | memory |
+| moe_E8_prefill_z0.0_up | emu_grouped | 15 | 11.34 | 10,940 | 44,743 | 24.5 | memory |
+| moe_E8_prefill_z0.0_up | emu_grouped_reuse | 15 | 11.34 | 11,157 | 44,743 | 24.9 | memory |
+| moe_E8_prefill_z0.0_up | emu_loop_batched | 15 | 11.34 | 7936.1 | 44,743 | 17.7 | memory |
+| moe_E8_prefill_z0.0_up | auto (all fallback) | - | 77.91 | 27,361 | 61,326 | 44.6 | compute |
+| moe_E8_prefill_z1.2_down | native_loop | - | 77.91 | 42,772 | 61,326 | 69.7 | compute |
+| moe_E8_prefill_z1.2_down | native_grouped | - | 77.91 | 26,882 | 61,326 | 43.8 | compute |
+| moe_E8_prefill_z1.2_down | emu_loop | 15 | 19.40 | 3432.6 | 76,529 | 4.5 | memory |
+| moe_E8_prefill_z1.2_down | emu_grouped | 15 | 19.40 | 11,156 | 76,529 | 14.6 | memory |
+| moe_E8_prefill_z1.2_down | emu_grouped_reuse | 15 | 19.40 | 12,304 | 76,529 | 16.1 | memory |
+| moe_E8_prefill_z1.2_down | emu_loop_batched | 15 | 19.40 | 6176.2 | 76,529 | 8.1 | memory |
+| moe_E8_prefill_z1.2_down | auto (all fallback) | - | 77.91 | 26,842 | 61,326 | 43.8 | compute |
+| moe_E8_prefill_z1.2_up | native_loop | - | 77.91 | 43,135 | 61,326 | 70.3 | compute |
+| moe_E8_prefill_z1.2_up | native_grouped | - | 77.91 | 28,501 | 61,326 | 46.5 | compute |
+| moe_E8_prefill_z1.2_up | emu_loop | 15 | 11.34 | 5717.7 | 44,743 | 12.8 | memory |
+| moe_E8_prefill_z1.2_up | emu_grouped | 15 | 11.34 | 11,000 | 44,743 | 24.6 | memory |
+| moe_E8_prefill_z1.2_up | emu_grouped_reuse | 15 | 11.34 | 11,233 | 44,743 | 25.1 | memory |
+| moe_E8_prefill_z1.2_up | emu_loop_batched | 15 | 11.34 | 8060.1 | 44,743 | 18.0 | memory |
+| moe_E8_prefill_z1.2_up | auto (all fallback) | - | 77.91 | 28,132 | 61,326 | 45.9 | compute |
+| uni_G1024_s128 | native_loop | - | 10.67 | 596.8 | 42,080 | 1.4 | memory |
+| uni_G1024_s128 | native_grouped | - | 10.67 | 18,102 | 42,080 | 43.0 | memory |
+| uni_G1024_s128 | emu_loop | 15 | 1.47 | 30.1 | 5804 | 0.5 | memory |
+| uni_G1024_s128 | emu_grouped | 15 | 1.47 | 1371.7 | 5804 | 23.6 | memory |
+| uni_G1024_s128 | emu_grouped_reuse | 15 | 1.47 | 1240.8 | 5804 | 21.4 | memory |
+| uni_G1024_s128 | emu_loop_batched | 15 | 1.47 | 92.9 | 5804 | 1.6 | memory |
+| uni_G1024_s128 | auto (all fallback) | - | 10.67 | 17,618 | 42,080 | 41.9 | memory |
+| uni_G1024_s16 | native_loop | - | 1.33 | 1.7 | 5260 | 0.0 | memory |
+| uni_G1024_s16 | native_grouped | - | 1.33 | 130.3 | 5260 | 2.5 | memory |
+| uni_G1024_s16 | emu_loop | 14 | 0.17 | 0.1 | 657 | 0.0 | memory |
+| uni_G1024_s16 | emu_grouped | 14 | 0.17 | 8.5 | 657 | 1.3 | memory |
+| uni_G1024_s16 | emu_grouped_reuse | 14 | 0.17 | 7.5 | 657 | 1.1 | memory |
+| uni_G1024_s16 | emu_loop_batched | 14 | 0.17 | 0.3 | 657 | 0.0 | memory |
+| uni_G1024_s16 | auto (all fallback) | - | 1.33 | 119.2 | 5260 | 2.3 | memory |
+| uni_G1024_s256 | native_loop | - | 21.33 | 4782.8 | 61,326 | 7.8 | compute |
+| uni_G1024_s256 | native_grouped | - | 21.33 | 26,094 | 61,326 | 42.5 | compute |
+| uni_G1024_s256 | emu_loop | 15 | 2.94 | 195.3 | 11,608 | 1.7 | memory |
+| uni_G1024_s256 | emu_grouped | 15 | 2.94 | 3454.3 | 11,608 | 29.8 | memory |
+| uni_G1024_s256 | emu_grouped_reuse | 15 | 2.94 | 3237.5 | 11,608 | 27.9 | memory |
+| uni_G1024_s256 | emu_loop_batched | 15 | 2.94 | 596.5 | 11,608 | 5.1 | memory |
+| uni_G1024_s256 | auto (all fallback) | - | 21.33 | 25,924 | 61,326 | 42.3 | compute |
+| uni_G1024_s32 | native_loop | - | 2.67 | 9.5 | 10,520 | 0.1 | memory |
+| uni_G1024_s32 | native_grouped | - | 2.67 | 987.6 | 10,520 | 9.4 | memory |
+| uni_G1024_s32 | emu_loop | 15 | 0.37 | 0.6 | 1451 | 0.0 | memory |
+| uni_G1024_s32 | emu_grouped | 15 | 0.37 | 56.5 | 1451 | 3.9 | memory |
+| uni_G1024_s32 | emu_grouped_reuse | 15 | 0.37 | 50.3 | 1451 | 3.5 | memory |
+| uni_G1024_s32 | emu_loop_batched | 15 | 0.37 | 1.9 | 1451 | 0.1 | memory |
+| uni_G1024_s32 | auto (all fallback) | - | 2.67 | 899.3 | 10,520 | 8.5 | memory |
+| uni_G1024_s64 | native_loop | - | 5.33 | 74.5 | 21,040 | 0.4 | memory |
+| uni_G1024_s64 | native_grouped | - | 5.33 | 5987.6 | 21,040 | 28.5 | memory |
+| uni_G1024_s64 | emu_loop | 15 | 0.74 | 4.3 | 2902 | 0.1 | memory |
+| uni_G1024_s64 | emu_grouped | 15 | 0.74 | 327.3 | 2902 | 11.3 | memory |
+| uni_G1024_s64 | emu_grouped_reuse | 15 | 0.74 | 282.5 | 2902 | 9.7 | memory |
+| uni_G1024_s64 | emu_loop_batched | 15 | 0.74 | 13.7 | 2902 | 0.5 | memory |
+| uni_G1024_s64 | auto (all fallback) | - | 5.33 | 5676.6 | 21,040 | 27.0 | memory |
+| uni_G256_s128 | native_loop | - | 10.67 | 587.1 | 42,080 | 1.4 | memory |
+| uni_G256_s128 | native_grouped | - | 10.67 | 15,639 | 42,080 | 37.2 | memory |
+| uni_G256_s128 | emu_loop | 15 | 1.47 | 29.5 | 5804 | 0.5 | memory |
+| uni_G256_s128 | emu_grouped | 15 | 1.47 | 1325.4 | 5804 | 22.8 | memory |
+| uni_G256_s128 | emu_grouped_reuse | 15 | 1.47 | 1202.5 | 5804 | 20.7 | memory |
+| uni_G256_s128 | emu_loop_batched | 15 | 1.47 | 94.3 | 5804 | 1.6 | memory |
+| uni_G256_s128 | auto (all fallback) | - | 10.67 | 15,322 | 42,080 | 36.4 | memory |
+| uni_G256_s16 | native_loop | - | 1.33 | 1.7 | 5260 | 0.0 | memory |
+| uni_G256_s16 | native_grouped | - | 1.33 | 88.6 | 5260 | 1.7 | memory |
+| uni_G256_s16 | emu_loop | 14 | 0.17 | 0.1 | 657 | 0.0 | memory |
+| uni_G256_s16 | emu_grouped | 14 | 0.17 | 8.3 | 657 | 1.3 | memory |
+| uni_G256_s16 | emu_grouped_reuse | 14 | 0.17 | 7.5 | 657 | 1.1 | memory |
+| uni_G256_s16 | emu_loop_batched | 14 | 0.17 | 0.3 | 657 | 0.0 | memory |
+| uni_G256_s16 | auto (all fallback) | - | 1.33 | 82.3 | 5260 | 1.6 | memory |
+| uni_G256_s256 | native_loop | - | 21.33 | 4729.8 | 61,326 | 7.7 | compute |
+| uni_G256_s256 | native_grouped | - | 21.33 | 24,621 | 61,326 | 40.1 | compute |
+| uni_G256_s256 | emu_loop | 15 | 2.94 | 195.1 | 11,608 | 1.7 | memory |
+| uni_G256_s256 | emu_grouped | 15 | 2.94 | 3403.3 | 11,608 | 29.3 | memory |
+| uni_G256_s256 | emu_grouped_reuse | 15 | 2.94 | 3223.9 | 11,608 | 27.8 | memory |
+| uni_G256_s256 | emu_loop_batched | 15 | 2.94 | 593.4 | 11,608 | 5.1 | memory |
+| uni_G256_s256 | auto (all fallback) | - | 21.33 | 24,350 | 61,326 | 39.7 | compute |
+| uni_G256_s32 | native_loop | - | 2.67 | 9.4 | 10,520 | 0.1 | memory |
+| uni_G256_s32 | native_grouped | - | 2.67 | 671.3 | 10,520 | 6.4 | memory |
+| uni_G256_s32 | emu_loop | 15 | 0.37 | 0.6 | 1451 | 0.0 | memory |
+| uni_G256_s32 | emu_grouped | 15 | 0.37 | 57.4 | 1451 | 4.0 | memory |
+| uni_G256_s32 | emu_grouped_reuse | 15 | 0.37 | 50.4 | 1451 | 3.5 | memory |
+| uni_G256_s32 | emu_loop_batched | 15 | 0.37 | 1.9 | 1451 | 0.1 | memory |
+| uni_G256_s32 | auto (all fallback) | - | 2.67 | 624.2 | 10,520 | 5.9 | memory |
+| uni_G256_s64 | native_loop | - | 5.33 | 74.4 | 21,040 | 0.4 | memory |
+| uni_G256_s64 | native_grouped | - | 5.33 | 4843.3 | 21,040 | 23.0 | memory |
+| uni_G256_s64 | emu_loop | 15 | 0.74 | 4.3 | 2902 | 0.1 | memory |
+| uni_G256_s64 | emu_grouped | 15 | 0.74 | 316.5 | 2902 | 10.9 | memory |
+| uni_G256_s64 | emu_grouped_reuse | 15 | 0.74 | 281.5 | 2902 | 9.7 | memory |
+| uni_G256_s64 | emu_loop_batched | 15 | 0.74 | 13.8 | 2902 | 0.5 | memory |
+| uni_G256_s64 | auto (all fallback) | - | 5.33 | 4512.4 | 21,040 | 21.4 | memory |
+| uni_G4096_s128 | native_loop | - | 10.67 | 599.3 | 42,080 | 1.4 | memory |
+| uni_G4096_s128 | native_grouped | - | 10.67 | 18,954 | 42,080 | 45.0 | memory |
+| uni_G4096_s128 | emu_loop | 15 | 1.47 | 29.5 | 5804 | 0.5 | memory |
+| uni_G4096_s128 | emu_grouped | 15 | 1.47 | 1363.9 | 5804 | 23.5 | memory |
+| uni_G4096_s128 | emu_grouped_reuse | 15 | 1.47 | 1206.4 | 5804 | 20.8 | memory |
+| uni_G4096_s128 | emu_loop_batched | 15 | 1.47 | 95.5 | 5804 | 1.6 | memory |
+| uni_G4096_s128 | auto (all fallback) | - | 10.67 | 18,396 | 42,080 | 43.7 | memory |
+| uni_G4096_s16 | native_loop | - | 1.33 | 1.7 | 5260 | 0.0 | memory |
+| uni_G4096_s16 | native_grouped | - | 1.33 | 133.9 | 5260 | 2.5 | memory |
+| uni_G4096_s16 | emu_loop | 14 | 0.17 | 0.1 | 657 | 0.0 | memory |
+| uni_G4096_s16 | emu_grouped | 14 | 0.17 | 7.7 | 657 | 1.2 | memory |
+| uni_G4096_s16 | emu_grouped_reuse | 14 | 0.17 | 7.1 | 657 | 1.1 | memory |
+| uni_G4096_s16 | emu_loop_batched | 14 | 0.17 | 0.3 | 657 | 0.0 | memory |
+| uni_G4096_s16 | auto (all fallback) | - | 1.33 | 121.6 | 5260 | 2.3 | memory |
+| uni_G4096_s32 | native_loop | - | 2.67 | 9.3 | 10,520 | 0.1 | memory |
+| uni_G4096_s32 | native_grouped | - | 2.67 | 991.4 | 10,520 | 9.4 | memory |
+| uni_G4096_s32 | emu_loop | 15 | 0.37 | 0.6 | 1451 | 0.0 | memory |
+| uni_G4096_s32 | emu_grouped | 15 | 0.37 | 53.3 | 1451 | 3.7 | memory |
+| uni_G4096_s32 | emu_grouped_reuse | 15 | 0.37 | 47.5 | 1451 | 3.3 | memory |
+| uni_G4096_s32 | emu_loop_batched | 15 | 0.37 | 1.9 | 1451 | 0.1 | memory |
+| uni_G4096_s32 | auto (all fallback) | - | 2.67 | 904.7 | 10,520 | 8.6 | memory |
+| uni_G4096_s64 | native_loop | - | 5.33 | 74.5 | 21,040 | 0.4 | memory |
+| uni_G4096_s64 | native_grouped | - | 5.33 | 6490.8 | 21,040 | 30.9 | memory |
+| uni_G4096_s64 | emu_loop | 15 | 0.74 | 4.3 | 2902 | 0.1 | memory |
+| uni_G4096_s64 | emu_grouped | 15 | 0.74 | 303.0 | 2902 | 10.4 | memory |
+| uni_G4096_s64 | emu_grouped_reuse | 15 | 0.74 | 266.6 | 2902 | 9.2 | memory |
+| uni_G4096_s64 | emu_loop_batched | 15 | 0.74 | 13.8 | 2902 | 0.5 | memory |
+| uni_G4096_s64 | auto (all fallback) | - | 5.33 | 6033.9 | 21,040 | 28.7 | memory |
+
+Warnings:
+- moe_E128_decode_z0.0_down/auto: moduli count unknown -> skipped
+- moe_E128_decode_z0.0_up/auto: moduli count unknown -> skipped
+- moe_E128_decode_z1.2_down/auto: moduli count unknown -> skipped
+- moe_E128_decode_z1.2_up/auto: moduli count unknown -> skipped
+- moe_E64_decode_z1.2_down/auto: moduli count unknown -> skipped
+- moe_E64_decode_z1.2_up/auto: moduli count unknown -> skipped

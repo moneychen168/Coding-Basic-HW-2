@@ -1,0 +1,2 @@
+workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma,repair_mode,rho_budget,total_entries,num_safety_fallback
+lora_G64_rmix_shrink,emu_grouped,64,4.321444e+08,6926.378906,0.062,3,nan,0,lora,0.50,0,6926.378906,6926.500569,nan,nan,nan,15,15,1,NVIDIA H200,ok,-1,-1,-1,default,default,52752,-1

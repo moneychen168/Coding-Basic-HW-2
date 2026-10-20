@@ -1,0 +1,35 @@
+[ggemm] calib fp64_flops=5.36e+13(nominal) int8_ops=9.9e+14(nominal) mem_bw=2.68e+12(nominal) tiny_mnk=3.28e+04(default) json=none
+[calib]
+  bad_units: rejected (fp64=5.36e+13 i8=9.895e+14 bw=2.68e+12) stderr: [ggemm] WARNING: /home/money168/hw2_grouped_gemm/tests/testdata/planner/bad_units.json fp64_flops=67 outside [1e+11, 1e+16], ignored
+[ggemm] WARNING: /home/money168/hw2_grouped_gemm/tests/testdata/planner/bad_units.json int8_ops=1979 outside [1e+12, 1e+17], ignored
+[ggemm] WARNING: /home/money168/hw2_grouped_gemm/tests/testdata/planner/bad_units.json mem_bw=3.35 outside [1e+10, 1e+14], ignored
+
+  auto params (NVIDIA H200): fp64=6.13261e+13 i8=1.67606e+15 bw=3.94498e+12 (from file)
+model: num_sms=132 fp64=5e+13 i8=1e+15 bw=3e+12 tiny_mnk=32768
+[routes]
+[num_moduli]
+[tiles]
+   128x128  x4000 -> tile 128 (pad eff 1.000, best 1.000)
+   256x512  x4000 -> tile 128 (pad eff 1.000, best 1.000)
+  1024x1024 x4000 -> tile 128 (pad eff 1.000, best 1.000)
+    64x64   x4000 -> tile 64 (pad eff 1.000, best 1.000)
+    96x96   x4000 -> tile 32 (pad eff 1.000, best 1.000)
+    32x32   x4000 -> tile 32 (pad eff 1.000, best 1.000)
+   200x200  x4000 -> tile 32 (pad eff 0.797, best 0.797)
+  1000x40   x4000 -> tile 64 (pad eff 0.610, best 0.610)
+  shrink 256x256x4096 G=1 N=14: 128-tiles=60 (2*SM=264) -> tile 32
+  shrink 512x512x8192 G=1 N=14: 128-tiles=240 (2*SM=264) -> tile 64
+  shrink 384x384x4096 G=2 N=14: 128-tiles=270 (2*SM=264) -> tile 128
+  shrink 256x128x16384 G=3 N=14: 128-tiles=90 (2*SM=264) -> tile 64
+  re-eval 224^2x8192: alone tile 128 UNPROFITABLE t_emu 0.000111 | group tile 128 UNPROFITABLE t_emu 0.000111
+  re-eval 200^2x8192: alone tile 32 UNPROFITABLE t_emu 7.99e-05 | group tile 32 UNPROFITABLE t_emu 7.99e-05
+  re-eval 320^2x8192: alone tile 64 UNPROFITABLE t_emu 0.000115 | group tile 64 UNPROFITABLE t_emu 0.000115
+  re-eval 480^2x8192: alone tile 128 UNPROFITABLE t_emu 0.000162 | group tile 128 UNPROFITABLE t_emu 0.000162
+[determinism]
+[perf]
+  G=65535 path=4: plan host time best 8179.1 us, mean 8214.4 us (124.81 ns/problem); operator new calls: first call 0, steady 0
+    routes: EMPTY=1318 K_ZERO=2011 K_TOO_LARGE=1307 TINY=1 UNPROFITABLE=56805 SMALL_K=3467 ALPHA_ZERO=626
+  G=65535 path=3: plan host time best 7275.4 us, mean 7322.2 us (111.02 ns/problem); operator new calls: first call 0, steady 0
+    routes: EMU=60273 EMPTY=1318 K_ZERO=2011 K_TOO_LARGE=1307 ALPHA_ZERO=626
+
+test_planner: 1655 passed, 0 failed -> PASS

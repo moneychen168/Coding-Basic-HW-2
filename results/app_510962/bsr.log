@@ -1,0 +1,11 @@
+device: NVIDIA H200  atoms=128 basis=dz N=1180 blocks=6900 (53.9/row) nnz=589326 (42.324%) maxK=621 nrhs=32
+[block] native_loop     G=6900   total    47.281 ms (     0.8 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=6900 fb=0 err=0.00e+00 (x0 bound) ok
+[block] native_grouped  G=6900   total     0.363 ms (   104.0 GFLOPS) pre  0.8% gemm 95.6% post  3.5% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[block] emu_loop        G=6900   total   791.973 ms (     0.0 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=110400 fb=0 err=1.83e-16 (x0.0012 bound) ok
+[block] emu_grouped     G=6900   total     8.768 ms (     4.3 GFLOPS) pre  0.0% gemm 99.7% post  0.2% launches=3 fb=0 err=4.57e+15 (x3e+28 bound) ok
+[block] auto            G=6900   total     1.050 ms (    35.9 GFLOPS) pre  0.3% gemm 98.5% post  1.2% launches=1 fb=6900 err=0.00e+00 (x0 bound) ok
+[panel] native_loop     G=128    total     0.913 ms (    41.3 GFLOPS) pre  1.5% gemm 98.1% post  0.3% launches=128 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] native_grouped  G=128    total     0.078 ms (   485.2 GFLOPS) pre 18.4% gemm 77.8% post  3.8% launches=1 fb=0 err=0.00e+00 (x0 bound) ok
+[panel] emu_loop        G=128    total    45.751 ms (     0.8 GFLOPS) pre  0.0% gemm 100.0% post  0.0% launches=2176 fb=0 err=6.61e-16 (x0.0043 bound) ok
+[panel] emu_grouped     G=128    total     0.745 ms (    50.6 GFLOPS) pre  2.0% gemm 97.6% post  0.4% launches=3 fb=0 err=4.55e-16 (x0.003 bound) ok
+[panel] auto            G=128    total     0.079 ms (   480.1 GFLOPS) pre 17.8% gemm 78.5% post  3.7% launches=1 fb=128 err=0.00e+00 (x0 bound) ok

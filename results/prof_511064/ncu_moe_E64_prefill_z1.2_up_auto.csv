@@ -1,0 +1,2 @@
+workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma,repair_mode,rho_budget,total_entries,num_safety_fallback
+moe_E64_prefill_z1.2_up,auto,64,3.543348e+10,2934.608643,12.074,1,nan,64,moe,0.50,0,2934.608643,2934.717068,nan,nan,nan,0,0,1,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1

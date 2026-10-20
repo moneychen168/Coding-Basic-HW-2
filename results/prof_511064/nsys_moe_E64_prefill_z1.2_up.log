@@ -1,0 +1,23 @@
+device: NVIDIA H200 (sm_90), reps=5 warmup=2
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+moe_E64_prefill_z1.2_up            native_loop       N=0  rm=default phi=0.5     1.6829 ms    21054.9 GFLOPS  launches=64     fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            native_grouped    N=0  rm=default phi=0.5     1.5905 ms    22278.3 GFLOPS  launches=1      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_loop          N=0  rm=default phi=0.5    57.7702 ms      613.4 GFLOPS  launches=1152   fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_grouped       N=0  rm=default phi=0.5     6.7463 ms     5252.3 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            auto              N=0  rm=default phi=0.5     1.5974 ms    22182.3 GFLOPS  launches=1      fb=64   err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_grouped_reuse N=0  rm=default phi=0.5     6.6289 ms     5345.3 GFLOPS  launches=3      fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+moe_E64_prefill_z1.2_up            emu_loop_batched  N=0  rm=default phi=0.5    36.6168 ms      967.7 GFLOPS  launches=192    fb=0    err=nan (xnan native) uncert=-1 repaired=-1 ok
+Collecting data...
+Generating '/home/money168/tmp/nsys-report-fbbd.qdstrm'
+[1/1] [0%                          ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [0%                          ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [6%                          ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [9%                          ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [10%                         ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [11%                         ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [===22%                      ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [====25%                     ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [========42%                 ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [==============63%           ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [=================74%        ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [===================82%      ] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [========================100%] nsys_moe_E64_prefill_z1.2_up.nsys-rep[1/1] [========================100%] nsys_moe_E64_prefill_z1.2_up.nsys-rep
+Generated:
+	/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.nsys-rep
+Generating SQLite file /home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.sqlite from /home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.nsys-rep
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_gpu_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up_cuda_gpu_trace.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_api_sum.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up_cuda_api_sum.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/cuda_api_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up_cuda_api_trace.csv]... PROCESSED
+
+Processing [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up.sqlite] with [/opt/nvidia/nsight-systems/2025.3.2/host-linux-x64/reports/nvtx_pushpop_trace.py] to [/home/money168/hw2_grouped_gemm/results/prof_511064/nsys_moe_E64_prefill_z1.2_up_nvtx_pushpop_trace.csv]... PROCESSED
+

@@ -1,0 +1,10 @@
+device: NVIDIA H200  sm_90  SMs=132
+hetero 19 probs, full CPU bit-exact, cfg0 128x128          PASS (0 mismatches)
+hetero 19 probs, full CPU bit-exact, cfg1 64x64            PASS (0 mismatches)
+hetero 19 probs, full CPU bit-exact, cfg2 32x32            PASS (0 mismatches)
+hetero 19 probs, full CPU bit-exact, auto                  PASS (0 mismatches)
+split path, 2nd launch w/o re-upload (counter reset)       PASS (0 mismatches)
+all -128 inputs, kp=131040 (int32 edge)                    PASS (0 mismatches)
+cuBLASLt refused 0 / 19 hetero problems (empty ones not submitted)
+cuBLASLt vs ours (auto), supported problems                PASS (0 mismatches)
+ALL PASS

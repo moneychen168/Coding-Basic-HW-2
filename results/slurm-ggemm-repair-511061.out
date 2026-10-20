@@ -1,0 +1,5 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+ar: unable to copy file '/home/money168/hw2_grouped_gemm/build/libggemm.a'; reason: No such file or directory

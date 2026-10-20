@@ -1,0 +1,14 @@
+commit: a48eb3e6e5ccf99d384377fc2341800308015d14
+branch: master
+subject: planner: per-call shape memo (bit-identical plans, no alloc in call path); bench: --count-call in final, host_allocs_timed column; aggregate: fallback fraction per AUTO cell, emu vs all-native geomean, E2E labels; test_reuse_e2e: no counter sync inside timing
+date: 2026-10-20T22:18:00+08:00
+
+== git status --porcelain
+ M README.md
+?? docs/qa_prep.md
+?? docs/report.md
+?? scripts/analysis/__pycache__/
+
+== git diff --stat HEAD
+ README.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

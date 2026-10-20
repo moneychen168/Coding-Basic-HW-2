@@ -1,0 +1,15 @@
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+date: 2026-10-20T22:00:10+08:00
+host: 25a-hgpn004
+job: 590147
+git: b56631d7a6835973f788c962056eb319a490a650 dirty=0
+Build cuda_13.0.r13.0/compiler.36260728_0
+NVIDIA H200, 580.65.06, 143771 MiB, 1980 MHz, 700.00 W
+commit: b56631d7a6835973f788c962056eb319a490a650
+branch: master
+subject: 10/07 progress video (4:50) + video toolchain; planner/graph review fixes; prep split-K + reconstruct indexing (bit-exact, numerics PASSED job 511101)
+date: 2026-10-07T21:28:26+08:00
+
+== git status --porcelain
+
+== git diff --stat HEAD

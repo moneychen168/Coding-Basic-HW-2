@@ -1,0 +1,546 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build/libggemm.a
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_LOOP_BATCHED’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+/home/money168/hw2_grouped_gemm/bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_LOOP_BATCHED’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h: In function ‘const char* ggemm_path_name(ggemm_path_t)’:
+/home/money168/hw2_grouped_gemm/tests/../bench/workloads.h:74:8: warning: enumeration value ‘GGEMM_PATH_EMU_LOOP_BATCHED’ not handled in switch [-Wswitch]
+   74 |   switch (p) {
+      |        ^
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_grouped
+[build] OK: /home/money168/hw2_grouped_gemm/build/bench_grouped
+device: NVIDIA H200 (sm_90)
+[edge cases]
+  ok    native_loop     edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  vs_native=       1  rel_max=2.076e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    native_grouped  edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  vs_native=       1  rel_max=2.076e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=18 moduli=[15,15]
+  ok    emu_grouped     edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            edge/one_100x70x50 err_cw=8.225e-16  err/gamma=1.482e-01  vs_native=       1  rel_max=2.076e-13  fallback=1 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/one_100x70x50 err_cw=1.611e-16  err/gamma=2.903e-02  vs_native=   0.196  rel_max=2.645e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    native_loop     edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=1 moduli=[0,0]
+  ok    native_grouped  edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=17 moduli=[14,14]
+  ok    emu_grouped     edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=1 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/one_1x1x1 err_cw=4.659e-17  err/gamma=4.196e-01  vs_native=       1  rel_max=4.659e-17  fallback=0 launches=3 moduli=[14,14]
+  ok    native_loop     edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  vs_native=       1  rel_max=1.113e-13  fallback=0 launches=2 moduli=[0,0]
+  ok    native_grouped  edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  vs_native=       1  rel_max=1.113e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=19 moduli=[15,15]
+  ok    emu_grouped     edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=4 moduli=[15,15]
+  ok    auto            edge/zero_dims_mix err_cw=5.748e-16  err/gamma=1.362e-01  vs_native=       1  rel_max=1.113e-13  fallback=1 launches=1 moduli=[0,0]
+  FAIL /home/money168/hw2_grouped_gemm/tests/test_grouped.cu:81: st.moduli_min >= 2 && st.moduli_max <= GGEMM_MAX_MODULI && st.moduli_min <= st.moduli_max -- edge/zero_dims_mix auto: moduli range [0,0]
+  ok    emu_grouped_reuse edge/zero_dims_mix err_cw=1.932e-16  err/gamma=4.579e-02  vs_native=   0.336  rel_max=7.322e-14  fallback=0 launches=4 moduli=[15,15]
+  ok    native_loop     edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    native_grouped  edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_loop        edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_grouped     edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    auto            edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    emu_grouped_reuse edge/all_empty err_cw=0.000e+00  err/gamma=0.000e+00  vs_native=       1  rel_max=0.000e+00  fallback=0 launches=0 moduli=[0,0]
+  ok    native_loop     edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  vs_native=       1  rel_max=1.147e-13  fallback=0 launches=2 moduli=[0,0]
+  ok    native_grouped  edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  vs_native=       1  rel_max=1.147e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        edge/beta0_nanC err_cw=3.100e-16  err/gamma=5.584e-01  vs_native=   0.522  rel_max=2.498e-14  fallback=0 launches=35 moduli=[14,15]
+  ok    emu_grouped     edge/beta0_nanC err_cw=3.100e-16  err/gamma=5.584e-01  vs_native=   0.522  rel_max=2.498e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            edge/beta0_nanC err_cw=5.934e-16  err/gamma=5.584e-01  vs_native=       1  rel_max=1.147e-13  fallback=2 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/beta0_nanC err_cw=3.100e-16  err/gamma=5.584e-01  vs_native=   0.522  rel_max=2.498e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    native_loop     edge/k_not_mult32 err_cw=4.703e-16  err/gamma=3.159e-01  vs_native=       1  rel_max=6.893e-13  fallback=0 launches=3 moduli=[0,0]
+  ok    native_grouped  edge/k_not_mult32 err_cw=4.703e-16  err/gamma=5.536e-01  vs_native=       1  rel_max=6.893e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        edge/k_not_mult32 err_cw=1.844e-16  err/gamma=5.536e-01  vs_native=   0.392  rel_max=4.080e-14  fallback=0 launches=53 moduli=[14,15]
+  ok    emu_grouped     edge/k_not_mult32 err_cw=1.844e-16  err/gamma=5.536e-01  vs_native=   0.392  rel_max=4.080e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            edge/k_not_mult32 err_cw=4.703e-16  err/gamma=5.536e-01  vs_native=       1  rel_max=6.893e-13  fallback=3 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse edge/k_not_mult32 err_cw=1.844e-16  err/gamma=5.536e-01  vs_native=   0.392  rel_max=4.080e-14  fallback=0 launches=3 moduli=[14,15]
+  bigk AUTO fallback=3 err/gamma=1.885e-01
+  bigk emu_grouped allow_fallback=0 -> refused (rc=3), accepted
+  bigk auto allow_fallback=0 -> refused (rc=3), accepted
+  emu_grouped launches: G=16 -> 3, G=1024 -> 3
+[uni_G256_s16/phi0.0/a1_b0] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=4.057e-16  err/gamma=2.284e-01
+  ok    native_loop     uni_G256_s16/phi0.0/a1_b0 err_cw=4.057e-16  err/gamma=2.284e-01  vs_native=       1  rel_max=2.262e-11  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s16/phi0.0/a1_b0 err_cw=4.057e-16  err/gamma=2.284e-01  vs_native=       1  rel_max=2.262e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s16/phi0.0/a1_b0 err_cw=1.909e-16  err/gamma=1.075e-01  vs_native=   0.471  rel_max=4.541e-14  fallback=0 launches=4352 moduli=[14,14]
+  ok    emu_grouped     uni_G256_s16/phi0.0/a1_b0 err_cw=1.909e-16  err/gamma=1.075e-01  vs_native=   0.471  rel_max=4.541e-14  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            uni_G256_s16/phi0.0/a1_b0 err_cw=4.057e-16  err/gamma=2.284e-01  vs_native=       1  rel_max=2.262e-11  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s16/phi0.0/a1_b0 err_cw=1.909e-16  err/gamma=1.075e-01  vs_native=   0.471  rel_max=4.541e-14  fallback=0 launches=3 moduli=[14,14]
+[uni_G256_s16/phi0.5/a1_b0] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=4.524e-16  err/gamma=2.547e-01
+  ok    native_loop     uni_G256_s16/phi0.5/a1_b0 err_cw=4.524e-16  err/gamma=2.547e-01  vs_native=       1  rel_max=3.767e-12  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s16/phi0.5/a1_b0 err_cw=4.524e-16  err/gamma=2.547e-01  vs_native=       1  rel_max=3.767e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s16/phi0.5/a1_b0 err_cw=6.272e-16  err/gamma=3.531e-01  vs_native=    1.39  rel_max=3.717e-12  fallback=0 launches=4352 moduli=[14,14]
+  ok    emu_grouped     uni_G256_s16/phi0.5/a1_b0 err_cw=6.272e-16  err/gamma=3.531e-01  vs_native=    1.39  rel_max=3.717e-12  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            uni_G256_s16/phi0.5/a1_b0 err_cw=4.524e-16  err/gamma=2.547e-01  vs_native=       1  rel_max=3.767e-12  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s16/phi0.5/a1_b0 err_cw=6.272e-16  err/gamma=3.531e-01  vs_native=    1.39  rel_max=3.717e-12  fallback=0 launches=3 moduli=[14,14]
+[uni_G256_s16/phi1.0/a1_b0] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=5.194e-16  err/gamma=2.924e-01
+  ok    native_loop     uni_G256_s16/phi1.0/a1_b0 err_cw=5.194e-16  err/gamma=2.924e-01  vs_native=       1  rel_max=1.055e-12  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s16/phi1.0/a1_b0 err_cw=5.194e-16  err/gamma=2.924e-01  vs_native=       1  rel_max=1.055e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s16/phi1.0/a1_b0 err_cw=6.601e-16  err/gamma=3.716e-01  vs_native=    1.27  rel_max=3.471e-12  fallback=0 launches=4352 moduli=[14,14]
+  ok    emu_grouped     uni_G256_s16/phi1.0/a1_b0 err_cw=6.601e-16  err/gamma=3.716e-01  vs_native=    1.27  rel_max=3.471e-12  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            uni_G256_s16/phi1.0/a1_b0 err_cw=5.194e-16  err/gamma=2.924e-01  vs_native=       1  rel_max=1.055e-12  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s16/phi1.0/a1_b0 err_cw=6.601e-16  err/gamma=3.716e-01  vs_native=    1.27  rel_max=3.471e-12  fallback=0 launches=3 moduli=[14,14]
+[uni_G256_s16/phi1.0/a1.5_b-0.75] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=5.393e-16  err/gamma=2.699e-01
+  ok    native_loop     uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=5.393e-16  err/gamma=2.699e-01  vs_native=       1  rel_max=1.542e-11  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=5.393e-16  err/gamma=2.699e-01  vs_native=       1  rel_max=1.542e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=7.872e-16  err/gamma=3.939e-01  vs_native=    1.46  rel_max=1.200e-11  fallback=0 launches=4352 moduli=[14,14]
+  ok    emu_grouped     uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=7.872e-16  err/gamma=3.939e-01  vs_native=    1.46  rel_max=1.200e-11  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=5.393e-16  err/gamma=2.699e-01  vs_native=       1  rel_max=1.542e-11  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=7.872e-16  err/gamma=3.939e-01  vs_native=    1.46  rel_max=1.200e-11  fallback=0 launches=3 moduli=[14,14]
+[uni_G256_s16/phi2.0/a1_b0] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=6.485e-16  err/gamma=3.651e-01
+  ok    native_loop     uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=3.991e-13  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=3.991e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=1.074e-12  fallback=0 launches=4352 moduli=[14,14]
+  ok    emu_grouped     uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=1.074e-12  fallback=0 launches=3 moduli=[14,14]
+  ok    auto            uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=3.991e-13  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s16/phi2.0/a1_b0 err_cw=6.485e-16  err/gamma=3.651e-01  vs_native=       1  rel_max=1.074e-12  fallback=0 launches=3 moduli=[14,14]
+[uni_G256_s64/phi0.0/a1_b0] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=5.095e-16  err/gamma=7.171e-02
+  ok    native_loop     uni_G256_s64/phi0.0/a1_b0 err_cw=5.095e-16  err/gamma=7.171e-02  vs_native=       1  rel_max=1.146e-09  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s64/phi0.0/a1_b0 err_cw=5.095e-16  err/gamma=7.171e-02  vs_native=       1  rel_max=1.146e-09  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s64/phi0.0/a1_b0 err_cw=1.218e-16  err/gamma=1.714e-02  vs_native=   0.239  rel_max=8.547e-13  fallback=0 launches=4608 moduli=[15,15]
+  ok    emu_grouped     uni_G256_s64/phi0.0/a1_b0 err_cw=1.218e-16  err/gamma=1.714e-02  vs_native=   0.239  rel_max=8.547e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G256_s64/phi0.0/a1_b0 err_cw=5.095e-16  err/gamma=7.171e-02  vs_native=       1  rel_max=1.146e-09  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s64/phi0.0/a1_b0 err_cw=1.218e-16  err/gamma=1.714e-02  vs_native=   0.239  rel_max=8.547e-13  fallback=0 launches=3 moduli=[15,15]
+[uni_G256_s64/phi0.5/a1_b0] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=5.496e-16  err/gamma=7.735e-02
+  ok    native_loop     uni_G256_s64/phi0.5/a1_b0 err_cw=5.496e-16  err/gamma=7.735e-02  vs_native=       1  rel_max=1.081e-10  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s64/phi0.5/a1_b0 err_cw=5.496e-16  err/gamma=7.735e-02  vs_native=       1  rel_max=1.081e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s64/phi0.5/a1_b0 err_cw=1.432e-16  err/gamma=2.016e-02  vs_native=   0.261  rel_max=3.983e-12  fallback=0 launches=4608 moduli=[15,15]
+  ok    emu_grouped     uni_G256_s64/phi0.5/a1_b0 err_cw=1.432e-16  err/gamma=2.016e-02  vs_native=   0.261  rel_max=3.983e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G256_s64/phi0.5/a1_b0 err_cw=5.496e-16  err/gamma=7.735e-02  vs_native=       1  rel_max=1.081e-10  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s64/phi0.5/a1_b0 err_cw=1.432e-16  err/gamma=2.016e-02  vs_native=   0.261  rel_max=3.983e-12  fallback=0 launches=3 moduli=[15,15]
+[uni_G256_s64/phi1.0/a1_b0] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=1.375e-15  err/gamma=1.935e-01
+  ok    native_loop     uni_G256_s64/phi1.0/a1_b0 err_cw=1.375e-15  err/gamma=1.935e-01  vs_native=       1  rel_max=5.932e-10  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s64/phi1.0/a1_b0 err_cw=1.375e-15  err/gamma=1.935e-01  vs_native=       1  rel_max=5.932e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s64/phi1.0/a1_b0 err_cw=3.453e-16  err/gamma=4.860e-02  vs_native=   0.251  rel_max=7.983e-11  fallback=0 launches=4608 moduli=[15,15]
+  ok    emu_grouped     uni_G256_s64/phi1.0/a1_b0 err_cw=3.453e-16  err/gamma=4.860e-02  vs_native=   0.251  rel_max=7.983e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G256_s64/phi1.0/a1_b0 err_cw=1.375e-15  err/gamma=1.935e-01  vs_native=       1  rel_max=5.932e-10  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s64/phi1.0/a1_b0 err_cw=3.453e-16  err/gamma=4.860e-02  vs_native=   0.251  rel_max=7.983e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G256_s64/phi1.0/a1.5_b-0.75] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=1.382e-15  err/gamma=1.887e-01
+  ok    native_loop     uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=1.382e-15  err/gamma=1.887e-01  vs_native=       1  rel_max=1.433e-10  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=1.260e-15  err/gamma=1.719e-01  vs_native=   0.911  rel_max=1.435e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=3.364e-16  err/gamma=4.592e-02  vs_native=   0.243  rel_max=2.410e-11  fallback=0 launches=4608 moduli=[15,15]
+  ok    emu_grouped     uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=3.364e-16  err/gamma=4.592e-02  vs_native=   0.243  rel_max=2.410e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=1.260e-15  err/gamma=1.719e-01  vs_native=   0.911  rel_max=1.435e-10  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=3.364e-16  err/gamma=4.592e-02  vs_native=   0.243  rel_max=2.410e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G256_s64/phi2.0/a1_b0] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=1.735e-15  err/gamma=2.442e-01
+  ok    native_loop     uni_G256_s64/phi2.0/a1_b0 err_cw=1.735e-15  err/gamma=2.442e-01  vs_native=       1  rel_max=9.661e-10  fallback=0 launches=256 moduli=[0,0]
+  ok    native_grouped  uni_G256_s64/phi2.0/a1_b0 err_cw=1.735e-15  err/gamma=2.442e-01  vs_native=       1  rel_max=9.661e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G256_s64/phi2.0/a1_b0 err_cw=1.826e-15  err/gamma=2.571e-01  vs_native=    1.05  rel_max=1.731e-09  fallback=0 launches=4608 moduli=[15,15]
+  ok    emu_grouped     uni_G256_s64/phi2.0/a1_b0 err_cw=1.826e-15  err/gamma=2.571e-01  vs_native=    1.05  rel_max=1.731e-09  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G256_s64/phi2.0/a1_b0 err_cw=1.735e-15  err/gamma=2.442e-01  vs_native=       1  rel_max=9.661e-10  fallback=256 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G256_s64/phi2.0/a1_b0 err_cw=1.826e-15  err/gamma=2.571e-01  vs_native=    1.05  rel_max=1.731e-09  fallback=0 launches=3 moduli=[15,15]
+[uni_G32_s256/phi0.0/a1_b0] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=5.724e-16  err/gamma=2.014e-02
+  ok    native_loop     uni_G32_s256/phi0.0/a1_b0 err_cw=5.724e-16  err/gamma=2.014e-02  vs_native=       1  rel_max=7.748e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  uni_G32_s256/phi0.0/a1_b0 err_cw=5.724e-16  err/gamma=2.014e-02  vs_native=       1  rel_max=7.748e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G32_s256/phi0.0/a1_b0 err_cw=6.087e-17  err/gamma=2.142e-03  vs_native=   0.106  rel_max=7.493e-13  fallback=0 launches=576 moduli=[15,15]
+  ok    emu_grouped     uni_G32_s256/phi0.0/a1_b0 err_cw=6.087e-17  err/gamma=2.142e-03  vs_native=   0.106  rel_max=7.493e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G32_s256/phi0.0/a1_b0 err_cw=5.724e-16  err/gamma=2.014e-02  vs_native=       1  rel_max=7.748e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G32_s256/phi0.0/a1_b0 err_cw=6.087e-17  err/gamma=2.142e-03  vs_native=   0.106  rel_max=7.493e-13  fallback=0 launches=3 moduli=[15,15]
+[uni_G32_s256/phi0.5/a1_b0] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=6.296e-16  err/gamma=2.215e-02
+  ok    native_loop     uni_G32_s256/phi0.5/a1_b0 err_cw=6.296e-16  err/gamma=2.215e-02  vs_native=       1  rel_max=7.322e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  uni_G32_s256/phi0.5/a1_b0 err_cw=6.296e-16  err/gamma=2.215e-02  vs_native=       1  rel_max=7.322e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G32_s256/phi0.5/a1_b0 err_cw=4.874e-17  err/gamma=1.715e-03  vs_native=  0.0774  rel_max=2.820e-10  fallback=0 launches=576 moduli=[15,15]
+  ok    emu_grouped     uni_G32_s256/phi0.5/a1_b0 err_cw=4.874e-17  err/gamma=1.715e-03  vs_native=  0.0774  rel_max=2.820e-10  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G32_s256/phi0.5/a1_b0 err_cw=6.296e-16  err/gamma=2.215e-02  vs_native=       1  rel_max=7.322e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G32_s256/phi0.5/a1_b0 err_cw=4.874e-17  err/gamma=1.715e-03  vs_native=  0.0774  rel_max=2.820e-10  fallback=0 launches=3 moduli=[15,15]
+[uni_G32_s256/phi1.0/a1_b0] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=1.531e-15  err/gamma=5.386e-02
+  ok    native_loop     uni_G32_s256/phi1.0/a1_b0 err_cw=1.531e-15  err/gamma=5.386e-02  vs_native=       1  rel_max=4.204e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  uni_G32_s256/phi1.0/a1_b0 err_cw=1.531e-15  err/gamma=5.386e-02  vs_native=       1  rel_max=4.204e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G32_s256/phi1.0/a1_b0 err_cw=2.038e-16  err/gamma=7.169e-03  vs_native=   0.133  rel_max=2.072e-11  fallback=0 launches=576 moduli=[15,15]
+  ok    emu_grouped     uni_G32_s256/phi1.0/a1_b0 err_cw=2.038e-16  err/gamma=7.169e-03  vs_native=   0.133  rel_max=2.072e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G32_s256/phi1.0/a1_b0 err_cw=1.531e-15  err/gamma=5.386e-02  vs_native=       1  rel_max=4.204e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G32_s256/phi1.0/a1_b0 err_cw=2.038e-16  err/gamma=7.169e-03  vs_native=   0.133  rel_max=2.072e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G32_s256/phi1.0/a1.5_b-0.75] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=1.526e-15  err/gamma=5.326e-02
+  ok    native_loop     uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=1.526e-15  err/gamma=5.326e-02  vs_native=       1  rel_max=2.658e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=1.526e-15  err/gamma=5.326e-02  vs_native=       1  rel_max=2.658e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=2.062e-16  err/gamma=7.200e-03  vs_native=   0.135  rel_max=3.367e-11  fallback=0 launches=576 moduli=[15,15]
+  ok    emu_grouped     uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=2.062e-16  err/gamma=7.200e-03  vs_native=   0.135  rel_max=3.367e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=1.526e-15  err/gamma=5.326e-02  vs_native=       1  rel_max=2.658e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=2.062e-16  err/gamma=7.200e-03  vs_native=   0.135  rel_max=3.367e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G32_s256/phi2.0/a1_b0] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=2.991e-15  err/gamma=1.052e-01
+  ok    native_loop     uni_G32_s256/phi2.0/a1_b0 err_cw=2.991e-15  err/gamma=1.052e-01  vs_native=       1  rel_max=9.406e-11  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  uni_G32_s256/phi2.0/a1_b0 err_cw=2.991e-15  err/gamma=1.052e-01  vs_native=       1  rel_max=9.406e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G32_s256/phi2.0/a1_b0 err_cw=3.040e-15  err/gamma=1.069e-01  vs_native=    1.02  rel_max=8.248e-11  fallback=0 launches=576 moduli=[15,15]
+  ok    emu_grouped     uni_G32_s256/phi2.0/a1_b0 err_cw=3.040e-15  err/gamma=1.069e-01  vs_native=    1.02  rel_max=8.248e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G32_s256/phi2.0/a1_b0 err_cw=2.991e-15  err/gamma=1.052e-01  vs_native=       1  rel_max=9.406e-11  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G32_s256/phi2.0/a1_b0 err_cw=3.040e-15  err/gamma=1.069e-01  vs_native=    1.02  rel_max=8.248e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G16_64x64x4096/phi0.0/a1_b0] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=5.411e-17  err/gamma=1.190e-04
+  ok    native_loop     uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=5.411e-17  err/gamma=1.190e-04  vs_native=       1  rel_max=8.388e-11  fallback=0 launches=16 moduli=[0,0]
+  ok    native_grouped  uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=3.748e-16  err/gamma=8.241e-04  vs_native=    6.93  rel_max=1.372e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=6.866e-18  err/gamma=1.510e-05  vs_native=   0.127  rel_max=3.023e-14  fallback=0 launches=288 moduli=[15,15]
+  ok    emu_grouped     uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=6.866e-18  err/gamma=1.510e-05  vs_native=   0.127  rel_max=3.023e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=3.748e-16  err/gamma=8.241e-04  vs_native=    6.93  rel_max=1.372e-10  fallback=16 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G16_64x64x4096/phi0.0/a1_b0 err_cw=6.866e-18  err/gamma=1.510e-05  vs_native=   0.127  rel_max=3.023e-14  fallback=0 launches=3 moduli=[15,15]
+[uni_G16_64x64x4096/phi0.5/a1_b0] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=6.202e-17  err/gamma=1.364e-04
+  ok    native_loop     uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=6.202e-17  err/gamma=1.364e-04  vs_native=       1  rel_max=1.681e-11  fallback=0 launches=16 moduli=[0,0]
+  ok    native_grouped  uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=5.273e-16  err/gamma=1.160e-03  vs_native=     8.5  rel_max=2.950e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=2.350e-17  err/gamma=5.169e-05  vs_native=   0.379  rel_max=6.262e-11  fallback=0 launches=288 moduli=[15,15]
+  ok    emu_grouped     uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=2.350e-17  err/gamma=5.169e-05  vs_native=   0.379  rel_max=6.262e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=5.273e-16  err/gamma=1.160e-03  vs_native=     8.5  rel_max=2.950e-10  fallback=16 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G16_64x64x4096/phi0.5/a1_b0 err_cw=2.350e-17  err/gamma=5.169e-05  vs_native=   0.379  rel_max=6.262e-11  fallback=0 launches=3 moduli=[15,15]
+[uni_G16_64x64x4096/phi1.0/a1_b0] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=2.754e-16  err/gamma=6.056e-04
+  ok    native_loop     uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=2.754e-16  err/gamma=6.056e-04  vs_native=       1  rel_max=1.512e-11  fallback=0 launches=16 moduli=[0,0]
+  ok    native_grouped  uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=1.168e-15  err/gamma=2.569e-03  vs_native=    4.24  rel_max=1.710e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=5.604e-17  err/gamma=1.232e-04  vs_native=   0.203  rel_max=3.381e-12  fallback=0 launches=288 moduli=[15,15]
+  ok    emu_grouped     uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=5.604e-17  err/gamma=1.232e-04  vs_native=   0.203  rel_max=3.381e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=1.168e-15  err/gamma=2.569e-03  vs_native=    4.24  rel_max=1.710e-11  fallback=16 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=5.604e-17  err/gamma=1.232e-04  vs_native=   0.203  rel_max=3.381e-12  fallback=0 launches=3 moduli=[15,15]
+[uni_G16_64x64x4096/phi1.0/a1.5_b-0.75] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=2.392e-16  err/gamma=5.258e-04
+  ok    native_loop     uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=2.392e-16  err/gamma=5.258e-04  vs_native=       1  rel_max=1.584e-11  fallback=0 launches=16 moduli=[0,0]
+  ok    native_grouped  uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=1.169e-15  err/gamma=2.570e-03  vs_native=    4.89  rel_max=1.063e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=5.378e-17  err/gamma=1.182e-04  vs_native=   0.225  rel_max=6.245e-12  fallback=0 launches=288 moduli=[15,15]
+  ok    emu_grouped     uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=5.378e-17  err/gamma=1.182e-04  vs_native=   0.225  rel_max=6.245e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=1.169e-15  err/gamma=2.570e-03  vs_native=    4.89  rel_max=1.063e-11  fallback=16 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=5.378e-17  err/gamma=1.182e-04  vs_native=   0.225  rel_max=6.245e-12  fallback=0 launches=3 moduli=[15,15]
+[uni_G16_64x64x4096/phi2.0/a1_b0] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=1.723e-15  err/gamma=3.790e-03
+  ok    native_loop     uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=1.723e-15  err/gamma=3.790e-03  vs_native=       1  rel_max=6.316e-12  fallback=0 launches=16 moduli=[0,0]
+  ok    native_grouped  uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=8.502e-15  err/gamma=1.870e-02  vs_native=    4.93  rel_max=2.470e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=3.779e-15  err/gamma=8.310e-03  vs_native=    2.19  rel_max=6.860e-12  fallback=0 launches=288 moduli=[15,15]
+  ok    emu_grouped     uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=3.779e-15  err/gamma=8.310e-03  vs_native=    2.19  rel_max=6.860e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=8.502e-15  err/gamma=1.870e-02  vs_native=    4.93  rel_max=2.470e-11  fallback=16 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G16_64x64x4096/phi2.0/a1_b0 err_cw=3.779e-15  err/gamma=8.310e-03  vs_native=    2.19  rel_max=6.860e-12  fallback=0 launches=3 moduli=[15,15]
+[uni_G64_7x13x33/phi0.0/a1_b0] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=2.947e-16  err/gamma=8.044e-02
+  ok    native_loop     uni_G64_7x13x33/phi0.0/a1_b0 err_cw=2.947e-16  err/gamma=8.044e-02  vs_native=       1  rel_max=1.365e-12  fallback=0 launches=64 moduli=[0,0]
+  ok    native_grouped  uni_G64_7x13x33/phi0.0/a1_b0 err_cw=2.947e-16  err/gamma=8.044e-02  vs_native=       1  rel_max=1.365e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G64_7x13x33/phi0.0/a1_b0 err_cw=1.276e-16  err/gamma=3.484e-02  vs_native=   0.433  rel_max=8.994e-16  fallback=0 launches=1152 moduli=[15,15]
+  ok    emu_grouped     uni_G64_7x13x33/phi0.0/a1_b0 err_cw=1.276e-16  err/gamma=3.484e-02  vs_native=   0.433  rel_max=8.994e-16  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G64_7x13x33/phi0.0/a1_b0 err_cw=2.947e-16  err/gamma=8.044e-02  vs_native=       1  rel_max=1.365e-12  fallback=64 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G64_7x13x33/phi0.0/a1_b0 err_cw=1.276e-16  err/gamma=3.484e-02  vs_native=   0.433  rel_max=8.994e-16  fallback=0 launches=3 moduli=[15,15]
+[uni_G64_7x13x33/phi0.5/a1_b0] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=4.542e-16  err/gamma=1.240e-01
+  ok    native_loop     uni_G64_7x13x33/phi0.5/a1_b0 err_cw=4.542e-16  err/gamma=1.240e-01  vs_native=       1  rel_max=2.104e-12  fallback=0 launches=64 moduli=[0,0]
+  ok    native_grouped  uni_G64_7x13x33/phi0.5/a1_b0 err_cw=4.542e-16  err/gamma=1.240e-01  vs_native=       1  rel_max=2.104e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G64_7x13x33/phi0.5/a1_b0 err_cw=1.686e-16  err/gamma=4.602e-02  vs_native=   0.371  rel_max=2.578e-14  fallback=0 launches=1152 moduli=[15,15]
+  ok    emu_grouped     uni_G64_7x13x33/phi0.5/a1_b0 err_cw=1.686e-16  err/gamma=4.602e-02  vs_native=   0.371  rel_max=2.578e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G64_7x13x33/phi0.5/a1_b0 err_cw=4.542e-16  err/gamma=1.240e-01  vs_native=       1  rel_max=2.104e-12  fallback=64 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G64_7x13x33/phi0.5/a1_b0 err_cw=1.686e-16  err/gamma=4.602e-02  vs_native=   0.371  rel_max=2.578e-14  fallback=0 launches=3 moduli=[15,15]
+[uni_G64_7x13x33/phi1.0/a1_b0] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=5.181e-16  err/gamma=1.414e-01
+  ok    native_loop     uni_G64_7x13x33/phi1.0/a1_b0 err_cw=5.181e-16  err/gamma=1.414e-01  vs_native=       1  rel_max=2.153e-13  fallback=0 launches=64 moduli=[0,0]
+  ok    native_grouped  uni_G64_7x13x33/phi1.0/a1_b0 err_cw=5.181e-16  err/gamma=1.414e-01  vs_native=       1  rel_max=2.153e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G64_7x13x33/phi1.0/a1_b0 err_cw=1.622e-16  err/gamma=4.426e-02  vs_native=   0.313  rel_max=3.976e-14  fallback=0 launches=1152 moduli=[15,15]
+  ok    emu_grouped     uni_G64_7x13x33/phi1.0/a1_b0 err_cw=1.622e-16  err/gamma=4.426e-02  vs_native=   0.313  rel_max=3.976e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G64_7x13x33/phi1.0/a1_b0 err_cw=5.181e-16  err/gamma=1.414e-01  vs_native=       1  rel_max=2.153e-13  fallback=64 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G64_7x13x33/phi1.0/a1_b0 err_cw=1.622e-16  err/gamma=4.426e-02  vs_native=   0.313  rel_max=3.976e-14  fallback=0 launches=3 moduli=[15,15]
+[uni_G64_7x13x33/phi1.0/a1.5_b-0.75] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=5.207e-16  err/gamma=1.340e-01
+  ok    native_loop     uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=5.207e-16  err/gamma=1.340e-01  vs_native=       1  rel_max=2.833e-13  fallback=0 launches=64 moduli=[0,0]
+  ok    native_grouped  uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=5.207e-16  err/gamma=1.340e-01  vs_native=       1  rel_max=2.833e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=1.915e-16  err/gamma=4.929e-02  vs_native=   0.368  rel_max=6.209e-14  fallback=0 launches=1152 moduli=[15,15]
+  ok    emu_grouped     uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=1.915e-16  err/gamma=4.929e-02  vs_native=   0.368  rel_max=6.209e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=5.207e-16  err/gamma=1.340e-01  vs_native=       1  rel_max=2.833e-13  fallback=64 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=1.915e-16  err/gamma=4.929e-02  vs_native=   0.368  rel_max=6.209e-14  fallback=0 launches=3 moduli=[15,15]
+[uni_G64_7x13x33/phi2.0/a1_b0] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=7.409e-16  err/gamma=2.022e-01
+  ok    native_loop     uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.409e-16  err/gamma=2.022e-01  vs_native=       1  rel_max=2.712e-13  fallback=0 launches=64 moduli=[0,0]
+  ok    native_grouped  uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.409e-16  err/gamma=2.022e-01  vs_native=       1  rel_max=2.712e-13  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.831e-16  err/gamma=2.137e-01  vs_native=    1.06  rel_max=8.828e-12  fallback=0 launches=1152 moduli=[15,15]
+  ok    emu_grouped     uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.831e-16  err/gamma=2.137e-01  vs_native=    1.06  rel_max=8.828e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.409e-16  err/gamma=2.022e-01  vs_native=       1  rel_max=2.712e-13  fallback=64 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse uni_G64_7x13x33/phi2.0/a1_b0 err_cw=7.831e-16  err/gamma=2.137e-01  vs_native=    1.06  rel_max=8.828e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_up/phi0.0/a1_b0] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=6.783e-16  err/gamma=2.386e-02
+  ok    native_loop     moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=6.783e-16  err/gamma=2.386e-02  vs_native=       1  rel_max=7.329e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=6.783e-16  err/gamma=2.386e-02  vs_native=       1  rel_max=7.329e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=5.856e-17  err/gamma=2.060e-03  vs_native=  0.0863  rel_max=3.278e-14  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=5.856e-17  err/gamma=2.060e-03  vs_native=  0.0863  rel_max=3.278e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=6.783e-16  err/gamma=2.386e-02  vs_native=       1  rel_max=7.329e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_up/phi0.0/a1_b0 err_cw=5.856e-17  err/gamma=2.060e-03  vs_native=  0.0863  rel_max=3.278e-14  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_up/phi0.5/a1_b0] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=5.851e-16  err/gamma=2.059e-02
+  ok    native_loop     moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=5.851e-16  err/gamma=2.059e-02  vs_native=       1  rel_max=4.999e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=5.851e-16  err/gamma=2.059e-02  vs_native=       1  rel_max=4.999e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=4.336e-17  err/gamma=1.525e-03  vs_native=  0.0741  rel_max=7.674e-12  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=4.336e-17  err/gamma=1.525e-03  vs_native=  0.0741  rel_max=7.674e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=5.851e-16  err/gamma=2.059e-02  vs_native=       1  rel_max=4.999e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_up/phi0.5/a1_b0 err_cw=4.336e-17  err/gamma=1.525e-03  vs_native=  0.0741  rel_max=7.674e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_up/phi1.0/a1_b0] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=1.457e-15  err/gamma=5.125e-02
+  ok    native_loop     moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.457e-15  err/gamma=5.125e-02  vs_native=       1  rel_max=1.290e-09  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.457e-15  err/gamma=5.125e-02  vs_native=       1  rel_max=1.290e-09  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.396e-16  err/gamma=4.912e-03  vs_native=  0.0958  rel_max=1.508e-10  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.396e-16  err/gamma=4.912e-03  vs_native=  0.0958  rel_max=1.508e-10  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.457e-15  err/gamma=5.125e-02  vs_native=       1  rel_max=1.290e-09  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.396e-16  err/gamma=4.912e-03  vs_native=  0.0958  rel_max=1.508e-10  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=1.438e-15  err/gamma=5.019e-02
+  ok    native_loop     moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.438e-15  err/gamma=5.019e-02  vs_native=       1  rel_max=7.049e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.511e-15  err/gamma=5.275e-02  vs_native=    1.05  rel_max=7.049e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.622e-16  err/gamma=5.662e-03  vs_native=   0.113  rel_max=1.087e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.622e-16  err/gamma=5.662e-03  vs_native=   0.113  rel_max=1.087e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.511e-15  err/gamma=5.275e-02  vs_native=    1.05  rel_max=7.049e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.622e-16  err/gamma=5.662e-03  vs_native=   0.113  rel_max=1.087e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_up/phi2.0/a1_b0] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=2.733e-15  err/gamma=9.617e-02
+  ok    native_loop     moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.733e-15  err/gamma=9.617e-02  vs_native=       1  rel_max=2.865e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.733e-15  err/gamma=9.617e-02  vs_native=       1  rel_max=2.865e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.456e-15  err/gamma=8.642e-02  vs_native=   0.899  rel_max=2.290e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.456e-15  err/gamma=8.642e-02  vs_native=   0.899  rel_max=2.290e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.733e-15  err/gamma=9.617e-02  vs_native=       1  rel_max=2.865e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_up/phi2.0/a1_b0 err_cw=2.456e-15  err/gamma=8.642e-02  vs_native=   0.899  rel_max=2.290e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_down/phi0.0/a1_b0] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=2.141e-16  err/gamma=2.152e-03
+  ok    native_loop     moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=2.141e-16  err/gamma=2.152e-03  vs_native=       1  rel_max=5.363e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=4.646e-16  err/gamma=4.671e-03  vs_native=    2.17  rel_max=1.563e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=1.613e-17  err/gamma=1.622e-04  vs_native=  0.0754  rel_max=1.626e-14  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=1.613e-17  err/gamma=1.622e-04  vs_native=  0.0754  rel_max=1.626e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=4.646e-16  err/gamma=4.671e-03  vs_native=    2.17  rel_max=1.563e-10  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_down/phi0.0/a1_b0 err_cw=1.613e-17  err/gamma=1.622e-04  vs_native=  0.0754  rel_max=1.626e-14  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_down/phi0.5/a1_b0] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=2.851e-16  err/gamma=2.866e-03
+  ok    native_loop     moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=2.851e-16  err/gamma=2.866e-03  vs_native=       1  rel_max=2.436e-10  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=6.276e-16  err/gamma=6.309e-03  vs_native=     2.2  rel_max=5.434e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=2.585e-17  err/gamma=2.599e-04  vs_native=  0.0907  rel_max=4.186e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=2.585e-17  err/gamma=2.599e-04  vs_native=  0.0907  rel_max=4.186e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=6.276e-16  err/gamma=6.309e-03  vs_native=     2.2  rel_max=5.434e-10  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_down/phi0.5/a1_b0 err_cw=2.585e-17  err/gamma=2.599e-04  vs_native=  0.0907  rel_max=4.186e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_down/phi1.0/a1_b0] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=8.167e-16  err/gamma=8.210e-03
+  ok    native_loop     moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=8.167e-16  err/gamma=8.210e-03  vs_native=       1  rel_max=3.156e-10  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=1.751e-15  err/gamma=1.760e-02  vs_native=    2.14  rel_max=8.358e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=9.006e-17  err/gamma=9.054e-04  vs_native=    0.11  rel_max=7.143e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=9.006e-17  err/gamma=9.054e-04  vs_native=    0.11  rel_max=7.143e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=1.751e-15  err/gamma=1.760e-02  vs_native=    2.14  rel_max=8.358e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=9.006e-17  err/gamma=9.054e-04  vs_native=    0.11  rel_max=7.143e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=8.283e-16  err/gamma=8.308e-03
+  ok    native_loop     moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=8.283e-16  err/gamma=8.308e-03  vs_native=       1  rel_max=6.857e-12  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.676e-15  err/gamma=1.681e-02  vs_native=    2.02  rel_max=1.327e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=9.452e-17  err/gamma=9.481e-04  vs_native=   0.114  rel_max=1.275e-12  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=9.452e-17  err/gamma=9.481e-04  vs_native=   0.114  rel_max=1.275e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.676e-15  err/gamma=1.681e-02  vs_native=    2.02  rel_max=1.327e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=9.452e-17  err/gamma=9.481e-04  vs_native=   0.114  rel_max=1.275e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E8_prefill_z1.2_down/phi2.0/a1_b0] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=2.832e-15  err/gamma=2.847e-02
+  ok    native_loop     moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=2.832e-15  err/gamma=2.847e-02  vs_native=       1  rel_max=3.824e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=4.633e-15  err/gamma=4.658e-02  vs_native=    1.64  rel_max=3.594e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=4.224e-15  err/gamma=4.246e-02  vs_native=    1.49  rel_max=4.161e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=4.224e-15  err/gamma=4.246e-02  vs_native=    1.49  rel_max=4.161e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=4.633e-15  err/gamma=4.658e-02  vs_native=    1.64  rel_max=3.594e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E8_prefill_z1.2_down/phi2.0/a1_b0 err_cw=4.224e-15  err/gamma=4.246e-02  vs_native=    1.49  rel_max=4.161e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_up/phi0.0/a1_b0] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=3.346e-16  err/gamma=5.887e-03
+  ok    native_loop     moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=3.346e-16  err/gamma=5.887e-03  vs_native=       1  rel_max=4.746e-11  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=3.346e-16  err/gamma=5.887e-03  vs_native=       1  rel_max=2.325e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=1.488e-17  err/gamma=2.617e-04  vs_native=  0.0445  rel_max=5.300e-14  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=1.488e-17  err/gamma=2.617e-04  vs_native=  0.0445  rel_max=5.300e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=3.346e-16  err/gamma=5.887e-03  vs_native=       1  rel_max=2.325e-11  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_up/phi0.0/a1_b0 err_cw=1.488e-17  err/gamma=2.617e-04  vs_native=  0.0445  rel_max=5.300e-14  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_up/phi0.5/a1_b0] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=5.904e-16  err/gamma=1.039e-02
+  ok    native_loop     moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=5.904e-16  err/gamma=1.039e-02  vs_native=       1  rel_max=7.020e-12  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=5.904e-16  err/gamma=1.039e-02  vs_native=       1  rel_max=2.665e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.389e-17  err/gamma=4.203e-04  vs_native=  0.0405  rel_max=2.052e-13  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.389e-17  err/gamma=4.203e-04  vs_native=  0.0405  rel_max=2.052e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=5.904e-16  err/gamma=1.039e-02  vs_native=       1  rel_max=2.665e-11  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_up/phi0.5/a1_b0 err_cw=2.389e-17  err/gamma=4.203e-04  vs_native=  0.0405  rel_max=2.052e-13  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_up/phi1.0/a1_b0] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=9.728e-16  err/gamma=1.711e-02
+  ok    native_loop     moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=9.728e-16  err/gamma=1.711e-02  vs_native=       1  rel_max=2.249e-11  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.140e-15  err/gamma=2.006e-02  vs_native=    1.17  rel_max=2.249e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.115e-16  err/gamma=1.961e-03  vs_native=   0.115  rel_max=3.570e-12  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.115e-16  err/gamma=1.961e-03  vs_native=   0.115  rel_max=3.570e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.140e-15  err/gamma=2.006e-02  vs_native=    1.17  rel_max=2.249e-11  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.115e-16  err/gamma=1.961e-03  vs_native=   0.115  rel_max=3.570e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=9.875e-16  err/gamma=1.730e-02
+  ok    native_loop     moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=9.875e-16  err/gamma=1.730e-02  vs_native=       1  rel_max=3.000e-11  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.173e-15  err/gamma=2.056e-02  vs_native=    1.19  rel_max=3.000e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=9.568e-17  err/gamma=1.677e-03  vs_native=  0.0969  rel_max=2.241e-12  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=9.568e-17  err/gamma=1.677e-03  vs_native=  0.0969  rel_max=2.241e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.173e-15  err/gamma=2.056e-02  vs_native=    1.19  rel_max=3.000e-11  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=9.568e-17  err/gamma=1.677e-03  vs_native=  0.0969  rel_max=2.241e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_up/phi2.0/a1_b0] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=2.959e-15  err/gamma=5.206e-02
+  ok    native_loop     moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.959e-15  err/gamma=5.206e-02  vs_native=       1  rel_max=5.591e-10  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.959e-15  err/gamma=5.206e-02  vs_native=       1  rel_max=3.602e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.344e-15  err/gamma=4.124e-02  vs_native=   0.792  rel_max=5.806e-11  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.344e-15  err/gamma=4.124e-02  vs_native=   0.792  rel_max=5.806e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.959e-15  err/gamma=5.206e-02  vs_native=       1  rel_max=3.602e-10  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_up/phi2.0/a1_b0 err_cw=2.344e-15  err/gamma=4.124e-02  vs_native=   0.792  rel_max=5.806e-11  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_down/phi0.0/a1_b0] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=4.255e-16  err/gamma=1.089e-02
+  ok    native_loop     moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=4.255e-16  err/gamma=1.089e-02  vs_native=       1  rel_max=1.751e-11  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=4.255e-16  err/gamma=1.089e-02  vs_native=       1  rel_max=1.751e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=2.053e-17  err/gamma=5.252e-04  vs_native=  0.0482  rel_max=1.227e-14  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=2.053e-17  err/gamma=5.252e-04  vs_native=  0.0482  rel_max=1.227e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=4.255e-16  err/gamma=1.089e-02  vs_native=       1  rel_max=1.751e-11  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_down/phi0.0/a1_b0 err_cw=2.053e-17  err/gamma=5.252e-04  vs_native=  0.0482  rel_max=1.227e-14  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_down/phi0.5/a1_b0] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=5.556e-16  err/gamma=1.422e-02
+  ok    native_loop     moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=5.556e-16  err/gamma=1.422e-02  vs_native=       1  rel_max=5.601e-12  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=5.556e-16  err/gamma=1.422e-02  vs_native=       1  rel_max=7.273e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=3.397e-17  err/gamma=8.692e-04  vs_native=  0.0611  rel_max=4.756e-13  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=3.397e-17  err/gamma=8.692e-04  vs_native=  0.0611  rel_max=4.756e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=5.556e-16  err/gamma=1.422e-02  vs_native=       1  rel_max=7.273e-12  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_down/phi0.5/a1_b0 err_cw=3.397e-17  err/gamma=8.692e-04  vs_native=  0.0611  rel_max=4.756e-13  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_down/phi1.0/a1_b0] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=1.149e-15  err/gamma=2.941e-02
+  ok    native_loop     moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.149e-15  err/gamma=2.941e-02  vs_native=       1  rel_max=1.197e-12  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.149e-15  err/gamma=2.941e-02  vs_native=       1  rel_max=3.916e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.280e-16  err/gamma=3.275e-03  vs_native=   0.111  rel_max=7.618e-13  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.280e-16  err/gamma=3.275e-03  vs_native=   0.111  rel_max=7.618e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.149e-15  err/gamma=2.941e-02  vs_native=       1  rel_max=3.916e-12  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.280e-16  err/gamma=3.275e-03  vs_native=   0.111  rel_max=7.618e-13  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=1.101e-15  err/gamma=2.802e-02
+  ok    native_loop     moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.101e-15  err/gamma=2.802e-02  vs_native=       1  rel_max=3.953e-12  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.101e-15  err/gamma=2.802e-02  vs_native=       1  rel_max=4.689e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.388e-16  err/gamma=3.532e-03  vs_native=   0.126  rel_max=1.583e-12  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.388e-16  err/gamma=3.532e-03  vs_native=   0.126  rel_max=1.583e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.101e-15  err/gamma=2.802e-02  vs_native=       1  rel_max=4.689e-12  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.388e-16  err/gamma=3.532e-03  vs_native=   0.126  rel_max=1.583e-12  fallback=0 launches=3 moduli=[15,15]
+[moe_E64_decode_z1.2_down/phi2.0/a1_b0] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=3.066e-15  err/gamma=7.845e-02
+  ok    native_loop     moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=3.066e-15  err/gamma=7.845e-02  vs_native=       1  rel_max=1.346e-11  fallback=0 launches=33 moduli=[0,0]
+  ok    native_grouped  moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=3.066e-15  err/gamma=7.845e-02  vs_native=       1  rel_max=4.158e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=2.020e-15  err/gamma=5.170e-02  vs_native=   0.659  rel_max=2.789e-11  fallback=0 launches=594 moduli=[15,15]
+  ok    emu_grouped     moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=2.020e-15  err/gamma=5.170e-02  vs_native=   0.659  rel_max=2.789e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=3.066e-15  err/gamma=7.845e-02  vs_native=       1  rel_max=4.158e-12  fallback=33 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse moe_E64_decode_z1.2_down/phi2.0/a1_b0 err_cw=2.020e-15  err/gamma=5.170e-02  vs_native=   0.659  rel_max=2.789e-11  fallback=0 launches=3 moduli=[15,15]
+[het_G32_16-512/phi0.0/a1_b0] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=5.071e-16  err/gamma=1.503e-01
+  ok    native_loop     het_G32_16-512/phi0.0/a1_b0 err_cw=5.071e-16  err/gamma=1.503e-01  vs_native=       1  rel_max=5.450e-11  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  het_G32_16-512/phi0.0/a1_b0 err_cw=5.071e-16  err/gamma=1.503e-01  vs_native=       1  rel_max=5.450e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        het_G32_16-512/phi0.0/a1_b0 err_cw=1.623e-16  err/gamma=7.692e-02  vs_native=    0.32  rel_max=1.029e-13  fallback=0 launches=571 moduli=[14,15]
+  ok    emu_grouped     het_G32_16-512/phi0.0/a1_b0 err_cw=1.623e-16  err/gamma=7.692e-02  vs_native=    0.32  rel_max=1.029e-13  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            het_G32_16-512/phi0.0/a1_b0 err_cw=5.071e-16  err/gamma=1.503e-01  vs_native=       1  rel_max=5.450e-11  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G32_16-512/phi0.0/a1_b0 err_cw=1.623e-16  err/gamma=7.692e-02  vs_native=    0.32  rel_max=1.029e-13  fallback=0 launches=3 moduli=[14,15]
+[het_G32_16-512/phi0.5/a1_b0] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=6.606e-16  err/gamma=1.792e-01
+  ok    native_loop     het_G32_16-512/phi0.5/a1_b0 err_cw=6.606e-16  err/gamma=1.792e-01  vs_native=       1  rel_max=2.506e-08  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  het_G32_16-512/phi0.5/a1_b0 err_cw=6.606e-16  err/gamma=1.792e-01  vs_native=       1  rel_max=2.506e-08  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        het_G32_16-512/phi0.5/a1_b0 err_cw=4.455e-16  err/gamma=1.920e-01  vs_native=   0.674  rel_max=4.127e-10  fallback=0 launches=571 moduli=[14,15]
+  ok    emu_grouped     het_G32_16-512/phi0.5/a1_b0 err_cw=4.455e-16  err/gamma=1.920e-01  vs_native=   0.674  rel_max=4.127e-10  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            het_G32_16-512/phi0.5/a1_b0 err_cw=6.606e-16  err/gamma=1.792e-01  vs_native=       1  rel_max=2.506e-08  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G32_16-512/phi0.5/a1_b0 err_cw=4.455e-16  err/gamma=1.920e-01  vs_native=   0.674  rel_max=4.127e-10  fallback=0 launches=3 moduli=[14,15]
+[het_G32_16-512/phi1.0/a1_b0] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=1.215e-15  err/gamma=2.511e-01
+  ok    native_loop     het_G32_16-512/phi1.0/a1_b0 err_cw=1.215e-15  err/gamma=2.511e-01  vs_native=       1  rel_max=5.138e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  het_G32_16-512/phi1.0/a1_b0 err_cw=1.215e-15  err/gamma=2.511e-01  vs_native=       1  rel_max=5.138e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        het_G32_16-512/phi1.0/a1_b0 err_cw=1.047e-15  err/gamma=3.628e-01  vs_native=   0.862  rel_max=1.913e-11  fallback=0 launches=571 moduli=[14,15]
+  ok    emu_grouped     het_G32_16-512/phi1.0/a1_b0 err_cw=1.047e-15  err/gamma=3.628e-01  vs_native=   0.862  rel_max=1.913e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            het_G32_16-512/phi1.0/a1_b0 err_cw=1.215e-15  err/gamma=2.511e-01  vs_native=       1  rel_max=5.138e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G32_16-512/phi1.0/a1_b0 err_cw=1.047e-15  err/gamma=3.628e-01  vs_native=   0.862  rel_max=1.913e-11  fallback=0 launches=3 moduli=[14,15]
+[het_G32_16-512/phi1.0/a1.5_b-0.75] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=1.258e-15  err/gamma=2.310e-01
+  ok    native_loop     het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.258e-15  err/gamma=2.310e-01  vs_native=       1  rel_max=1.176e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.258e-15  err/gamma=2.624e-01  vs_native=       1  rel_max=1.176e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.115e-15  err/gamma=3.347e-01  vs_native=   0.886  rel_max=2.516e-11  fallback=0 launches=571 moduli=[14,15]
+  ok    emu_grouped     het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.115e-15  err/gamma=3.347e-01  vs_native=   0.886  rel_max=2.516e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.258e-15  err/gamma=2.624e-01  vs_native=       1  rel_max=1.176e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.115e-15  err/gamma=3.347e-01  vs_native=   0.886  rel_max=2.516e-11  fallback=0 launches=3 moduli=[14,15]
+[het_G32_16-512/phi2.0/a1_b0] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=3.041e-15  err/gamma=3.579e-01
+  ok    native_loop     het_G32_16-512/phi2.0/a1_b0 err_cw=3.041e-15  err/gamma=3.579e-01  vs_native=       1  rel_max=1.970e-10  fallback=0 launches=32 moduli=[0,0]
+  ok    native_grouped  het_G32_16-512/phi2.0/a1_b0 err_cw=3.133e-15  err/gamma=3.579e-01  vs_native=    1.03  rel_max=1.970e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        het_G32_16-512/phi2.0/a1_b0 err_cw=2.105e-15  err/gamma=4.067e-01  vs_native=   0.692  rel_max=1.289e-10  fallback=0 launches=571 moduli=[14,15]
+  ok    emu_grouped     het_G32_16-512/phi2.0/a1_b0 err_cw=2.105e-15  err/gamma=4.067e-01  vs_native=   0.692  rel_max=1.289e-10  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            het_G32_16-512/phi2.0/a1_b0 err_cw=3.133e-15  err/gamma=3.579e-01  vs_native=    1.03  rel_max=1.970e-10  fallback=32 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse het_G32_16-512/phi2.0/a1_b0 err_cw=2.105e-15  err/gamma=4.067e-01  vs_native=   0.692  rel_max=1.289e-10  fallback=0 launches=3 moduli=[14,15]
+[lora_G8_rmix_shrink/phi0.0/a1_b0] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=3.001e-16  err/gamma=2.640e-03
+  ok    native_loop     lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=3.001e-16  err/gamma=2.640e-03  vs_native=       1  rel_max=7.790e-12  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=4.131e-16  err/gamma=3.634e-03  vs_native=    1.38  rel_max=9.865e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=1.404e-17  err/gamma=1.235e-04  vs_native=  0.0468  rel_max=9.708e-15  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=1.404e-17  err/gamma=1.235e-04  vs_native=  0.0468  rel_max=9.708e-15  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=4.131e-16  err/gamma=3.634e-03  vs_native=    1.38  rel_max=9.865e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_shrink/phi0.0/a1_b0 err_cw=1.404e-17  err/gamma=1.235e-04  vs_native=  0.0468  rel_max=9.708e-15  fallback=0 launches=3 moduli=[15,15]
+[lora_G8_rmix_shrink/phi0.5/a1_b0] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=3.508e-16  err/gamma=3.086e-03
+  ok    native_loop     lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=3.508e-16  err/gamma=3.086e-03  vs_native=       1  rel_max=2.833e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=3.771e-16  err/gamma=3.317e-03  vs_native=    1.07  rel_max=2.842e-10  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=1.881e-17  err/gamma=1.655e-04  vs_native=  0.0536  rel_max=6.914e-11  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=1.881e-17  err/gamma=1.655e-04  vs_native=  0.0536  rel_max=6.914e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=3.771e-16  err/gamma=3.317e-03  vs_native=    1.07  rel_max=2.842e-10  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_shrink/phi0.5/a1_b0 err_cw=1.881e-17  err/gamma=1.655e-04  vs_native=  0.0536  rel_max=6.914e-11  fallback=0 launches=3 moduli=[15,15]
+[lora_G8_rmix_shrink/phi1.0/a1_b0] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=6.888e-16  err/gamma=6.059e-03
+  ok    native_loop     lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=6.888e-16  err/gamma=6.059e-03  vs_native=       1  rel_max=1.566e-12  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=1.074e-15  err/gamma=9.445e-03  vs_native=    1.56  rel_max=4.646e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=5.097e-17  err/gamma=4.483e-04  vs_native=   0.074  rel_max=4.469e-13  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=5.097e-17  err/gamma=4.483e-04  vs_native=   0.074  rel_max=4.469e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=1.074e-15  err/gamma=9.445e-03  vs_native=    1.56  rel_max=4.646e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=5.097e-17  err/gamma=4.483e-04  vs_native=   0.074  rel_max=4.469e-13  fallback=0 launches=3 moduli=[15,15]
+[lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=6.790e-16  err/gamma=5.961e-03
+  ok    native_loop     lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=6.790e-16  err/gamma=5.961e-03  vs_native=       1  rel_max=7.686e-13  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=1.075e-15  err/gamma=9.442e-03  vs_native=    1.58  rel_max=1.222e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=6.676e-17  err/gamma=5.861e-04  vs_native=  0.0983  rel_max=2.066e-13  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=6.676e-17  err/gamma=5.861e-04  vs_native=  0.0983  rel_max=2.066e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=1.075e-15  err/gamma=9.442e-03  vs_native=    1.58  rel_max=1.222e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=6.676e-17  err/gamma=5.861e-04  vs_native=  0.0983  rel_max=2.066e-13  fallback=0 launches=3 moduli=[15,15]
+[lora_G8_rmix_shrink/phi2.0/a1_b0] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=2.323e-15  err/gamma=2.043e-02
+  ok    native_loop     lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=2.323e-15  err/gamma=2.043e-02  vs_native=       1  rel_max=7.186e-13  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=3.597e-15  err/gamma=3.164e-02  vs_native=    1.55  rel_max=1.239e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=3.820e-15  err/gamma=3.360e-02  vs_native=    1.64  rel_max=8.564e-13  fallback=0 launches=144 moduli=[15,15]
+  ok    emu_grouped     lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=3.820e-15  err/gamma=3.360e-02  vs_native=    1.64  rel_max=8.564e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto            lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=3.597e-15  err/gamma=3.164e-02  vs_native=    1.55  rel_max=1.239e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_shrink/phi2.0/a1_b0 err_cw=3.820e-15  err/gamma=3.360e-02  vs_native=    1.64  rel_max=8.564e-13  fallback=0 launches=3 moduli=[15,15]
+[lora_G8_rmix_expand/phi0.0/a1_b0] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=3.658e-16  err/gamma=4.118e-01
+  ok    native_loop     lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=3.658e-16  err/gamma=4.118e-01  vs_native=       1  rel_max=8.527e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=3.658e-16  err/gamma=4.118e-01  vs_native=       1  rel_max=8.527e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=2.098e-16  err/gamma=2.363e-01  vs_native=   0.574  rel_max=3.807e-14  fallback=0 launches=140 moduli=[14,15]
+  ok    emu_grouped     lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=2.098e-16  err/gamma=2.363e-01  vs_native=   0.574  rel_max=3.807e-14  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=3.658e-16  err/gamma=4.118e-01  vs_native=       1  rel_max=8.527e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_expand/phi0.0/a1_b0 err_cw=2.098e-16  err/gamma=2.363e-01  vs_native=   0.574  rel_max=3.807e-14  fallback=0 launches=3 moduli=[14,15]
+[lora_G8_rmix_expand/phi0.5/a1_b0] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=5.510e-16  err/gamma=3.800e-01
+  ok    native_loop     lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=5.510e-16  err/gamma=3.800e-01  vs_native=       1  rel_max=1.696e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=5.510e-16  err/gamma=3.800e-01  vs_native=       1  rel_max=1.696e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=4.989e-16  err/gamma=4.453e-01  vs_native=   0.905  rel_max=9.825e-12  fallback=0 launches=140 moduli=[14,15]
+  ok    emu_grouped     lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=4.989e-16  err/gamma=4.453e-01  vs_native=   0.905  rel_max=9.825e-12  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=5.510e-16  err/gamma=3.800e-01  vs_native=       1  rel_max=1.696e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_expand/phi0.5/a1_b0 err_cw=4.989e-16  err/gamma=4.453e-01  vs_native=   0.905  rel_max=9.825e-12  fallback=0 launches=3 moduli=[14,15]
+[lora_G8_rmix_expand/phi1.0/a1_b0] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=1.114e-15  err/gamma=5.006e-01
+  ok    native_loop     lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=1.114e-15  err/gamma=5.006e-01  vs_native=       1  rel_max=7.968e-12  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=1.114e-15  err/gamma=5.006e-01  vs_native=       1  rel_max=7.968e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=7.076e-16  err/gamma=4.376e-01  vs_native=   0.635  rel_max=1.479e-11  fallback=0 launches=140 moduli=[14,15]
+  ok    emu_grouped     lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=7.076e-16  err/gamma=4.376e-01  vs_native=   0.635  rel_max=1.479e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=1.114e-15  err/gamma=5.006e-01  vs_native=       1  rel_max=7.968e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=7.076e-16  err/gamma=4.376e-01  vs_native=   0.635  rel_max=1.479e-11  fallback=0 launches=3 moduli=[14,15]
+[lora_G8_rmix_expand/phi1.0/a1.5_b-0.75] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=1.100e-15  err/gamma=3.938e-01
+  ok    native_loop     lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=1.100e-15  err/gamma=3.938e-01  vs_native=       1  rel_max=3.823e-12  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=1.100e-15  err/gamma=3.938e-01  vs_native=       1  rel_max=6.045e-12  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=7.808e-16  err/gamma=4.625e-01  vs_native=    0.71  rel_max=4.053e-11  fallback=0 launches=140 moduli=[14,15]
+  ok    emu_grouped     lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=7.808e-16  err/gamma=4.625e-01  vs_native=    0.71  rel_max=4.053e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=1.100e-15  err/gamma=3.938e-01  vs_native=       1  rel_max=6.045e-12  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=7.808e-16  err/gamma=4.625e-01  vs_native=    0.71  rel_max=4.053e-11  fallback=0 launches=3 moduli=[14,15]
+[lora_G8_rmix_expand/phi2.0/a1_b0] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=1.277e-15  err/gamma=5.232e-01
+  ok    native_loop     lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.277e-15  err/gamma=5.232e-01  vs_native=       1  rel_max=2.040e-11  fallback=0 launches=8 moduli=[0,0]
+  ok    native_grouped  lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.277e-15  err/gamma=5.232e-01  vs_native=       1  rel_max=2.040e-11  fallback=0 launches=1 moduli=[0,0]
+  ok    emu_loop        lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.211e-15  err/gamma=4.870e-01  vs_native=   0.948  rel_max=5.523e-11  fallback=0 launches=140 moduli=[14,15]
+  ok    emu_grouped     lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.211e-15  err/gamma=4.870e-01  vs_native=   0.948  rel_max=5.523e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto            lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.277e-15  err/gamma=5.232e-01  vs_native=       1  rel_max=2.040e-11  fallback=8 launches=1 moduli=[0,0]
+  ok    emu_grouped_reuse lora_G8_rmix_expand/phi2.0/a1_b0 err_cw=1.211e-15  err/gamma=4.870e-01  vs_native=   0.948  rel_max=5.523e-11  fallback=0 launches=3 moduli=[14,15]
+
+==== 2487 passed, 1 failed ====
+memcheck exit: 0 (log: /home/money168/hw2_grouped_gemm/results/test_510997/memcheck.log)
+test_grouped exit: 1  (results: /home/money168/hw2_grouped_gemm/results/test_510997)

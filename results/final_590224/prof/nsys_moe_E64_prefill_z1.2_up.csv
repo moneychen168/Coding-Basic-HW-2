@@ -1,0 +1,8 @@
+workload,path,G,total_flops,time_ms,effective_GFLOPS,launches,err_max,num_fallback,family,phi,num_moduli_cfg,time_ms_min,wall_ms,err_over_gamma,err_vs_native,rel_max,moduli_min,moduli_max,reps,gpu,status,num_uncertified,num_repaired,n_over_gamma,repair_mode,rho_budget,total_entries,num_safety_fallback,host_allocs_timed
+moe_E64_prefill_z1.2_up,native_loop,64,3.543348e+10,1.682336,21062.071,64,nan,0,moe,0.50,0,1.670144,1.691592,nan,nan,nan,0,0,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,native_grouped,64,3.543348e+10,1.590208,22282.292,1,nan,0,moe,0.50,0,1.589344,1.602715,nan,nan,nan,0,0,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,emu_loop,64,3.543348e+10,43.529823,814.005,1152,nan,0,moe,0.50,0,43.477665,43.542558,nan,nan,nan,15,15,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,emu_loop_batched,64,3.543348e+10,22.609280,1567.210,192,nan,0,moe,0.50,0,22.512447,22.621371,nan,nan,nan,15,15,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,emu_grouped,64,3.543348e+10,6.813632,5200.381,3,nan,0,moe,0.50,0,6.805952,6.823154,nan,nan,nan,15,15,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,emu_grouped_reuse,64,3.543348e+10,6.736032,5260.290,3,nan,0,moe,0.50,0,6.728096,6.747316,nan,nan,nan,15,15,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0
+moe_E64_prefill_z1.2_up,auto,64,3.543348e+10,1.590848,22273.329,1,nan,64,moe,0.50,0,1.590016,1.600384,nan,nan,nan,0,0,5,NVIDIA H200,ok,-1,-1,-1,default,default,8650752,-1,0

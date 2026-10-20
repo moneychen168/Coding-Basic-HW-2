@@ -1,0 +1,6 @@
+date: 2026-10-07T21:16:35+08:00
+host: 25a-hgpn010
+job: 511065
+git: da18425cb44d79fcf395c69260516011d1eb54db dirty=1
+Build cuda_13.0.r13.0/compiler.36260728_0
+NVIDIA H200, 580.65.06, 143771 MiB, 1980 MHz, 700.00 W

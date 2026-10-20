@@ -1,0 +1,103 @@
+========= COMPUTE-SANITIZER
+[ggemm] calib=/home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json
+device: NVIDIA H200 (sm_90)
+[uni_G256_s16/phi1.0/a1_b0] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=5.194e-16  err/gamma=2.924e-01
+  ok    emu_grouped       uni_G256_s16/phi1.0/a1_b0 err_cw=4.772e-15  err/gamma=2.686e+00  over_gamma=6 uncert=4957 repaired=0 gate=cert  vs_native=    9.19  rel_max=3.471e-12  fallback=0 launches=3 moduli=[14,14]
+  ok    auto              uni_G256_s16/phi1.0/a1_b0 err_cw=5.194e-16  err/gamma=2.924e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.055e-12  fallback=256 launches=1 moduli=[0,0]
+[uni_G256_s16/phi1.0/a1.5_b-0.75] G=256 max_k=16 flops=2.097e+06
+  ok    cublas_dgemm                   err_cw=5.393e-16  err/gamma=2.699e-01
+  ok    emu_grouped       uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=4.719e-15  err/gamma=2.361e+00  over_gamma=6 uncert=2567 repaired=0 gate=cert  vs_native=    8.75  rel_max=3.923e-11  fallback=0 launches=3 moduli=[14,14]
+  ok    auto              uni_G256_s16/phi1.0/a1.5_b-0.75 err_cw=5.393e-16  err/gamma=2.699e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.542e-11  fallback=256 launches=1 moduli=[0,0]
+[uni_G256_s64/phi1.0/a1_b0] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=1.375e-15  err/gamma=1.935e-01
+  ok    emu_grouped       uni_G256_s64/phi1.0/a1_b0 err_cw=3.453e-16  err/gamma=4.860e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.251  rel_max=7.983e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G256_s64/phi1.0/a1_b0 err_cw=1.375e-15  err/gamma=1.935e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=5.932e-10  fallback=256 launches=1 moduli=[0,0]
+[uni_G256_s64/phi1.0/a1.5_b-0.75] G=256 max_k=64 flops=1.342e+08
+  ok    cublas_dgemm                   err_cw=1.382e-15  err/gamma=1.887e-01
+  ok    emu_grouped       uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=3.364e-16  err/gamma=4.592e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.243  rel_max=2.410e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G256_s64/phi1.0/a1.5_b-0.75 err_cw=1.260e-15  err/gamma=1.719e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=   0.911  rel_max=1.435e-10  fallback=256 launches=1 moduli=[0,0]
+[uni_G32_s256/phi1.0/a1_b0] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=1.531e-15  err/gamma=5.386e-02
+  ok    emu_grouped       uni_G32_s256/phi1.0/a1_b0 err_cw=2.038e-16  err/gamma=7.169e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.133  rel_max=2.072e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G32_s256/phi1.0/a1_b0 err_cw=1.531e-15  err/gamma=5.386e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=4.204e-10  fallback=32 launches=1 moduli=[0,0]
+[uni_G32_s256/phi1.0/a1.5_b-0.75] G=32 max_k=256 flops=1.074e+09
+  ok    cublas_dgemm                   err_cw=1.526e-15  err/gamma=5.326e-02
+  ok    emu_grouped       uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=2.062e-16  err/gamma=7.200e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.135  rel_max=3.367e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G32_s256/phi1.0/a1.5_b-0.75 err_cw=1.526e-15  err/gamma=5.326e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=2.658e-10  fallback=32 launches=1 moduli=[0,0]
+[uni_G16_64x64x4096/phi1.0/a1_b0] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=2.754e-16  err/gamma=6.056e-04
+  ok    emu_grouped       uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=5.604e-17  err/gamma=1.232e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.203  rel_max=3.381e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G16_64x64x4096/phi1.0/a1_b0 err_cw=1.168e-15  err/gamma=2.569e-03  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    4.24  rel_max=1.710e-11  fallback=16 launches=1 moduli=[0,0]
+[uni_G16_64x64x4096/phi1.0/a1.5_b-0.75] G=16 max_k=4096 flops=5.369e+08
+  ok    cublas_dgemm                   err_cw=2.392e-16  err/gamma=5.258e-04
+  ok    emu_grouped       uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=5.378e-17  err/gamma=1.182e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.225  rel_max=6.245e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G16_64x64x4096/phi1.0/a1.5_b-0.75 err_cw=1.169e-15  err/gamma=2.570e-03  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    4.89  rel_max=1.063e-11  fallback=16 launches=1 moduli=[0,0]
+[uni_G64_7x13x33/phi1.0/a1_b0] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=5.181e-16  err/gamma=1.414e-01
+  ok    emu_grouped       uni_G64_7x13x33/phi1.0/a1_b0 err_cw=1.622e-16  err/gamma=4.426e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.313  rel_max=3.976e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G64_7x13x33/phi1.0/a1_b0 err_cw=5.181e-16  err/gamma=1.414e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=2.153e-13  fallback=64 launches=1 moduli=[0,0]
+[uni_G64_7x13x33/phi1.0/a1.5_b-0.75] G=64 max_k=33 flops=3.844e+05
+  ok    cublas_dgemm                   err_cw=5.207e-16  err/gamma=1.340e-01
+  ok    emu_grouped       uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=1.915e-16  err/gamma=4.929e-02  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.368  rel_max=6.209e-14  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              uni_G64_7x13x33/phi1.0/a1.5_b-0.75 err_cw=5.207e-16  err/gamma=1.340e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=2.833e-13  fallback=64 launches=1 moduli=[0,0]
+[moe_E8_prefill_z1.2_up/phi1.0/a1_b0] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=1.457e-15  err/gamma=5.125e-02
+  ok    emu_grouped       moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.396e-16  err/gamma=4.912e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=  0.0958  rel_max=1.508e-10  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_prefill_z1.2_up/phi1.0/a1_b0 err_cw=1.457e-15  err/gamma=5.125e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.290e-09  fallback=8 launches=1 moduli=[0,0]
+[moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75] G=8 max_k=256 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=1.438e-15  err/gamma=5.019e-02
+  ok    emu_grouped       moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.622e-16  err/gamma=5.662e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.113  rel_max=1.087e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_prefill_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.511e-15  err/gamma=5.275e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    1.05  rel_max=7.049e-11  fallback=8 launches=1 moduli=[0,0]
+[moe_E8_prefill_z1.2_down/phi1.0/a1_b0] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=8.167e-16  err/gamma=8.210e-03
+  ok    emu_grouped       moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=9.006e-17  err/gamma=9.054e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=    0.11  rel_max=7.143e-11  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_prefill_z1.2_down/phi1.0/a1_b0 err_cw=1.751e-15  err/gamma=1.760e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    2.14  rel_max=8.358e-11  fallback=8 launches=1 moduli=[0,0]
+[moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75] G=8 max_k=896 flops=2.349e+08
+  ok    cublas_dgemm                   err_cw=8.283e-16  err/gamma=8.308e-03
+  ok    emu_grouped       moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=9.452e-17  err/gamma=9.481e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.114  rel_max=1.275e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E8_prefill_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.676e-15  err/gamma=1.681e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    2.02  rel_max=1.327e-11  fallback=8 launches=1 moduli=[0,0]
+[moe_E64_decode_z1.2_up/phi1.0/a1_b0] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=9.728e-16  err/gamma=1.711e-02
+  ok    emu_grouped       moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.115e-16  err/gamma=1.961e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.115  rel_max=3.570e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E64_decode_z1.2_up/phi1.0/a1_b0 err_cw=1.140e-15  err/gamma=2.006e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    1.17  rel_max=2.249e-11  fallback=33 launches=1 moduli=[0,0]
+[moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75] G=64 max_k=512 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=9.875e-16  err/gamma=1.730e-02
+  ok    emu_grouped       moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=9.568e-17  err/gamma=1.677e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=  0.0969  rel_max=2.241e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E64_decode_z1.2_up/phi1.0/a1.5_b-0.75 err_cw=1.173e-15  err/gamma=2.056e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    1.19  rel_max=3.000e-11  fallback=33 launches=1 moduli=[0,0]
+[moe_E64_decode_z1.2_down/phi1.0/a1_b0] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=1.149e-15  err/gamma=2.941e-02
+  ok    emu_grouped       moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.280e-16  err/gamma=3.275e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.111  rel_max=7.618e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E64_decode_z1.2_down/phi1.0/a1_b0 err_cw=1.149e-15  err/gamma=2.941e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=3.916e-12  fallback=33 launches=1 moduli=[0,0]
+[moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75] G=64 max_k=352 flops=3.460e+07
+  ok    cublas_dgemm                   err_cw=1.101e-15  err/gamma=2.802e-02
+  ok    emu_grouped       moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.388e-16  err/gamma=3.532e-03  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.126  rel_max=1.583e-12  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              moe_E64_decode_z1.2_down/phi1.0/a1.5_b-0.75 err_cw=1.101e-15  err/gamma=2.802e-02  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=4.689e-12  fallback=33 launches=1 moduli=[0,0]
+[het_G32_16-512/phi1.0/a1_b0] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=1.215e-15  err/gamma=2.511e-01
+  ok    emu_grouped       het_G32_16-512/phi1.0/a1_b0 err_cw=7.464e-15  err/gamma=3.362e+00  over_gamma=12 uncert=3954 repaired=0 gate=cert  vs_native=    6.14  rel_max=1.913e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              het_G32_16-512/phi1.0/a1_b0 err_cw=1.215e-15  err/gamma=2.511e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=5.138e-10  fallback=32 launches=1 moduli=[0,0]
+[het_G32_16-512/phi1.0/a1.5_b-0.75] G=32 max_k=498 flops=2.601e+08
+  ok    cublas_dgemm                   err_cw=1.258e-15  err/gamma=2.310e-01
+  ok    emu_grouped       het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=6.207e-15  err/gamma=2.541e+00  over_gamma=5 uncert=2543 repaired=0 gate=cert  vs_native=    4.93  rel_max=2.516e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              het_G32_16-512/phi1.0/a1.5_b-0.75 err_cw=1.258e-15  err/gamma=2.624e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=1.176e-10  fallback=32 launches=1 moduli=[0,0]
+[lora_G8_rmix_shrink/phi1.0/a1_b0] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=6.888e-16  err/gamma=6.059e-03
+  ok    emu_grouped       lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=5.097e-17  err/gamma=4.483e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=   0.074  rel_max=4.469e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              lora_G8_rmix_shrink/phi1.0/a1_b0 err_cw=1.074e-15  err/gamma=9.445e-03  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    1.56  rel_max=4.646e-12  fallback=8 launches=1 moduli=[0,0]
+[lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75] G=8 max_k=1024 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=6.790e-16  err/gamma=5.961e-03
+  ok    emu_grouped       lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=6.676e-17  err/gamma=5.861e-04  over_gamma=0 uncert=0 repaired=0 gate=cert  vs_native=  0.0983  rel_max=2.066e-13  fallback=0 launches=3 moduli=[15,15]
+  ok    auto              lora_G8_rmix_shrink/phi1.0/a1.5_b-0.75 err_cw=1.075e-15  err/gamma=9.442e-03  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=    1.58  rel_max=1.222e-12  fallback=8 launches=1 moduli=[0,0]
+[lora_G8_rmix_expand/phi1.0/a1_b0] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=1.114e-15  err/gamma=5.006e-01
+  ok    emu_grouped       lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=4.162e-15  err/gamma=4.686e+00  over_gamma=138 uncert=22655 repaired=0 gate=cert  vs_native=    3.74  rel_max=1.479e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              lora_G8_rmix_expand/phi1.0/a1_b0 err_cw=1.114e-15  err/gamma=5.006e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=7.968e-12  fallback=8 launches=1 moduli=[0,0]
+[lora_G8_rmix_expand/phi1.0/a1.5_b-0.75] G=8 max_k=64 flops=1.543e+07
+  ok    cublas_dgemm                   err_cw=1.100e-15  err/gamma=3.938e-01
+  ok    emu_grouped       lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=3.041e-15  err/gamma=2.739e+00  over_gamma=36 uncert=8941 repaired=0 gate=cert  vs_native=    2.77  rel_max=4.053e-11  fallback=0 launches=3 moduli=[14,15]
+  ok    auto              lora_G8_rmix_expand/phi1.0/a1.5_b-0.75 err_cw=1.100e-15  err/gamma=3.938e-01  over_gamma=0 uncert=0 repaired=0 gate=strict  vs_native=       1  rel_max=6.045e-12  fallback=8 launches=1 moduli=[0,0]
+
+==== 312 passed, 0 failed ====
+========= LEAK SUMMARY: 0 bytes leaked in 0 allocations
+========= ERROR SUMMARY: 0 errors

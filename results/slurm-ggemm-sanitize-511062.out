@@ -1,0 +1,54 @@
+[preflight] ok: device 0 NVIDIA H200 sm_90
+[calib] GGEMM_CALIB_JSON = /home/money168/hw2_grouped_gemm/bench/calib/params_nvidia_h200.json (auto, gpu='NVIDIA H200')
+[build] nvcc=/usr/local/cuda-13.0/bin/nvcc archs=(90 120) out=/home/money168/hw2_grouped_gemm/build
+Build cuda_13.0.r13.0/compiler.36260728_0
+[build] library: /home/money168/hw2_grouped_gemm/build/libggemm.a
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_graph
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu: In function ‘int main(int, char**)’:
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu:220:253: warning: ‘kind’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+  220 |           CHECK(st.num_fallback == 0 && gate_ok(p, c, e, st, &kind), "%s bigk no-fallback [%s]: fb=%d err/gamma=%.3e "
+      |                                                                                                                                                                                                                                                             ^                                                                                                                                                                                  
+/home/money168/hw2_grouped_gemm/tests/test_grouped.cu:219:13: note: ‘kind’ was declared here
+  219 |           const char* kind;
+      |             ^~~~
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_grouped
+/home/money168/hw2_grouped_gemm/tests/test_i8_grouped.cu:4:1: warning: multi-line comment [-Wcomment]
+    4 | //   /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -gencode arch=compute_90,code=sm_90 \
+      | ^
+/home/money168/hw2_grouped_gemm/tests/test_i8_grouped.cu:4:1: warning: multi-line comment [-Wcomment]
+    4 | //   /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -gencode arch=compute_90,code=sm_90 \
+      | ^
+/home/money168/hw2_grouped_gemm/tests/test_i8_grouped.cu:4:1: warning: multi-line comment [-Wcomment]
+    4 | //   /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -gencode arch=compute_90,code=sm_90 \
+      | ^
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_i8_grouped
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_operand_reuse
+[build] OK: /home/money168/hw2_grouped_gemm/build/test_reuse_e2e
+Version 2025.3.0.0 (build 36260728) (public-release)
+[sanitize] test_grouped / memcheck -> errors=0 status=clean (12s)
+[sanitize] test_grouped / racecheck -> errors=? status=no_summary(rc=0) (100s)
+[sanitize] test_grouped / initcheck -> errors=0 status=clean (8s)
+[sanitize] test_grouped / synccheck -> errors=0 status=clean (8s)
+[sanitize] test_reuse_e2e / memcheck -> errors=0 status=clean (17s)
+[sanitize] test_reuse_e2e / racecheck -> errors=? status=TIMEOUT (900s)
+[sanitize] test_reuse_e2e / initcheck -> errors=0 status=clean (10s)
+[sanitize] test_reuse_e2e / synccheck -> errors=0 status=clean (9s)
+[sanitize] test_graph / memcheck -> errors=0 status=clean (13s)
+[sanitize] test_graph / racecheck -> errors=? status=TIMEOUT (900s)
+[sanitize] test_graph / initcheck -> errors=0 status=clean (10s)
+[sanitize] test_graph / synccheck -> errors=0 status=clean (9s)
+[sanitize] test_i8_grouped / memcheck -> errors=3 status=ERRORS (12s)
+[sanitize] test_i8_grouped / racecheck -> errors=? status=no_summary(rc=0) (59s)
+[sanitize] test_i8_grouped / initcheck -> errors=18990 status=ERRORS (12s)
+[sanitize] test_i8_grouped / synccheck -> errors=0 status=clean (9s)
+[sanitize] test_operand_reuse / memcheck -> errors=? status=no_summary(rc=255) (0s)
+errors per program x compute-sanitizer tool (clean = 0 errors and test exit 0)
+
+| program | memcheck | racecheck | initcheck | synccheck |
+|---|---|---|---|---|
+| test_grouped | 0 | ? (no_summary(rc=0)) | 0 | 0 |
+| test_reuse_e2e | 0 | ? (TIMEOUT) | 0 | 0 |
+| test_graph | 0 | ? (TIMEOUT) | 0 | 0 |
+| test_i8_grouped | 3 (ERRORS) | ? (no_summary(rc=0)) | 18990 (ERRORS) | 0 |
+| test_operand_reuse | ? (no_summary(rc=255)) | ? (n/a_host_only) | ? (n/a_host_only) | ? (n/a_host_only) |
+results: /home/money168/hw2_grouped_gemm/results/sanitize_511062
