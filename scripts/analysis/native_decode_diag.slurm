@@ -20,7 +20,7 @@ OUT="$ROOT/results/ndiag_${JOB}"; mkdir -p "$OUT"
 BASE_REV="${BASE_REV:-HEAD}"
 WT="${WT_BASE:-/work/$USER}/hw2_ndiag_${JOB}"
 NSYS="${NSYS:-$CUDA_HOME/bin/nsys}"
-ONLY="${ONLY:-moe_E64_decode_z1.2_up,moe_E64_decode_z0.0_down,moe_E128_decode_z1.2_down,moe_E64_prefill_z1.2_up}"
+ONLY="${ONLY:-moe_E}"   # substring match (bench --only)
 write_provenance "$OUT"; select_calib "$OUT"
 echo "base: $(git -C "$ROOT" rev-parse "$BASE_REV")  new: working tree (see dirty.patch)" >> "$OUT/provenance.txt"
 git -C "$ROOT" diff > "$OUT/dirty.patch"
