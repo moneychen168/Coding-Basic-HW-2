@@ -1,0 +1,24 @@
+[plot_profiling] wrote docs/figures/fig_stage_breakdown.png
+[plot_profiling] wrote docs/figures/fig_stage_breakdown.svg
+[plot_profiling] wrote docs/figures/fig_gpu_span.png
+[plot_profiling] wrote docs/figures/fig_gpu_span.svg
+[plot_profiling] wrote docs/figures/fig_host_vs_gpu.png
+[plot_profiling] wrote docs/figures/fig_host_vs_gpu.svg
+[plot_profiling] wrote docs/figures/fig_roofline.png
+[plot_profiling] wrote docs/figures/fig_roofline.svg
+[plot_profiling] wrote docs/figures/fig_ncu_kernels.png
+[plot_profiling] wrote docs/figures/fig_ncu_kernels.svg
+total 780
+drwxr-x--- 1 money168 ACD110018      0 Oct 21 16:28 .
+drwxr-x--- 1 money168 ACD110018      0 Oct 21 16:27 ..
+-rw-r----- 1 money168 ACD110018 100387 Oct 21 16:28 fig_gpu_span.png
+-rw-r----- 1 money168 ACD110018  18303 Oct 21 16:28 fig_gpu_span.svg
+-rw-r----- 1 money168 ACD110018  99706 Oct 21 16:28 fig_host_vs_gpu.png
+-rw-r----- 1 money168 ACD110018  23935 Oct 21 16:28 fig_host_vs_gpu.svg
+-rw-r----- 1 money168 ACD110018 125130 Oct 21 16:28 fig_ncu_kernels.png
+-rw-r----- 1 money168 ACD110018  27653 Oct 21 16:28 fig_ncu_kernels.svg
+-rw-r----- 1 money168 ACD110018 176561 Oct 21 16:28 fig_roofline.png
+-rw-r----- 1 money168 ACD110018  43838 Oct 21 16:28 fig_roofline.svg
+-rw-r----- 1 money168 ACD110018 141312 Oct 21 16:28 fig_stage_breakdown.png
+-rw-r----- 1 money168 ACD110018  20175 Oct 21 16:28 fig_stage_breakdown.svg
+-rw-r----- 1 money168 ACD110018   3269 Oct 21 16:27 README.md
