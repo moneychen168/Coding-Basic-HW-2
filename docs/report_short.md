@@ -10,20 +10,20 @@
 
 ## 1. 題目定義
 
-**Grouped GEMM**：一次呼叫處理 G 個互相獨立的矩陣乘法，第 g 個問題是
+**Grouped GEMM**：一次呼叫處理 $G$ 個互相獨立的矩陣乘法，第 $g$ 個問題是
 
-C_g = α_g · A_g (m_g×k_g) · B_g (k_g×n_g) + β_g · C_g
+$$C_g \leftarrow \alpha_g\, A_g B_g + \beta_g\, C_g,\qquad A_g \in \mathbb{R}^{m_g \times k_g},\ B_g \in \mathbb{R}^{k_g \times n_g}$$
 
-G 是一次呼叫的問題個數，m、n、k 是矩陣維度，α、β 是純量，每題的 shape、α、β 都可以不同。所有 shape 相同的特例叫 Batched GEMM。這類負載常見於 MoE（每個 expert 的 token 數不同）、LoRA、block-sparse、tensor network。v1 只支援 column-major、不轉置、FP64 實數。
+$G$ 是一次呼叫的問題個數，$m, n, k$ 是矩陣維度，$\alpha, \beta$ 是純量，每題的 shape、$\alpha$、$\beta$ 都可以不同。所有 shape 相同的特例叫 Batched GEMM。這類負載常見於 MoE（每個 expert 的 token 數不同）、LoRA、block-sparse、tensor network。v1 只支援 column-major、不轉置、FP64 實數。
 
-**為什麼用 INT8 模擬 FP64。** 新一代 GPU（題目的目標機是 RTX 5090，sm_120）FP64 很弱但 INT8 Tensor Core 很強。Ozaki scheme II 把一個 FP64 GEMM 變成 N 個 INT8 GEMM（INT32 精確累加），再用中國剩餘定理（CRT, Chinese Remainder Theorem）還原。目標：在 FP64 精度下，用一個 library 把 G 個異質小問題的固定成本攤掉，並讓 INT8 Tensor Core 保持忙碌。
+**為什麼用 INT8 模擬 FP64。** 新一代 GPU（題目的目標機是 RTX 5090，sm_120）FP64 很弱但 INT8 Tensor Core 很強。Ozaki scheme II 把一個 FP64 GEMM 變成 $N$ 個 INT8 GEMM（INT32 精確累加），再用中國剩餘定理（CRT, Chinese Remainder Theorem）還原。目標：在 FP64 精度下，用一個 library 把 $G$ 個異質小問題的固定成本攤掉，並讓 INT8 Tensor Core 保持忙碌。
 
 **符號。**
-- **N**：一個問題用的模數個數，範圍 [2, 20]；**p_1…p_N**：兩兩互質、每個 ≤ 256 的模數；**P** = ∏ p_l。
-- **plane**：一個模數對應的一份 INT8 residue 矩陣；N 個模數的問題實際有 N+1 份 plane，多出的一份是 abs plane（用於誤差認證）。
-- **u** = 2^-53，**γ_n** = n·u/(1−n·u)（n 次累加的 FP64 誤差界）。
-- **φ**：測資動態範圍參數，a_ij = (U(0,1)−0.5)·exp(φ·N(0,1))（沿用 Ozaki 論文慣例）；φ 越大，同列／行內數值範圍越寬，模擬越難準。
-- **Kp** = round_up(k, 32)；**LPT**：Longest Processing Time first，工作量由大到小排序的排程法。
+- $N$：一個問題用的模數個數，$N \in [2, 20]$；$p_1, \dots, p_N$：兩兩互質、每個 $\le 256$ 的模數；$P = \prod_{l=1}^{N} p_l$。
+- **plane**：一個模數對應的一份 INT8 residue 矩陣；$N$ 個模數的問題實際有 $N+1$ 份 plane，多出的一份是 abs plane（用於誤差認證）。
+- $u = 2^{-53}$，$\gamma_n = \dfrac{n u}{1 - n u}$（$n$ 次累加的 FP64 誤差界）。
+- $\varphi$：測資動態範圍參數，$a_{ij} = \big(U(0,1) - 0.5\big)\cdot \exp\big(\varphi \cdot \mathcal{N}(0,1)\big)$（沿用 Ozaki 論文慣例）；$\varphi$ 越大，同列／行內數值範圍越寬，模擬越難準。
+- $K_p = \lceil k/32 \rceil \cdot 32$（$k$ 向上取到 32 的倍數）；**LPT**：Longest Processing Time first，工作量由大到小排序的排程法。
 - **E2E**：單次 `ggemm_grouped_dgemm()` 以 cudaEvent 量到的時間（見 §5）。
 
 ---
@@ -32,23 +32,28 @@ G 是一次呼叫的問題個數，m、n、k 是矩陣維度，α、β 是純量
 
 ### 2.1 Ozaki scheme II：四步驟（§2.1；依據 [R2]，程式 `src/ozaki2_numerics.cu` 自行撰寫）
 
-1. **Scale / truncate**：A 每列乘 2^{s_i}、B 每行乘 2^{t_j}，向零截斷成整數 A'、B'；s_i、t_j 取到使 Σ|A'||B'| < P/2，CRT 還原才不會有歧義。
-2. **Residue**：對每個模數 p_l 取餘數，存成對稱範圍 int8（得 N 份 plane）。
-3. **INT8 GEMM**：每個模數各做 C_l = A'_l · B'_l，INT32 精確累加（要求 Kp·128² < 2^31，故 k ≤ 131040）。
-4. **CRT reconstruct**：由 N 個餘數矩陣還原整數乘積 X，再反 scale：C = α · 2^{−(s+t)} · X + β·C（乘 2 的冪次沒有捨入誤差）。
+1. **Scale / truncate**：$A$ 第 $i$ 列乘 $2^{s_i}$、$B$ 第 $j$ 行乘 $2^{t_j}$，向零截斷成整數 $A'$、$B'$；$s_i, t_j$ 取到使 $\sum_h \lvert A'_{ih}\rvert \lvert B'_{hj}\rvert < P/2$，CRT 還原才不會有歧義。
+2. **Residue**：對每個模數 $p_l$ 取餘數 $A'_l = A' \bmod p_l$、$B'_l = B' \bmod p_l$，存成對稱範圍 int8（得 $N$ 份 plane）。
+3. **INT8 GEMM**：每個模數各做 $C_l = A'_l B'_l$，INT32 精確累加（要求 $K_p \cdot 128^2 < 2^{31}$，故 $k \le 131040$）。
+4. **CRT reconstruct**：由 $N$ 個餘數矩陣還原整數乘積 $X = A'B'$，再反 scale：$C_{ij} \leftarrow \alpha \cdot 2^{-(s_i + t_j)} \cdot X_{ij} + \beta\, C_{ij}$（乘 2 的冪次沒有捨入誤差）。
 
-**Toy example**（1×2 乘 2×1：A' = [3, 5]，B' = [4, 2]ᵀ，真值 3·4 + 5·2 = 22）。取 p = (5, 7, 8)，P = 280，22 < P/2 = 140。
+**Toy example**（$1\times2$ 乘 $2\times1$：$A' = [3,\ 5]$，$B' = [4,\ 2]^{\mathsf T}$，真值 $3\cdot4 + 5\cdot2 = 22$）。取 $p = (5, 7, 8)$，$P = 280$，$22 < P/2 = 140$。
 
-| p | A' mod p | B' mod p | 餘數域乘積 | r_l |
+| $p_l$ | $A' \bmod p_l$ | $B' \bmod p_l$ | 餘數域乘積 | $r_l$ |
 |---|---|---|---|---|
-| 5 | [3, 0] | [4, 2] | 3·4 + 0·2 = 12 | 12 mod 5 = 2 |
-| 7 | [3, 5] | [4, 2] | 3·4 + 5·2 = 22 | 22 mod 7 = 1 |
-| 8 | [3, 5] | [4, 2] | 3·4 + 5·2 = 22 | 22 mod 8 = 6 |
+| 5 | $[3,\ 0]$ | $[4,\ 2]$ | $3\cdot4 + 0\cdot2 = 12$ | $12 \bmod 5 = 2$ |
+| 7 | $[3,\ 5]$ | $[4,\ 2]$ | $3\cdot4 + 5\cdot2 = 22$ | $22 \bmod 7 = 1$ |
+| 8 | $[3,\ 5]$ | $[4,\ 2]$ | $3\cdot4 + 5\cdot2 = 22$ | $22 \bmod 8 = 6$ |
 
-CRT：M_l = P/p_l = (56, 40, 35)；y_l = M_l^{-1} mod p_l = (1, 3, 3)（驗算：56 mod 5 = 1；40 mod 7 = 5，5·3 = 15 ≡ 1；35 mod 8 = 3，3·3 = 9 ≡ 1）。
-S = Σ r_l·M_l·y_l = 2·56·1 + 1·40·3 + 6·35·3 = 112 + 120 + 630 = 862；Q = rint(862/280) = 3；X = 862 − 3·280 = **22**，與真值相同。
+CRT：$M_l = P/p_l = (56, 40, 35)$；$y_l = M_l^{-1} \bmod p_l = (1, 3, 3)$（驗算：$56 \bmod 5 = 1$；$40 \bmod 7 = 5$，$5\cdot3 = 15 \equiv 1 \pmod 7$；$35 \bmod 8 = 3$，$3\cdot3 = 9 \equiv 1 \pmod 8$）。
 
-實作上餘數用對稱範圍（例如 mod 5 的 3 存成 −2），S 以 uint64 + uint32 兩段精確累加（double-double 等級）。N 的選擇（job 590258 `logs/test_numerics_standalone.log`）：normwise 目標 1e-15 時，k = 256／1024／4096 取 N = 15，k = 16384／65536 取 N = 16；k = 131072 回傳 −1，必須 fallback。
+$$S = \sum_{l} r_l M_l y_l = 2\cdot56\cdot1 + 1\cdot40\cdot3 + 6\cdot35\cdot3 = 112 + 120 + 630 = 862$$
+
+$$Q = \operatorname{rint}(S/P) = \operatorname{rint}(862/280) = 3,\qquad X = S - QP = 862 - 3\cdot280 = 22$$
+
+還原出 $X = 22$，與真值相同。
+
+實作上餘數用對稱範圍（例如 mod 5 的 3 存成 −2），$S$ 以 uint64 + uint32 兩段精確累加（double-double 等級）。N 的選擇（job 590258 `logs/test_numerics_standalone.log`）：normwise 目標 1e-15 時，k = 256／1024／4096 取 N = 15，k = 16384／65536 取 N = 16；k = 131072 回傳 −1，必須 fallback。
 
 ### 2.2 三個 kernel 的 pipeline（§2.2–2.4）
 
@@ -75,14 +80,14 @@ GPU  : [1] oz2_prep_kernel
 ### 2.3 Certify-and-repair（§2.5）
 
 normwise 誤差界無法保證 componentwise 精度（|A||B| 某 entry 因抵銷而很小時相對誤差可任意大）。因此逐 entry 認證：
-1. reconstruct 時算出每 entry 的嚴格誤差上界 E_ij；
-2. 以 abs plane（A'' = floor(2^σ|A|) ∈ [0,127]，INT32 精確累加）算 (|A||B|)_ij 的嚴格下界；
-3. E_ij 夠小（滿足 γ_n 的 componentwise 界）則通過；沒通過者依 repair mode：**OFF** 不認證；**COUNT** 保留模擬值並計數（`EMU_*` 預設，計時區內是純模擬）；**ON** 同 thread 內用 FP64 FMA 內積重算（`AUTO` 預設）；
+1. reconstruct 時算出每個 entry 的嚴格誤差上界 $E_{ij}$；
+2. 以 abs plane（$A'' = \lfloor 2^{\sigma} \lvert A\rvert \rfloor \in [0, 127]$，INT32 精確累加）算 $(\lvert A\rvert \lvert B\rvert)_{ij}$ 的嚴格下界；
+3. $E_{ij}$ 夠小（滿足 $\gamma_n$ 的 componentwise 界）則通過；沒通過者依 repair mode：**OFF** 不認證；**COUNT** 保留模擬值並計數（`EMU_*` 預設，計時區內是純模擬）；**ON** 同 thread 內用 FP64 FMA 內積重算（`AUTO` 預設）；
 4. 含 NaN/Inf 的列或行一律走 FP64 dot。
 
 ### 2.4 AUTO planner（§2.6，`src/planner.cpp`）
 
-AUTO 對每題依序判斷：空問題／k = 0／α = 0 直接處理；k > 131040、k ≤ 16、m·n·k < 32³ 走 native；再由 cost model 比較 t_emu 與 t_native（參數 `bench/calib/params_nvidia_h200.json`，擬合自 `calib_510850.csv`），預測模擬較慢也走 native；其餘才模擬並逐題選 N 與 tile。同一次呼叫內相同 shape 的問題只規劃一次（per-call shape memo，commit a48eb3e），呼叫路徑無配置。
+AUTO 對每題依序判斷：空問題／$k = 0$／$\alpha = 0$ 直接處理；$k > 131040$、$k \le 16$、$m n k < 32^3$ 走 native；再由 cost model 比較 $t_{\text{emu}}$ 與 $t_{\text{native}}$（參數 `bench/calib/params_nvidia_h200.json`，擬合自 `calib_510850.csv`），預測模擬較慢也走 native；其餘才模擬並逐題選 N 與 tile。同一次呼叫內相同 shape 的問題只規劃一次（per-call shape memo，commit a48eb3e），呼叫路徑無配置。
 
 ### 2.5 主要路徑（§2.9；設定依 `tests/test_grouped.cu: cfg_for`、`src/planner.cpp`）
 
@@ -90,7 +95,7 @@ AUTO 對每題依序判斷：空問題／k = 0／α = 0 直接處理；k > 13104
 |---|---|---|---|
 | NATIVE_LOOP | 每題一次 `cublasDgemm` | — | native baseline |
 | NATIVE_GROUPED | `cublasDgemmGroupedBatched` [R16] | — | 主要 native 比較對象 |
-| EMU_LOOP | 逐題模擬，每個 plane 各一次 INT8 launch（O(G·N) 次） | COUNT | 自寫 starter-like baseline |
+| EMU_LOOP | 逐題模擬，每個 plane 各一次 INT8 launch（$O(G \cdot N)$ 次） | COUNT | 自寫 starter-like baseline |
 | EMU_GROUPED | 整組 3 kernel（最終版） | COUNT | 純模擬，量 grouping 增益 |
 | AUTO | 3 kernel + planner，可 fallback 到 native | ON | 預設路徑 |
 
@@ -102,21 +107,25 @@ AUTO 對每題依序判斷：空問題／k = 0／α = 0 直接處理；k > 13104
 
 ### 3.1 正確性（§5）
 
-Reference 是 GPU 上的 double-double 計算，不拿 native FP64 當答案。指標 err/gamma = max_g(err_cw_g)/γ_{n_g}，其中 err_cw = max |C−Cref| / (|α|(|A||B|)_ij + |β||C0_ij|)；≤ 1 代表達到 native DGEMM 自己滿足的界（Higham 2002 §3.5 [R3]）。門檻與 reference 自 5d8e2ad 起從未放寬。兩種 gate：
+Reference 是 GPU 上的 double-double 計算，不拿 native FP64 當答案。指標為
+
+$$\text{err/gamma} = \max_g \frac{\text{err}_{\text{cw},g}}{\gamma_{n_g}},\qquad \text{err}_{\text{cw}} = \max_{i,j} \frac{\lvert C_{ij} - C^{\text{ref}}_{ij}\rvert}{\lvert\alpha\rvert\,(\lvert A\rvert\lvert B\rvert)_{ij} + \lvert\beta\rvert\,\lvert C^{0}_{ij}\rvert}$$
+
+其中 $C^{0}$ 是呼叫前的 $C$；$\le 1$ 代表達到 native DGEMM 自己滿足的界（Higham 2002 §3.5 [R3]）。門檻與 reference 自 5d8e2ad 起從未放寬。兩種 gate：
 - **strict**（native 與 AUTO）：每個 entry err/gamma ≤ 1 且無 non-finite。
-- **cert**（`EMU_*`，COUNT）：每個超過 γ_n 的 entry 都必須被標成 uncertified，可多報、不能漏報。**cert gate 保證「不準的值一定被標出來」，不保證每個輸出都達 FP64 精度。**
+- **cert**（`EMU_*`，COUNT）：每個超過 $\gamma_n$ 的 entry 都必須被標成 uncertified，可多報、不能漏報。**cert gate 保證「不準的值一定被標出來」，不保證每個輸出都達 FP64 精度。**
 
 | 測試 | 結果 | 來源 |
 |---|---|---|
-| test_grouped（7 路徑 × 4 種 φ × α/β + edge + big-K） | **2955 passed / 0 failed** | job 590256、590258（commit 1c39e40） |
+| test_grouped（7 路徑 × 4 種 $\varphi$ × $\alpha/\beta$ + edge + big-K） | **2955 passed / 0 failed** | job 590256、590258（commit 1c39e40） |
 | compute-sanitizer（memcheck／racecheck／initcheck／synccheck，4 個 GPU 測試） | 全部 0 errors | job 590498（commit a6b337d，`src/` 同 1c39e40）`results/sanitize_590498/summary.md`；較早 job 590161（b56631d） |
 | test_graph／test_reuse_e2e／test_planner | 63/0、54/0、1655/0 | job 590258、590258、590223（a48eb3e） |
 
-純模擬在動態範圍寬時**不是** FP64 等級：EMU 路徑 264 列中 56 列 err/gamma > 1，最大 175.9（φ = 2），但全部通過 cert gate（job 590258 `tests.csv`）。repair ON 後 err/gamma 全部 ≤ 1（最大 0.4559），代價是 N = 15、φ = 2 時慢 1.19–4.11 倍、最壞 5.63 倍；ON 模式平均 13.3% 的 entry 需 FP64 重算，N = 13 時部分 workload 超過 99.9%（job 590257，commit 1c39e40，`results/repair_590257/plots/repair_summary.md`）。**repair ON 是正確性安全網，不是加速手段**；φ = 2 時加大 N 比修復划算。
+純模擬在動態範圍寬時**不是** FP64 等級：EMU 路徑 264 列中 56 列 err/gamma > 1，最大 175.9（$\varphi = 2$），但全部通過 cert gate（job 590258 `tests.csv`）。repair ON 後 err/gamma 全部 ≤ 1（最大 0.4559），代價是 N = 15、$\varphi = 2$ 時慢 1.19–4.11 倍、最壞 5.63 倍；ON 模式平均 13.3% 的 entry 需 FP64 重算，N = 13 時部分 workload 超過 99.9%（job 590257，commit 1c39e40，`results/repair_590257/plots/repair_summary.md`）。**repair ON 是正確性安全網，不是加速手段**；$\varphi = 2$ 時加大 N 比修復划算。
 
 ### 3.2 效能（§7）
 
-Bench set 共 44 個 workload（uniform 14、MoE 24、hetero 2、LoRA 4），φ = 0.5，warmup 5、計時 20 次取 median。
+Bench set 共 44 個 workload（uniform 14、MoE 24、hetero 2、LoRA 4），$\varphi = 0.5$，warmup 5、計時 20 次取 median。
 
 | 比較（44 個 workload 的 geomean） | 結果 |
 |---|---|
@@ -173,11 +182,11 @@ emu_grouped 的 GPU-busy stage 佔比（nsys）與 INT8 pipe 利用率（ncu）�
 ### 3.4 兩項由 profiling 驅動的修正（§9.6）
 
 - **Planner per-call shape memo**（commit a48eb3e）：profile 顯示 AUTO 全部 fallback 時仍有大量 host plan 開銷（AUTO host plan 152.0 µs，job 590147）。加入 memo 後 host plan 降到 42.0 µs；uni_G4096_s32 的 AUTO 由 0.7375 ms（job 590147，b56631d）降到 0.2944 ms（job 590258），native_grouped 為 0.2697 ms；AUTO 比 native 慢 5% 以上的列數由 14/44 降到 9/44。**殘留 regression 照實保留**：小問題 uniform 上 AUTO 仍比 native 慢 6.7%–10.3%。
-- **Reconstruct 計數器 warp + block 聚合**（commit 1c39e40）：原本每個 thread 對同一全域位址 atomicAdd 而被序列化。改成 warp shuffle 再 block 聚合後，192 列 EMU 的所有計數與 err_max 完全不變，時間 geomean 為原來的 0.959 倍；uncertified 多的格子最明顯，例如 het_G256 φ = 2 N = 13 COUNT 由 24.68 ms 降到 9.358 ms（job 590148 → 590257）。
+- **Reconstruct 計數器 warp + block 聚合**（commit 1c39e40）：原本每個 thread 對同一全域位址 atomicAdd 而被序列化。改成 warp shuffle 再 block 聚合後，192 列 EMU 的所有計數與 err_max 完全不變，時間 geomean 為原來的 0.959 倍；uncertified 多的格子最明顯，例如 het_G256 $\varphi = 2$ N = 13 COUNT 由 24.68 ms 降到 9.358 ms（job 590148 → 590257）。
 
 ### 3.5 負面結果與失敗（§10）
 
-- **native FP64 全面勝出**（job 590258）：H200 的 FP64 很強（擬合 6.1326e13 flop/s），模擬要做約 N+1 = 16 份 INT8 GEMM 加 prep 與 reconstruct，我們的 INT8 kernel 又只有 cuBLASLt 的約 40%。FP64 較弱的硬體（RTX 5090）上結果是否反轉，**沒有實測**：sm_120 雖有編譯但從未執行過；校正檔的 crossover 推估（N = 15 時方陣邊長 ≥ 4096）只是 model，未驗證且偏樂觀（INT8 擬合峰值 1676 TOPS 高於實測最大 1503.6 TOPS）。
+- **native FP64 全面勝出**（job 590258）：H200 的 FP64 很強（擬合 6.1326e13 flop/s），模擬要做約 $N+1 = 16$ 份 INT8 GEMM 加 prep 與 reconstruct，我們的 INT8 kernel 又只有 cuBLASLt 的約 40%。FP64 較弱的硬體（RTX 5090）上結果是否反轉，**沒有實測**：sm_120 雖有編譯但從未執行過；校正檔的 crossover 推估（N = 15 時方陣邊長 ≥ 4096）只是 model，未驗證且偏樂觀（INT8 擬合峰值 1676 TOPS 高於實測最大 1503.6 TOPS）。
 - **AUTO 全部 fallback，ρ_budget 無法調整**：ρ_budget 掃描（job 590257、590148）全部 fallback，預設值 16 至今沒調過。
 - **INT8 kernel 第二輪改動退步**：cfg0 退步 8.7%–11.7%（job 510965，logs/i8abl_510965.log），四項全部還原仍回不到第一輪，故採第一輪加安全修正。Split-K 在 cfg2 提升 31.7%–53.0% 但 cfg0 下降 2.7%–4.2%（job 511001）；獨立 split-K kernel 在 small256 慢約 31%（job 511054），故預設關閉，且經由 ggemm API 無法啟用。
 - **Operand reuse 增益沒有被證明**（job 590258）；早先 10/07 影片引用的 reuse 1.015–1.079×（job 510998）因對照組也有同樣加速而作廢。
@@ -209,7 +218,7 @@ emu_grouped 的 GPU-busy stage 佔比（nsys）與 INT8 pipe 利用率（ncu）�
 - starter 與最終版比較（job 590633）在同一 job、同一張 GPU 交替各跑 2 次取 median。
 - **量測位置假象**：見 3.5；受影響的 6 列 native baseline 以 job 590956 的第一量測位置為準。
 
-**Workload 選擇理由（§4）。** 每個家族對應一種逐題迴圈會吃虧的情境：uniform small（經典 batched BLAS，每題 2s³ 從 8K 到 33M flops，可看出模擬何時划算）；MoE（m_e 偏斜且可能為 0，expert 順序用 seeded permutation 打亂以避免 in-order 排程佔便宜）；hetero（m、n、k 於 [16, 2048] log-uniform 取樣，最大與最小題差約 10^6 倍，測 tile 選擇與 LPT）；LoRA（Punica [R14]／S-LoRA 情境：n 小時方形 tile 失效，k 小時 reconstruct 成為主要成本）；另有 MoE FFN（FP64，非 LLM；Behler-Parrinello／DeePMD 類型原子勢）與 block-sparse（DBCSR／CP2K 類線性尺度電子結構）兩個應用層 workload。動態範圍 φ = 0.5（效能）與 φ ∈ {0, 0.5, 1, 2}（正確性）。
+**Workload 選擇理由（§4）。** 每個家族對應一種逐題迴圈會吃虧的情境：uniform small（經典 batched BLAS，每題 $2s^3$ 從 8K 到 33M flops，可看出模擬何時划算）；MoE（m_e 偏斜且可能為 0，expert 順序用 seeded permutation 打亂以避免 in-order 排程佔便宜）；hetero（m、n、k 於 [16, 2048] log-uniform 取樣，最大與最小題差約 10^6 倍，測 tile 選擇與 LPT）；LoRA（Punica [R14]／S-LoRA 情境：n 小時方形 tile 失效，k 小時 reconstruct 成為主要成本）；另有 MoE FFN（FP64，非 LLM；Behler-Parrinello／DeePMD 類型原子勢）與 block-sparse（DBCSR／CP2K 類線性尺度電子結構）兩個應用層 workload。動態範圍 $\varphi = 0.5$（效能）與 $\varphi \in \{0, 0.5, 1, 2\}$（正確性）。
 
 **如何重現（§12）。** 所有指令用 sbatch 送出，不要在 login node 跑 GPU 程式；預設 `-A GOV114009 -p dev --gpus-per-node=1 --cpus-per-task=12`，可 `sbatch -A <account>` 覆蓋。
 
@@ -251,7 +260,7 @@ sbatch scripts/final/starter_vs_final.slurm   # starter(v0=5d8e2ad) 對最終版
 **演算法依據（report.md §1、§2.1、§5.1、§11 引用）**
 - [R1] Katsuhisa Ozaki, Takeshi Ogita, Shin'ichi Oishi, Siegfried M. Rump. *Error-free transformations of matrix multiplication by using fast routines of matrix multiplication and its applications.* Numerical Algorithms, Vol. 59, Issue 1, pp. 95–118, 2012. DOI: 10.1007/s11075-011-9478-1。（原檔註記：標題／卷／頁已查證，DOI 未能獨立解析驗證。）
 - [R2] Katsuhisa Ozaki, Yuki Uchino, Toshiyuki Imamura. *Ozaki Scheme II: A GEMM-oriented emulation of floating-point matrix multiplication using an integer modular technique.* arXiv:2504.08009（2025-04-10 投稿，v1；related_work 摘要表記 2504.08009v3）。CRT 模運算分解，GH200 上 14 moduli 達 71.1 TF/s（cuBLAS DGEMM 60.9 TF/s）。
-- [R3] N. J. Higham, 2002, §3.5（誤差界 γ_n 的定義依據；report.md 僅以「Higham 2002 §3.5」引用，repo 內沒有更完整的書目，此處不補寫未查證資訊）。
+- [R3] N. J. Higham, 2002, §3.5（誤差界 $\gamma_n$ 的定義依據；report.md 僅以「Higham 2002 §3.5」引用，repo 內沒有更完整的書目，此處不補寫未查證資訊）。
 
 **Batched／Grouped GEMM 相關工作**
 - [R4] A. Abdelfattah, A. Haidar, S. Tomov, J. Dongarra. *Performance, Design, and Autotuning of Batched GEMM for GPUs.* ISC High Performance 2016, Frankfurt（Springer；icl-utk-945-2016）。
